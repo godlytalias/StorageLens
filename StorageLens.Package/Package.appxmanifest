@@ -1,0 +1,113 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+  xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap10 com rescap">
+
+  <Identity
+    Name="GodlyTAliasGTA.StorageLens"
+    Publisher="CN=EC95ECF5-4DA1-4346-8F44-258D3838C582"
+    Version="1.0.2.0" />
+
+  <mp:PhoneIdentity
+    PhoneProductId="5205F73A-EB0D-4A04-A8E3-6B44A9143D3A"
+    PhonePublisherId="00000000-0000-0000-0000-000000000000" />
+
+  <Properties>
+    <DisplayName>StorageLens</DisplayName>
+    <PublisherDisplayName>Godly T Alias (GTA)</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <uap10:PackageIntegrity>
+      <uap10:Content Enforcement="on" />
+    </uap10:PackageIntegrity>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily
+      Name="Windows.Universal"
+      MinVersion="10.0.22000.0"
+      MaxVersionTested="10.0.26226.0" />
+    <TargetDeviceFamily
+      Name="Windows.Desktop"
+      MinVersion="10.0.22000.0"
+      MaxVersionTested="10.0.26226.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-US" />
+    <Resource Language="ar-SA" />
+    <Resource Language="es-ES" />
+    <Resource Language="fr-FR" />
+    <Resource Language="he-IL" />
+    <Resource Language="hi-IN" />
+    <Resource Language="ja-JP" />
+    <Resource Language="ko-KR" />
+    <Resource Language="zh-CN" />
+  </Resources>
+
+  <Applications>
+    <Application
+      Id="App"
+      Executable="$targetnametoken$.exe"
+      EntryPoint="$targetentrypoint$">
+      <uap:VisualElements
+        DisplayName="StorageLens"
+        Description="Visualize, organize, and review reclaimable storage without deleting anything automatically."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <Extension
+          Category="windows.backgroundTasks"
+          EntryPoint="Microsoft.Windows.ApplicationModel.Background.UniversalBGTask.Task">
+          <BackgroundTasks>
+            <Task Type="timer" />
+            <Task Type="systemEvent" />
+          </BackgroundTasks>
+        </Extension>
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="storagelens" />
+        </uap:Extension>
+        <com:Extension Category="windows.comServer">
+          <com:ComServer>
+            <com:ExeServer
+              Executable="StorageLens\StorageLens.exe"
+              Arguments="-RegisterForBGTaskServer"
+              DisplayName="Storage Lens monitor"
+              LaunchAndActivationPermission="O:PSG:BUD:(A;;11;;;IU)(A;;11;;;S-1-15-2-1)S:(ML;;NX;;;LW)">
+              <com:Class
+                Id="7A8BBBE6-8C7A-4CDA-9DF8-D0A6A9F68B4E"
+                DisplayName="Storage Lens monitor task" />
+              <com:Class
+                Id="E25BCE3D-6E15-4B68-A3D2-D72FB9D6BCE3"
+                DisplayName="Storage Lens idle index task" />
+            </com:ExeServer>
+          </com:ComServer>
+        </com:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Extensions>
+    <Extension Category="windows.activatableClass.inProcessServer">
+      <InProcessServer>
+        <Path>StorageLens\Microsoft.Windows.ApplicationModel.Background.UniversalBGTask.dll</Path>
+        <ActivatableClass
+          ActivatableClassId="Microsoft.Windows.ApplicationModel.Background.UniversalBGTask.Task"
+          ThreadingModel="both" />
+      </InProcessServer>
+    </Extension>
+  </Extensions>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

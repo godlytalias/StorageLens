@@ -1,0 +1,1014 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms</value>
+  </resheader>
+  <data name="NavigationSearchBox.PlaceholderText" xml:space="preserve">
+    <value>البحث في الملفات والمجلدات</value>
+  </data>
+  <data name="NavigationOverviewItem.Content" xml:space="preserve">
+    <value>نظرة عامة</value>
+  </data>
+  <data name="NavigationExplorerItem.Content" xml:space="preserve">
+    <value>مستكشف التخزين</value>
+  </data>
+  <data name="NavigationCleanupItem.Content" xml:space="preserve">
+    <value>مراجعة التنظيف</value>
+  </data>
+  <data name="NavigationTipsItem.Content" xml:space="preserve">
+    <value>نصائح التنظيم</value>
+  </data>
+  <data name="NavigationAutomationItem.Content" xml:space="preserve">
+    <value>الأتمتة</value>
+  </data>
+  <data name="NavigationHelpItem.Content" xml:space="preserve">
+    <value>المساعدة</value>
+  </data>
+  <data name="OrganizationTipsTitle" xml:space="preserve">
+    <value>نصائح Storage Lens</value>
+  </data>
+  <data name="OrganizationTipsText" xml:space="preserve">
+    <value>ابدأ بملفات ذاكرة التخزين المؤقت والملفات المؤقتة، ثم راجع التنزيلات القديمة والنسخ المكررة الكبيرة. راجع ملفات النظام بعناية قبل التنظيف.</value>
+  </data>
+  <data name="OrganizationTipsCloseButton" xml:space="preserve">
+    <value>فهمت</value>
+  </data>
+  <data name="OverviewTitle.Text" xml:space="preserve">
+    <value>نظرة عامة على التخزين</value>
+  </data>
+  <data name="OverviewSubtitle.Text" xml:space="preserve">
+    <value>اطّلع على ما يستهلك المساحة، وما الذي يتغير، وما الذي يمكنك مراجعته بأمان لاحقًا.</value>
+  </data>
+  <data name="DriveSelector.Header" xml:space="preserve">
+    <value>محرك الأقراص</value>
+  </data>
+  <data name="ScanStorageButtonLabel.Text" xml:space="preserve">
+    <value>فحص محرك الأقراص</value>
+  </data>
+  <data name="CancelScanButton.Content" xml:space="preserve">
+    <value>إلغاء الفحص</value>
+  </data>
+  <data name="ScanProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>تقدم فحص محرك الأقراص</value>
+  </data>
+  <data name="NoScanDataInfoBar.Title" xml:space="preserve">
+    <value>إنشاء فهرس التخزين</value>
+  </data>
+  <data name="NoScanDataInfoBar.Message" xml:space="preserve">
+    <value>حدد محرك أقراص وابدأ الفحص. تظل عمليات الفحص المكتملة على هذا الجهاز وتُستخدم لتشغيل المستكشف ومراجعة التنظيف ومقارنات النمو.</value>
+  </data>
+  <data name="OverviewErrorInfoBar.Title" xml:space="preserve">
+    <value>تعذّر تحميل بيانات التخزين</value>
+  </data>
+  <data name="OverviewCoverageInfoBar.Title" xml:space="preserve">
+    <value>تغطية الفهرس</value>
+  </data>
+  <data name="OverviewCoverageFormat" xml:space="preserve">
+    <value>تمت فهرسة {0} من المساحة المخصصة على القرص. لا تُنسب {1} إلى ملفات مفهرسة، وتم تسجيل {2} من المواقع التي يتعذر الوصول إليها أو المستبعدة.</value>
+  </data>
+  <data name="OverviewLegacyCoverageFormat" xml:space="preserve">
+    <value>يحتوي الفهرس القديم على {0} من أحجام الملفات المفهرسة. لا تُنسب {1}؛ وتظل المساحة الفعلية المخصصة غير معروفة حتى فحص محرك الأقراص التالي. وتم تسجيل {2} من المواقع التي يتعذر الوصول إليها أو المستبعدة.</value>
+  </data>
+  <data name="StorageUsageRing.AutomationProperties.Name" xml:space="preserve">
+    <value>استخدام محرك الأقراص</value>
+  </data>
+  <data name="StorageUsedLabel.Text" xml:space="preserve">
+    <value>مُستخدم</value>
+  </data>
+  <data name="IndexDetailsExpander.Header" xml:space="preserve">
+    <value>تفاصيل الفحص</value>
+  </data>
+  <data name="OverviewStorageProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>مساحة التخزين المستخدمة في محرك الأقراص</value>
+  </data>
+  <data name="CategoryStorageProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>حصة التخزين المستخدم</value>
+  </data>
+  <data name="UsedSpaceLabel.Text" xml:space="preserve">
+    <value>المستخدم</value>
+  </data>
+  <data name="FreeSpaceLabel.Text" xml:space="preserve">
+    <value>المتاح</value>
+  </data>
+  <data name="CapacityLabel.Text" xml:space="preserve">
+    <value>السعة</value>
+  </data>
+  <data name="CleanupOpportunityLabel.Text" xml:space="preserve">
+    <value>مساحة قابلة للمراجعة</value>
+  </data>
+  <data name="CleanupOpportunityValue.Text" xml:space="preserve">
+    <value>42 GB</value>
+  </data>
+  <data name="CleanupOpportunityDescription.Text" xml:space="preserve">
+    <value>البيانات المؤقتة والتنزيلات القديمة وذاكرة التخزين المؤقت للحزم والملفات المكررة وملفات الاستعادة.</value>
+  </data>
+  <data name="ReviewCleanupButton.Content" xml:space="preserve">
+    <value>مراجعة التنظيف</value>
+  </data>
+  <data name="CategoryBreakdownTitle.Text" xml:space="preserve">
+    <value>التخزين حسب الفئة</value>
+  </data>
+  <data name="TopFoldersTitle.Text" xml:space="preserve">
+    <value>أكبر المجلدات</value>
+  </data>
+  <data name="TopFoldersDescription.Text" xml:space="preserve">
+    <value>المجلدات الفرعية الأكثر استهلاكًا للمساحة، مع استكشاف المجلدات الرئيسية تلقائيًا.</value>
+  </data>
+  <data name="ExploreStorageButton.Content" xml:space="preserve">
+    <value>استكشاف شجرة المجلدات</value>
+  </data>
+  <data name="CleanupSuggestionsTitle.Text" xml:space="preserve">
+    <value>الإجراء التالي الموصى به</value>
+  </data>
+  <data name="OpenCleanupReviewButton.Content" xml:space="preserve">
+    <value>فتح مراجعة التنظيف</value>
+  </data>
+  <data name="LargestFilesTitle.Text" xml:space="preserve">
+    <value>أكبر الملفات</value>
+  </data>
+  <data name="LargestFilesDescription.Text" xml:space="preserve">
+    <value>ملفات فردية مرتبة حسب الحجم. تُعرض أحجام المجلدات الإجمالية بشكل منفصل.</value>
+  </data>
+  <data name="GrowingFoldersTitle.Text" xml:space="preserve">
+    <value>مجلدات تنمو بسرعة</value>
+  </data>
+  <data name="GrowingFoldersDescription.Text" xml:space="preserve">
+    <value>اكتشف النمو الأخير قبل أن يتحول إلى مشكلة نقص المساحة.</value>
+  </data>
+  <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
+    <value>لم تُرصد مجلدات سريعة النمو بعد</value>
+  </data>
+  <data name="GrowingFoldersEmptyHint.Text" xml:space="preserve">
+    <value>يظهر النمو بعد عمليات فحص قابلة للمقارنة.</value>
+  </data>
+  <data name="GrowthTrackingThresholdFormat" xml:space="preserve">
+    <value>تتم متابعة مجلدات بحجم {0:N0} GB أو أكثر</value>
+  </data>
+  <data name="RefreshingPreview" xml:space="preserve">
+    <value>جارٍ تحديث معاينة التخزين…</value>
+  </data>
+  <data name="PreviewUpdated" xml:space="preserve">
+    <value>تم تحديث المعاينة الآن</value>
+  </data>
+  <data name="PreviewLastUpdated" xml:space="preserve">
+    <value>تم التحديث منذ 8 دقائق</value>
+  </data>
+  <data name="ExplorerTitle.Text" xml:space="preserve">
+    <value>مستكشف التخزين</value>
+  </data>
+  <data name="ExplorerSubtitle.Text" xml:space="preserve">
+    <value>تتبّع الاستخدام الفعلي للمجلدات، وافحص العناصر الكبيرة، وصفِّ حسب الفئة أو العلامة.</value>
+  </data>
+  <data name="ExplorerNoScanInfoBar.Title" xml:space="preserve">
+    <value>لا يوجد فحص مكتمل لهذا محرك الأقراص</value>
+  </data>
+  <data name="ExplorerNoScanInfoBar.Message" xml:space="preserve">
+    <value>ارجع إلى النظرة العامة وافحص محرك الأقراص لملء طريقة العرض هذه.</value>
+  </data>
+  <data name="ExplorerErrorInfoBar.Title" xml:space="preserve">
+    <value>تعذّر تحديث المستكشف</value>
+  </data>
+  <data name="ExplorerDriveSelector.Header" xml:space="preserve">
+    <value>محرك الأقراص</value>
+  </data>
+  <data name="ExplorerSearchBox.PlaceholderText" xml:space="preserve">
+    <value>تصفية الملفات والمجلدات</value>
+  </data>
+  <data name="CategoryFilter.Header" xml:space="preserve">
+    <value>الفئة</value>
+  </data>
+  <data name="SortSelector.Header" xml:space="preserve">
+    <value>فرز</value>
+  </data>
+  <data name="ClearFiltersButton.Content" xml:space="preserve">
+    <value>إعادة تعيين عوامل التصفية</value>
+  </data>
+  <data name="FolderTreeTitle.Text" xml:space="preserve">
+    <value>شجرة المجلدات</value>
+  </data>
+  <data name="StorageItemsTitle.Text" xml:space="preserve">
+    <value>العناصر في طريقة العرض هذه</value>
+  </data>
+  <data name="NavigateUpButton.AutomationProperties.Name" xml:space="preserve">
+    <value>الانتقال إلى المجلد الأعلى</value>
+  </data>
+  <data name="ReclaimableCandidateLabel.Text" xml:space="preserve">
+    <value>مراجعة للتنظيف</value>
+  </data>
+  <data name="SystemItemLabel.Text" xml:space="preserve">
+    <value>عنصر نظام</value>
+  </data>
+  <data name="OpenLocationButton.Content" xml:space="preserve">
+    <value>فتح في مستكشف الملفات</value>
+  </data>
+  <data name="OpenChildrenButton.Content" xml:space="preserve">
+    <value>فتح المجلد</value>
+  </data>
+  <data name="ExplorerAllItems" xml:space="preserve">
+    <value>كل العناصر</value>
+  </data>
+  <data name="ExplorerLargestFirst" xml:space="preserve">
+    <value>الأكبر أولاً</value>
+  </data>
+  <data name="ExplorerRecentlyModified" xml:space="preserve">
+    <value>المعدّل مؤخرًا</value>
+  </data>
+  <data name="ExplorerSortName" xml:space="preserve">
+    <value>الاسم</value>
+  </data>
+  <data name="SafetySafe" xml:space="preserve">
+    <value>آمن</value>
+  </data>
+  <data name="SafetyReview" xml:space="preserve">
+    <value>مراجعة</value>
+  </data>
+  <data name="SafetyCaution" xml:space="preserve">
+    <value>تنبيه</value>
+  </data>
+  <data name="ItemCountSingularFormat" xml:space="preserve">
+    <value>{0:N0} عنصر</value>
+  </data>
+  <data name="ItemCountPluralFormat" xml:space="preserve">
+    <value>{0:N0} عناصر</value>
+  </data>
+  <data name="CleanupTitle.Text" xml:space="preserve">
+    <value>مراجعة التنظيف</value>
+  </data>
+  <data name="CleanupSubtitle.Text" xml:space="preserve">
+    <value>راجع التوصيات حسب مستوى الأمان قبل إزالة أي شيء.</value>
+  </data>
+  <data name="CleanupDriveSelector.AutomationProperties.Name" xml:space="preserve">
+    <value>محرك الأقراص</value>
+  </data>
+  <data name="SelectSafeButton.Content" xml:space="preserve">
+    <value>تحديد العناصر الآمنة</value>
+  </data>
+  <data name="ClearSelectionButton.Content" xml:space="preserve">
+    <value>مسح التحديد</value>
+  </data>
+  <data name="CleanupSafetyInfoBar.Title" xml:space="preserve">
+    <value>راجع أولاً، ثم نفّذ</value>
+  </data>
+  <data name="CleanupSafetyInfoBar.Message" xml:space="preserve">
+    <value>تتم إعادة التحقق من كل عنصر مرشح فورًا قبل التنظيف. تُنقل العناصر المؤهلة إلى سلة المحذوفات؛ ولا يُحذف أي شيء نهائيًا.</value>
+  </data>
+  <data name="ReclaimableSpaceLabel.Text" xml:space="preserve">
+    <value>قابل للاسترداد</value>
+  </data>
+  <data name="SelectedForReviewLabel.Text" xml:space="preserve">
+    <value>محدد للمراجعة</value>
+  </data>
+  <data name="SelectedGroupsLabel.Text" xml:space="preserve">
+    <value>مجموعات</value>
+  </data>
+  <data name="SelectedGroupSingular" xml:space="preserve">
+    <value>مجموعة</value>
+  </data>
+  <data name="SelectedGroupPlural" xml:space="preserve">
+    <value>مجموعات</value>
+  </data>
+  <data name="ReviewSelectedButton.Content" xml:space="preserve">
+    <value>مراجعة التحديد</value>
+  </data>
+  <data name="CleanupReviewDialog.Title" xml:space="preserve">
+    <value>مراجعة التنظيف المحدد</value>
+  </data>
+  <data name="CleanupReviewDialog.PrimaryButtonText" xml:space="preserve">
+    <value>نقل إلى سلة المحذوفات</value>
+  </data>
+  <data name="CleanupReviewDialog.CloseButtonText" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="CleanupReviewDialogMessage.Text" xml:space="preserve">
+    <value>أكد المجموعات المحددة. سيعيد Storage Lens التحقق من كل عنصر مرشح وينقل إلى سلة المحذوفات الملفات التي لا تزال مؤهلة فقط.</value>
+  </data>
+  <data name="CleanupReviewSelectionLabel.Text" xml:space="preserve">
+    <value>المجموعات المحددة</value>
+  </data>
+  <data name="CleanupReviewSafetyNote.Text" xml:space="preserve">
+    <value>يمكن استرداد الملفات من سلة المحذوفات. يتم تخطي الملفات المؤمَّنة أو المتغيرة أو المحمية أو المتاحة على السحابة فقط أو غير المسموح بها وإدراجها في التقرير.</value>
+  </data>
+  <data name="CleanupCandidatesDialog.Title" xml:space="preserve">
+    <value>الملفات المتضمنة في هذا التنظيف</value>
+  </data>
+  <data name="CleanupCandidatesDialog.CloseButtonText" xml:space="preserve">
+    <value>إغلاق</value>
+  </data>
+  <data name="CleanupCandidatesPreviewNote.Text" xml:space="preserve">
+    <value>يتم استبعاد العناصر غير المحددة من التنظيف. افتح ملفاً في مستكشف التخزين لفحصه عن قرب.</value>
+  </data>
+  <data name="CleanupCandidateFoldersHeader.Text" xml:space="preserve">
+    <value>المجلدات</value>
+  </data>
+  <data name="CleanupCandidateFoldersHint.Text" xml:space="preserve">
+    <value>اختر مجلداً لمراجعة كل الملفات المطابقة في شجرة المجلد.</value>
+  </data>
+  <data name="CleanupCandidateFilesHeader.Text" xml:space="preserve">
+    <value>الملفات في شجرة المجلد المحدد</value>
+  </data>
+  <data name="IncludeCleanupFolderButton.Content" xml:space="preserve">
+    <value>تضمين المجلد</value>
+  </data>
+  <data name="ExcludeCleanupFolderButton.Content" xml:space="preserve">
+    <value>استبعاد المجلد</value>
+  </data>
+  <data name="CleanupFolderSummaryFormat" xml:space="preserve">
+    <value>{0} ملفات - {1}</value>
+  </data>
+  <data name="CleanupFolderSelectionFormat" xml:space="preserve">
+    <value>تم تحديد {0} من أصل {1} في شجرة المجلد هذه</value>
+  </data>
+  <data name="CleanupCandidatesBackButton.AutomationProperties.Name" xml:space="preserve">
+    <value>العودة إلى مراجعة التنظيف</value>
+  </data>
+  <data name="CleanupCardInspectFiles.Text" xml:space="preserve">
+    <value>فحص الملفات</value>
+  </data>
+  <data name="CleanupActionInspectFiles" xml:space="preserve">
+    <value>فحص الملفات</value>
+  </data>
+  <data name="CleanupActionInspectAdvisory" xml:space="preserve">
+    <value>فحص ملفات التنبيه</value>
+  </data>
+  <data name="CleanupActionManagedWindows" xml:space="preserve">
+    <value>فحص الملفات التي تديرها Windows</value>
+  </data>
+  <data name="CleanupReclaimableSpaceLabel" xml:space="preserve">
+    <value>قابلة للاسترداد</value>
+  </data>
+  <data name="CleanupAdvisorySpaceLabel" xml:space="preserve">
+    <value>للمراجعة</value>
+  </data>
+  <data name="CleanupWindowsManagedSpaceLabel" xml:space="preserve">
+    <value>تديره Windows</value>
+  </data>
+  <data name="CleanupInspectionOnlyFormat" xml:space="preserve">
+    <value>{0} ملفاً للمراجعة في شجرة المجلد</value>
+  </data>
+  <data name="WindowsOldManagedCleanupInfoBar.Title" xml:space="preserve">
+    <value>تدير Windows هذا التنظيف</value>
+  </data>
+  <data name="WindowsOldManagedCleanupInfoBar.Message" xml:space="preserve">
+    <value>Windows.old نسخة استعادة محمية. لا تحذفها Storage Lens ملفاً بملف؛ استخدم Storage Sense لمراجعتها وإزالتها بأمان.</value>
+  </data>
+  <data name="OpenStorageSenseButton.Content" xml:space="preserve">
+    <value>فتح Storage Sense</value>
+  </data>
+  <data name="ManagedCleanupLaunchFailed" xml:space="preserve">
+    <value>تعذر فتح إعدادات تخزين Windows.</value>
+  </data>
+  <data name="CleanupResultNoChangesTitle" xml:space="preserve">
+    <value>لم تتغير أي ملفات</value>
+  </data>
+  <data name="CleanupResultSuccessTitle" xml:space="preserve">
+    <value>اكتمل التنظيف</value>
+  </data>
+  <data name="CleanupResultPartialTitle" xml:space="preserve">
+    <value>يحتاج التنظيف إلى انتباه</value>
+  </data>
+  <data name="CleanupResultNoChangesDetails" xml:space="preserve">
+    <value>لم يتم نقل أي ملفات حالية. تم تخطي العناصر القديمة أو المتغيرة وإزالتها من الفهرس المحلي؛ حدّث التوصية قبل المحاولة مجدداً.</value>
+  </data>
+  <data name="CleanupResultExcludedDetailsFormat" xml:space="preserve">
+    <value>لم يتم نقل أي ملفات لأن {0} عنصراً تم استبعاده عمداً من هذا التنظيف.</value>
+  </data>
+  <data name="CleanupCandidatesErrorInfoBar.Title" xml:space="preserve">
+    <value>تعذّر تحميل الملفات</value>
+  </data>
+  <data name="CleanupCandidatesEmptyText.Text" xml:space="preserve">
+    <value>لا توجد ملفات مؤهلة في شجرة المجلد هذه. اختر مجلداً أو فئة أخرى.</value>
+  </data>
+  <data name="CleanupCandidatesLoadTimeout" xml:space="preserve">
+    <value>استغرق تحميل قائمة الملفات وقتًا طويلًا. أغلق مربع الحوار هذا وحاول مجددًا بعد خمول فحص التخزين.</value>
+  </data>
+  <data name="CleanupCandidatesLoadFailed" xml:space="preserve">
+    <value>تعذّر تحميل قائمة الملفات: {0}</value>
+  </data>
+  <data name="PreviousCandidatePageButton.Content" xml:space="preserve">
+    <value>السابق</value>
+  </data>
+  <data name="NextCandidatePageButton.Content" xml:space="preserve">
+    <value>التالي</value>
+  </data>
+  <data name="CleanupProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>تقدم التنظيف</value>
+  </data>
+  <data name="CleanupDialogErrorInfoBar.Title" xml:space="preserve">
+    <value>تعذّر متابعة التنظيف</value>
+  </data>
+  <data name="CleanupResultDialog.Title" xml:space="preserve">
+    <value>اكتمل التنظيف</value>
+  </data>
+  <data name="CleanupResultDialog.CloseButtonText" xml:space="preserve">
+    <value>إغلاق</value>
+  </data>
+  <data name="SettingsTitle.Text" xml:space="preserve">
+    <value>الإعدادات</value>
+  </data>
+  <data name="SettingsSubtitle.Text" xml:space="preserve">
+    <value>اختر كيفية عرض Storage Lens لتنظيف التخزين والتوصية به.</value>
+  </data>
+  <data name="ResetSettingsButton.Content" xml:space="preserve">
+    <value>إعادة تعيين الإعدادات الافتراضية</value>
+  </data>
+  <data name="SettingsPrototypeInfoBar.Title" xml:space="preserve">
+    <value>إعدادات الأمان</value>
+  </data>
+  <data name="SettingsPrototypeInfoBar.Message" xml:space="preserve">
+    <value>تُحفظ التفضيلات على هذا الجهاز. لا يمكن تعطيل تأكيد التنظيف النهائي أو استبعاد الملفات المتاحة على السحابة فقط.</value>
+  </data>
+  <data name="AppearanceSettingsTitle.Text" xml:space="preserve">
+    <value>المظهر</value>
+  </data>
+  <data name="AppearanceSettingsDescription.Text" xml:space="preserve">
+    <value>اتبع Windows تلقائيًا أو اختر نسقًا ثابتًا للتطبيق.</value>
+  </data>
+  <data name="ThemeSelector.Header" xml:space="preserve">
+    <value>نسق التطبيق</value>
+  </data>
+  <data name="ThemeSystemOption.Content" xml:space="preserve">
+    <value>استخدام إعداد النظام</value>
+  </data>
+  <data name="ThemeLightOption.Content" xml:space="preserve">
+    <value>فاتح</value>
+  </data>
+  <data name="ThemeDarkOption.Content" xml:space="preserve">
+    <value>داكن</value>
+  </data>
+  <data name="ScanSettingsTitle.Text" xml:space="preserve">
+    <value>فحص التخزين</value>
+  </data>
+  <data name="ScanOnLaunchToggle.Header" xml:space="preserve">
+    <value>تحديث النظرة العامة عند بدء تشغيل التطبيق</value>
+  </data>
+  <data name="ShowSystemItemsToggle.Header" xml:space="preserve">
+    <value>إظهار ملفات النظام والمجلدات المحمية</value>
+  </data>
+  <data name="ShowHiddenItemsToggle.Header" xml:space="preserve">
+    <value>إظهار الملفات المخفية في النتائج</value>
+  </data>
+  <data name="CleanupSettingsTitle.Text" xml:space="preserve">
+    <value>أمان التنظيف</value>
+  </data>
+  <data name="LocalIndexTitle.Text" xml:space="preserve">
+    <value>فهرس التخزين المحلي</value>
+  </data>
+  <data name="CompactIndexButton.Content" xml:space="preserve">
+    <value>ضغط الفهرس</value>
+  </data>
+  <data name="CheckIndexButton.Content" xml:space="preserve">
+    <value>التحقق من سلامة الفهرس</value>
+  </data>
+  <data name="SmartSuggestionsToggle.Header" xml:space="preserve">
+    <value>تقديم اقتراحات تنظيف ذكية</value>
+  </data>
+  <data name="ConfirmCleanupToggle.Header" xml:space="preserve">
+    <value>طلب تأكيد نهائي</value>
+  </data>
+  <data name="ExcludeCloudOnlyToggle.Header" xml:space="preserve">
+    <value>استبعاد الملفات المتاحة على السحابة فقط من اقتراحات التنظيف</value>
+  </data>
+  <data name="AboutDescription.Text" xml:space="preserve">
+    <value>معلومات خاصة عن التخزين. تبقى بياناتك على هذا الجهاز.</value>
+  </data>
+  <data name="AboutVersion.Text" xml:space="preserve">
+    <value>الإصدار 1.0</value>
+  </data>
+  <data name="ByteUnitBytes" xml:space="preserve">
+    <value>B</value>
+  </data>
+  <data name="ByteUnitKilobytes" xml:space="preserve">
+    <value>KB</value>
+  </data>
+  <data name="ByteUnitMegabytes" xml:space="preserve">
+    <value>MB</value>
+  </data>
+  <data name="ByteUnitGigabytes" xml:space="preserve">
+    <value>GB</value>
+  </data>
+  <data name="ByteUnitTerabytes" xml:space="preserve">
+    <value>TB</value>
+  </data>
+  <data name="ModifiedTodayFormat" xml:space="preserve">
+    <value>اليوم، {0:t}</value>
+  </data>
+  <data name="ModifiedYesterday" xml:space="preserve">
+    <value>أمس</value>
+  </data>
+  <data name="AutomationTitle.Text" xml:space="preserve">
+    <value>الأتمتة</value>
+  </data>
+  <data name="AutomationSubtitle.Text" xml:space="preserve">
+    <value>راقب المساحة المتاحة وجدول مراجعات التنظيف من دون التحقق يدويًا من كل محرك أقراص.</value>
+  </data>
+  <data name="AutomationPreviewAlertButton.Content" xml:space="preserve">
+    <value>معاينة التنبيه</value>
+  </data>
+  <data name="AutomationSafetyInfoBar.Title" xml:space="preserve">
+    <value>المراقبة في الخلفية وأمان التنظيف</value>
+  </data>
+  <data name="AutomationSafetyInfoBar.Message" xml:space="preserve">
+    <value>تعمل عمليات الفحص في الخلفية أثناء الخمول. التنظيف التلقائي متوقف افتراضيًا.</value>
+  </data>
+  <data name="StorageMonitorCardTitle.Text" xml:space="preserve">
+    <value>مراقب التخزين</value>
+  </data>
+  <data name="StorageMonitorCardDescription.Text" xml:space="preserve">
+    <value>تنبيهات انخفاض المساحة ونمو المجلدات السريع.</value>
+  </data>
+  <data name="NotificationPreferencesTitle.Text" xml:space="preserve">
+    <value>الإشعارات</value>
+  </data>
+  <data name="BackgroundIndexCardTitle.Text" xml:space="preserve">
+    <value>فهرسة محركات الأقراص عند الخمول</value>
+  </data>
+  <data name="BackgroundIndexCardDescription.Text" xml:space="preserve">
+    <value>حدّث فهارس محركات الأقراص أثناء صيانة Windows حتى تظل معلومات التخزين حديثة من دون مقاطعة عملك.</value>
+  </data>
+  <data name="BackgroundIndexSafetyInfoBar.Title" xml:space="preserve">
+    <value>تأثير منخفض</value>
+  </data>
+  <data name="BackgroundIndexSafetyInfoBar.Message" xml:space="preserve">
+    <value>تعمل مهمة الفهرس أثناء غيابك وتستخدم تغييرات دفتر اليومية التزايدية عندما تكون متاحة.</value>
+  </data>
+  <data name="StorageMonitorToggle.Header" xml:space="preserve">
+    <value>التشغيل في الخلفية</value>
+  </data>
+  <data name="MonitorFrequencyComboBox.Header" xml:space="preserve">
+    <value>تكرار التحقق</value>
+  </data>
+  <data name="LowSpaceThresholdNumberBox.Header" xml:space="preserve">
+    <value>تنبيه انخفاض المساحة دون (GB)</value>
+  </data>
+  <data name="GrowthThresholdNumberBox.Header" xml:space="preserve">
+    <value>تنبيه النمو بعد إضافة (GB)</value>
+  </data>
+  <data name="TrackedFolderSizeNumberBox.Header" xml:space="preserve">
+    <value>متابعة المجلدات التي لا يقل حجمها عن (GB)</value>
+  </data>
+  <data name="LowSpaceNotificationsToggle.Header" xml:space="preserve">
+    <value>إشعارات انخفاض المساحة</value>
+  </data>
+  <data name="FolderGrowthNotificationsToggle.Header" xml:space="preserve">
+    <value>إشعارات النمو السريع</value>
+  </data>
+  <data name="BackgroundIndexToggle.Header" xml:space="preserve">
+    <value>فهرسة محركات الأقراص أثناء الخمول</value>
+  </data>
+  <data name="BackgroundIndexToggle.OffContent" xml:space="preserve">
+    <value>إيقاف</value>
+  </data>
+  <data name="BackgroundIndexToggle.OnContent" xml:space="preserve">
+    <value>تشغيل</value>
+  </data>
+  <data name="BackgroundIndexIntervalNumberBox.Header" xml:space="preserve">
+    <value>فاصل الفهرسة (أيام)</value>
+  </data>
+  <data name="AutomationUnsavedChanges" xml:space="preserve">
+    <value>لم يتم تطبيق التغييرات</value>
+  </data>
+  <data name="SaveAutomationButton.Content" xml:space="preserve">
+    <value>تطبيق إعدادات المراقبة</value>
+  </data>
+  <data name="CleanupSchedulesTitle.Text" xml:space="preserve">
+    <value>مراجعات التنظيف المجدولة</value>
+  </data>
+  <data name="CleanupSchedulesDescription.Text" xml:space="preserve">
+    <value>اختر الفئات والفاصل الزمني. تنشئ الجداول المستحقة إشعارًا يفتح قائمة المراجعة المحددة.</value>
+  </data>
+  <data name="AddCleanupScheduleButton.Content" xml:space="preserve">
+    <value>إضافة جدول</value>
+  </data>
+  <data name="EditScheduleButton.Content" xml:space="preserve">
+    <value>تحرير</value>
+  </data>
+  <data name="DeleteScheduleButton.Content" xml:space="preserve">
+    <value>حذف</value>
+  </data>
+  <data name="ScheduleDialog.Title" xml:space="preserve">
+    <value>جدول التنظيف</value>
+  </data>
+  <data name="ScheduleDialog.PrimaryButtonText" xml:space="preserve">
+    <value>حفظ الجدول</value>
+  </data>
+  <data name="ScheduleDialog.CloseButtonText" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="ScheduleNameTextBox.Header" xml:space="preserve">
+    <value>اسم الجدول</value>
+  </data>
+  <data name="ScheduleNameTextBox.PlaceholderText" xml:space="preserve">
+    <value>مراجعة ذاكرة التخزين المؤقت الأسبوعية</value>
+  </data>
+  <data name="ScheduleFrequencyComboBox.Header" xml:space="preserve">
+    <value>التكرار</value>
+  </data>
+  <data name="ScheduleEnabledToggle.Header" xml:space="preserve">
+    <value>تفعيل الجدول</value>
+  </data>
+  <data name="ScheduleAutomaticCleanupToggle.Header" xml:space="preserve">
+    <value>إعادة تدوير الملفات الآمنة المؤهلة تلقائيًا</value>
+  </data>
+  <data name="ScheduleCategoriesLabel.Text" xml:space="preserve">
+    <value>فئات للمراجعة</value>
+  </data>
+  <data name="ScheduleSafetyInfoBar.Title" xml:space="preserve">
+    <value>جدول للمراجعة فقط</value>
+  </data>
+  <data name="ScheduleSafetyInfoBar.Message" xml:space="preserve">
+    <value>ترسل جداول المراجعة إشعارات دون تغيير الملفات. يدعم الوضع التلقائي ملفات التطبيقات المؤقتة فقط، مع إعادة التحقق من كل ملف واستخدام سلة المحذوفات. تتطلب ذاكرات الحزم مراجعة يدوية.</value>
+  </data>
+  <data name="ScheduleValidationInfoBar.Title" xml:space="preserve">
+    <value>إكمال الجدول</value>
+  </data>
+  <data name="ScheduleValidationInfoBar.Message" xml:space="preserve">
+    <value>أدخل اسماً واختر فئة. يدعم الوضع التلقائي ملفات التطبيقات المؤقتة فقط؛ وتتطلب ذاكرات الحزم مراجعة يدوية.</value>
+  </data>
+  <data name="HelpTitle.Text" xml:space="preserve">
+    <value>المساعدة</value>
+  </data>
+  <data name="HelpSubtitle.Text" xml:space="preserve">
+    <value>تعرّف على كيفية قراءة استخدام التخزين، والانتقال إلى المجلدات الكبيرة، وفهم أمان التنظيف، وتكوين الأتمتة.</value>
+  </data>
+  <data name="HelpQuickStartTitle.Text" xml:space="preserve">
+    <value>بدء سريع</value>
+  </data>
+  <data name="HelpQuickStartDescription.Text" xml:space="preserve">
+    <value>صُمم Storage Lens وفق سير عمل: قراءة ← فحص ← مراجعة.</value>
+  </data>
+  <data name="HelpQuickStartStepOne.Text" xml:space="preserve">
+    <value>1. ابدأ من النظرة العامة وقارن المساحة المستخدمة والمتاحة والقابلة للمراجعة.</value>
+  </data>
+  <data name="HelpQuickStartStepTwo.Text" xml:space="preserve">
+    <value>2. انقر فوق أي فئة أو أكبر عنصر أو مجلد متزايد لفتحه في مستكشف التخزين.</value>
+  </data>
+  <data name="HelpQuickStartStepThree.Text" xml:space="preserve">
+    <value>3. افتح مراجعة التنظيف وافحص كل الملفات المطابقة في كل شجرة مجلد، وألغِ تحديد ما تريد الاحتفاظ به، ثم أكد التنظيف.</value>
+  </data>
+  <data name="HelpCategoriesTitle.Text" xml:space="preserve">
+    <value>قراءة الفئات</value>
+  </data>
+  <data name="HelpCategoriesDescription.Text" xml:space="preserve">
+    <value>تجمع الفئات التخزين حسب الغرض: التطبيقات أو الفيديو أو الصور أو النظام أو المستندات أو البيانات المؤقتة أو غيرها. انقر فوق بطاقة فئة لتصفية كل العناصر المطابقة عبر محرك الأقراص المحدد.</value>
+  </data>
+  <data name="HelpDrillDownTitle.Text" xml:space="preserve">
+    <value>الانتقال إلى المجلدات</value>
+  </data>
+  <data name="HelpDrillDownDescription.Text" xml:space="preserve">
+    <value>حدد مجلدًا من الشجرة، أو انقر فوق صف مجلد في قائمة العناصر، لعرض العناصر الفرعية المباشرة. استخدم زر الأعلى للعودة إلى المجلد الأصل.</value>
+  </data>
+  <data name="HelpGrowthTitle.Text" xml:space="preserve">
+    <value>العثور على المجلدات المتزايدة</value>
+  </data>
+  <data name="HelpGrowthDescription.Text" xml:space="preserve">
+    <value>يقارن قسم النمو لقطات الفحص الأخيرة ويبيّن أين تختفي المساحة المتاحة بأسرع وتيرة. غيّر الحد الأدنى لحجم المجلد المتابع في الأتمتة؛ ويبدأ من 1 GB.</value>
+  </data>
+  <data name="HelpCleanupSafetyTitle.Text" xml:space="preserve">
+    <value>أمان التنظيف</value>
+  </data>
+  <data name="HelpCleanupSafetyDescription.Text" xml:space="preserve">
+    <value>مستويات الثقة «آمن» و«مراجعة» و«تنبيه» منفصلة. انقر فوق توصية لفحص صفحة كل عنصر مرشح. ينقل التنظيف المؤكد العناصر المؤهلة إلى سلة المحذوفات؛ ويتم تخطي الملفات المحمية والمتغيرة.</value>
+  </data>
+  <data name="HelpMonitoringTitle.Text" xml:space="preserve">
+    <value>المراقبة في الخلفية</value>
+  </data>
+  <data name="HelpMonitoringDescription.Text" xml:space="preserve">
+    <value>فعّل المراقبة في الأتمتة لتلقي تنبيهات المساحة ونمو المجلدات.</value>
+  </data>
+  <data name="HelpSchedulesTitle.Text" xml:space="preserve">
+    <value>مراجعات التنظيف المجدولة</value>
+  </data>
+  <data name="HelpSchedulesDescription.Text" xml:space="preserve">
+    <value>أنشئ مراجعات يومية أو أسبوعية أو نصف شهرية أو شهرية حسب الفئة. ترسل جداول المراجعة إشعاراً، وينقل التنظيف التلقائي الملفات التي ما زالت مؤهلة فقط إلى سلة المحذوفات.</value>
+  </data>
+  <data name="HelpSafetyInfoBar.Title" xml:space="preserve">
+    <value>ملفاتك تبقى ملكك</value>
+  </data>
+  <data name="HelpSafetyInfoBar.Message" xml:space="preserve">
+    <value>تُفهرس تحليلات التخزين محليًا على هذا الجهاز. تقرأ المراقبة في الخلفية محركات الأقراص والمجلدات المتابعة؛ ولا ينقل التنظيف إلا العناصر المؤهلة إلى سلة المحذوفات بعد التحقق.</value>
+  </data>
+  <data name="OverviewNotScanned" xml:space="preserve">
+    <value>لم يكتمل أي فحص بعد</value>
+  </data>
+  <data name="OverviewScanSummaryFormat" xml:space="preserve">
+    <value>آخر فحص {0} · تمت فهرسة {1} ملفات</value>
+  </data>
+  <data name="ScanningDriveFormat" xml:space="preserve">
+    <value>جارٍ فحص {0}…</value>
+  </data>
+  <data name="ScanProgressFormat" xml:space="preserve">
+    <value>{0} ملفات · تمت فهرسة {1} · {2} عناصر يتعذر الوصول إليها</value>
+  </data>
+  <data name="ScanCompletedFormat" xml:space="preserve">
+    <value>اكتمل الفحص · {0} ملفات · {1} عناصر يتعذر الوصول إليها</value>
+  </data>
+  <data name="ScanCancelled" xml:space="preserve">
+    <value>تم إلغاء الفحص؛ ولا تزال اللقطة المكتملة السابقة متاحة.</value>
+  </data>
+  <data name="CancellingScan" xml:space="preserve">
+    <value>جارٍ إلغاء الفحص…</value>
+  </data>
+  <data name="ScanFailed" xml:space="preserve">
+    <value>فشل فحص محرك الأقراص. تظل اللقطة المكتملة السابقة متاحة.</value>
+  </data>
+  <data name="PreparingCleanup" xml:space="preserve">
+    <value>جارٍ تحميل عناصر التنظيف المرشحة والتحقق منها…</value>
+  </data>
+  <data name="CleanupProgressFormat" xml:space="preserve">
+    <value>تمت معالجة {0} من {1}</value>
+  </data>
+  <data name="CleanupCancelled" xml:space="preserve">
+    <value>تم إلغاء التنظيف.</value>
+  </data>
+  <data name="CleanupFailed" xml:space="preserve">
+    <value>تعذّر إكمال التنظيف.</value>
+  </data>
+  <data name="CleanupResultSummaryFormat" xml:space="preserve">
+    <value>تم نقل {0} عناصر إلى سلة المحذوفات ({3}). فشل {1} وتم تخطي {2}.</value>
+  </data>
+  <data name="CleanupResultNoFailures" xml:space="preserve">
+    <value>اكتملت جميع العناصر المحددة والمؤهلة من دون أخطاء.</value>
+  </data>
+  <data name="CancelCleanupButton.Content" xml:space="preserve">
+    <value>إيقاف التنظيف</value>
+  </data>
+  <data name="CancellingCleanup" xml:space="preserve">
+    <value>جارٍ إيقاف التنظيف بعد العنصر الحالي…</value>
+  </data>
+  <data name="NoCleanupCandidates" xml:space="preserve">
+    <value>لم يتم العثور على عناصر مرشحة</value>
+  </data>
+  <data name="CleanupCandidatePageFormat" xml:space="preserve">
+    <value>يتم عرض {0}–{1} من {2} عناصر مرشحة</value>
+  </data>
+  <data name="CategoryAppsGames" xml:space="preserve">
+    <value>التطبيقات والألعاب</value>
+  </data>
+  <data name="CategoryVideos" xml:space="preserve">
+    <value>مقاطع الفيديو</value>
+  </data>
+  <data name="CategoryPhotos" xml:space="preserve">
+    <value>الصور</value>
+  </data>
+  <data name="CategorySystem" xml:space="preserve">
+    <value>النظام</value>
+  </data>
+  <data name="CategoryDocuments" xml:space="preserve">
+    <value>المستندات</value>
+  </data>
+  <data name="CategoryCacheTemporary" xml:space="preserve">
+    <value>ذاكرة التخزين المؤقت والملفات المؤقتة</value>
+  </data>
+  <data name="CategoryOther" xml:space="preserve">
+    <value>أخرى</value>
+  </data>
+  <data name="CategoryAppsGamesDescription" xml:space="preserve">
+    <value>التطبيقات المثبتة والملفات التنفيذية والأقراص الافتراضية ومكتبات الألعاب</value>
+  </data>
+  <data name="CategoryVideosDescription" xml:space="preserve">
+    <value>التسجيلات والمقاطع وملفات التصدير وذاكرات الوسائط المؤقتة</value>
+  </data>
+  <data name="CategoryPhotosDescription" xml:space="preserve">
+    <value>ألبوم الكاميرا ولقطات الشاشة ومكتبات الصور</value>
+  </data>
+  <data name="CategorySystemDescription" xml:space="preserve">
+    <value>ملفات Windows والصيانة والاسترداد</value>
+  </data>
+  <data name="CategoryDocumentsDescription" xml:space="preserve">
+    <value>ملفات العمل والأرشيفات والبريد والمستندات</value>
+  </data>
+  <data name="CategoryCacheTemporaryDescription" xml:space="preserve">
+    <value>بيانات مؤقتة وبيانات حزم وذاكرة تخزين مؤقت قابلة لإعادة الإنشاء</value>
+  </data>
+  <data name="CategoryOtherDescription" xml:space="preserve">
+    <value>أدوات التطوير والملفات غير المصنفة</value>
+  </data>
+  <data name="TagSystem" xml:space="preserve">
+    <value>النظام</value>
+  </data>
+  <data name="TagCache" xml:space="preserve">
+    <value>ذاكرة التخزين المؤقت</value>
+  </data>
+  <data name="TagReview" xml:space="preserve">
+    <value>مراجعة</value>
+  </data>
+  <data name="TagPersonal" xml:space="preserve">
+    <value>شخصية</value>
+  </data>
+  <data name="TagApps" xml:space="preserve">
+    <value>التطبيقات</value>
+  </data>
+  <data name="TagOther" xml:space="preserve">
+    <value>أخرى</value>
+  </data>
+  <data name="CleanupPolicy0Name" xml:space="preserve">
+    <value>ملفات التطبيقات المؤقتة</value>
+  </data>
+  <data name="CleanupPolicy0Description" xml:space="preserve">
+    <value>ملفات مؤقتة معروفة وملفات ذاكرة تخزين مؤقت قابلة لإعادة الإنشاء مضى عليها أكثر من 24 ساعة.</value>
+  </data>
+  <data name="CleanupPolicy1Name" xml:space="preserve">
+    <value>تنزيلات مضى عليها أكثر من 90 يومًا</value>
+  </data>
+  <data name="CleanupPolicy1Description" xml:space="preserve">
+    <value>مثبتات وأرشيفات ومستندات قديمة في مجلد التنزيلات الخاص بالمستخدم.</value>
+  </data>
+  <data name="CleanupPolicy2Name" xml:space="preserve">
+    <value>ذاكرات تخزين الحزم المؤقتة</value>
+  </data>
+  <data name="CleanupPolicy2Description" xml:space="preserve">
+    <value>ذاكرات مستخدم مؤقتة قابلة لإعادة الإنشاء وأقدم من 24 ساعة. أغلق التطبيقات وعمليات البناء أولاً؛ قد تحتاج إلى استعادة الحزم أو تنزيلها مجدداً.</value>
+  </data>
+  <data name="CleanupPolicy3Name" xml:space="preserve">
+    <value>ملفات مكررة كبيرة</value>
+  </data>
+  <data name="CleanupPolicy3Description" xml:space="preserve">
+    <value>ملفات مكررة تم التحقق من تطابق محتواها؛ مع الاحتفاظ بالمسار الأصلي.</value>
+  </data>
+  <data name="CleanupPolicy4Name" xml:space="preserve">
+    <value>تثبيت Windows السابق</value>
+  </data>
+  <data name="CleanupPolicy4Description" xml:space="preserve">
+    <value>يمكن أن يستهلك Windows.old مساحة كبيرة، لكنه يؤثر في التراجع عن التثبيت، ويجب إزالته باستخدام أدوات Windows.</value>
+  </data>
+  <data name="ScheduleDaily" xml:space="preserve">
+    <value>يومي</value>
+  </data>
+  <data name="ScheduleWeekly" xml:space="preserve">
+    <value>أسبوعي</value>
+  </data>
+  <data name="ScheduleEveryWeeksFormat" xml:space="preserve">
+    <value>كل {0} أسابيع</value>
+  </data>
+  <data name="ScheduleMonthly" xml:space="preserve">
+    <value>شهري</value>
+  </data>
+  <data name="ScheduleEveryDaysFormat" xml:space="preserve">
+    <value>كل {0} أيام</value>
+  </data>
+  <data name="ScheduleModeRecycle" xml:space="preserve">
+    <value>إعادة تدوير العناصر الآمنة</value>
+  </data>
+  <data name="ScheduleModeReview" xml:space="preserve">
+    <value>مراجعة فقط</value>
+  </data>
+  <data name="ScheduleNextReviewFormat" xml:space="preserve">
+    <value>المراجعة التالية {0:g}</value>
+  </data>
+  <data name="GrowthSummaryFormat" xml:space="preserve">
+    <value>زيادة قدرها +{0:0}% خلال {1} من الأيام</value>
+  </data>
+  <data name="KindFile" xml:space="preserve">
+    <value>ملف</value>
+  </data>
+  <data name="KindExtensionFileFormat" xml:space="preserve">
+    <value>ملف {0}</value>
+  </data>
+  <data name="AutomationSettingsStored" xml:space="preserve">
+    <value>تُحفظ الإعدادات على هذا الجهاز. تنشئ جداول المعاينة إشعارات مراجعة فقط.</value>
+  </data>
+  <data name="MonitorEveryTwoDays" xml:space="preserve">
+    <value>كل يومين</value>
+  </data>
+  <data name="ScheduleEveryTwoWeeks" xml:space="preserve">
+    <value>كل أسبوعين</value>
+  </data>
+  <data name="BackgroundMonitoringOff" xml:space="preserve">
+    <value>المراقبة في الخلفية متوقفة</value>
+  </data>
+  <data name="NextCheckOneDay" xml:space="preserve">
+    <value>الفحص التالي خلال يوم واحد تقريبًا</value>
+  </data>
+  <data name="NextCheckManyDaysFormat" xml:space="preserve">
+    <value>الفحص التالي خلال {0} أيام تقريبًا</value>
+  </data>
+  <data name="IdleIndexNotRun" xml:space="preserve">
+    <value>لم تكتمل الفهرسة أثناء الخمول بعد.</value>
+  </data>
+  <data name="LastIdleIndexStatusFormat" xml:space="preserve">
+    <value>آخر فهرسة أثناء الخمول: {0:g} — {1}</value>
+  </data>
+  <data name="LastIdleIndexFormat" xml:space="preserve">
+    <value>آخر فهرسة أثناء الخمول: {0:g}</value>
+  </data>
+  <data name="PreviewAlertTitle" xml:space="preserve">
+    <value>تنبيه معاينة Storage Lens</value>
+  </data>
+  <data name="PreviewAlertMessageFormat" xml:space="preserve">
+    <value>تقترب المساحة المتاحة من حد {0:0} GB. راجع المجلدات الأسرع نموًا قبل أن تستهلك مساحة أكبر.</value>
+  </data>
+  <data name="PreviewAlertSent" xml:space="preserve">
+    <value>تم إرسال إشعار معاينة.</value>
+  </data>
+  <data name="ScanPhaseScanning" xml:space="preserve">
+    <value>جارٍ الفحص</value>
+  </data>
+  <data name="ScanPhaseEnumerating" xml:space="preserve">
+    <value>جارٍ تعداد العناصر</value>
+  </data>
+  <data name="ScanPhaseFinalizing" xml:space="preserve">
+    <value>جارٍ الإنهاء</value>
+  </data>
+  <data name="ScanPhaseFingerprinting" xml:space="preserve">
+    <value>جارٍ إنشاء بصمات الملفات</value>
+  </data>
+  <data name="ScanPhaseComplete" xml:space="preserve">
+    <value>مكتمل</value>
+  </data>
+  <data name="ScanRateFormat" xml:space="preserve">
+    <value>{0:N0} عنصر/ثانية</value>
+  </data>
+  <data name="LocalIndexChecking" xml:space="preserve">
+    <value>جارٍ التحقق من الفهرس المحلي…</value>
+  </data>
+  <data name="LocalIndexDetailFormat" xml:space="preserve">
+    <value>قاعدة البيانات {0} · WAL {1}</value>
+  </data>
+  <data name="LocalIndexStoredOnDevice" xml:space="preserve">
+    <value>يُخزَّن الفهرس على هذا الجهاز فقط.</value>
+  </data>
+  <data name="LocalIndexNotCreated" xml:space="preserve">
+    <value>لم يتم إنشاء فهرس لمحرك أقراص بعد.</value>
+  </data>
+  <data name="LocalIndexCompacting" xml:space="preserve">
+    <value>جارٍ ضغط الفهرس المحلي. أبقِ Storage Lens مفتوحًا.</value>
+  </data>
+  <data name="LocalIndexCompacted" xml:space="preserve">
+    <value>تم ضغط الفهرس المحلي بنجاح.</value>
+  </data>
+  <data name="LocalIndexCompactFailedFormat" xml:space="preserve">
+    <value>تعذّر ضغط الفهرس: {0}</value>
+  </data>
+  <data name="LocalIndexCheckingHealth" xml:space="preserve">
+    <value>جارٍ التحقق من سلامة قاعدة البيانات. أبقِ Storage Lens مفتوحًا.</value>
+  </data>
+  <data name="LocalIndexHealthy" xml:space="preserve">
+    <value>اجتاز الفهرس المحلي فحوص سلامة SQLite وفحوص foreign-key.</value>
+  </data>
+  <data name="LocalIndexHealthFailedFormat" xml:space="preserve">
+    <value>اكتشف فحص سلامة الفهرس مشكلة: {0}؛ توجد مخالفة أو مخالفات foreign-key عددها {1}.</value>
+  </data>
+  <data name="LocalIndexHealthExceptionFormat" xml:space="preserve">
+    <value>تعذّر إكمال فحص سلامة الفهرس: {0}</value>
+  </data>
+  <data name="LoadingCleanupCandidates" xml:space="preserve">
+    <value>جارٍ تحميل الملفات…</value>
+  </data>
+  <data name="LoadingCleanupCandidatesText.Text" xml:space="preserve">
+    <value>جارٍ تحميل الملفات…</value>
+  </data>
+  <data name="DriveNameLocal" xml:space="preserve">
+    <value>القرص المحلي</value>
+  </data>
+  <data name="DriveNameRemovable" xml:space="preserve">
+    <value>محرك أقراص قابل للإزالة</value>
+  </data>
+  <data name="DriveNameNetwork" xml:space="preserve">
+    <value>محرك أقراص على الشبكة</value>
+  </data>
+  <data name="ExplorerNoItemSelected" xml:space="preserve">
+    <value>لم يتم تحديد أي عنصر</value>
+  </data>
+  <data name="ExplorerSelectItemHint" xml:space="preserve">
+    <value>حدد مجلدًا أو ملفًا لفحصه.</value>
+  </data>
+  <data name="CleanupIndexedDrivesFormat" xml:space="preserve">
+    <value>جميع محركات الأقراص المفهرسة: {0}</value>
+  </data>
+  <data name="ClearCategoryFilesButton.Content" xml:space="preserve">
+    <value>مسح تحديد الفئة</value>
+  </data>
+  <data name="RecycleFolderFilesButton.Content" xml:space="preserve">
+    <value>نقل الملفات المحددة إلى سلة المحذوفات</value>
+  </data>
+  <data name="CleanupFolderSelectionHint.Text" xml:space="preserve">
+    <value>سيتم نقل الملفات المحددة فقط في شجرة المجلد الحالية. امسح تحديد الفئة لاختيار مجلدات وملفات معينة.</value>
+  </data>
+  <data name="CleanupFolderReviewDialog.Title" xml:space="preserve">
+    <value>هل تريد نقل الملفات المحددة في هذا المجلد إلى سلة المحذوفات؟</value>
+  </data>
+  <data name="CleanupFolderReviewDialog.PrimaryButtonText" xml:space="preserve">
+    <value>نقل إلى سلة المحذوفات</value>
+  </data>
+  <data name="CleanupFolderReviewDialog.CloseButtonText" xml:space="preserve">
+    <value>إلغاء</value>
+  </data>
+  <data name="CleanupFolderReviewMessage.Text" xml:space="preserve">
+    <value>سيتم نقل الملفات المحددة في هذا المجلد ومجلداته الفرعية فقط إلى سلة المحذوفات. لن يتم تعديل الملفات خارج هذا المجلد.</value>
+  </data>
+  <data name="CleanupCacheReviewInfoBar.Title" xml:space="preserve">
+    <value>راجع ذاكرات الحزم المؤقتة قبل إزالتها</value>
+  </data>
+  <data name="CleanupCacheReviewInfoBar.Message" xml:space="preserve">
+    <value>أغلق التطبيقات وعمليات البناء أولاً. لا تُقبل إلا ذاكرات المستخدم في المواقع المسموحة والأقدم من 24 ساعة. قد تحتاج إلى استعادة الحزم أو تنزيلها مجدداً. التنظيف التلقائي معطل لهذه الفئة.</value>
+  </data>
+</root>

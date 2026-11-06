@@ -1,0 +1,1014 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms</value>
+  </resheader>
+  <data name="NavigationSearchBox.PlaceholderText" xml:space="preserve">
+    <value>Rechercher des fichiers et des dossiers</value>
+  </data>
+  <data name="NavigationOverviewItem.Content" xml:space="preserve">
+    <value>Vue d’ensemble</value>
+  </data>
+  <data name="NavigationExplorerItem.Content" xml:space="preserve">
+    <value>Explorateur de stockage</value>
+  </data>
+  <data name="NavigationCleanupItem.Content" xml:space="preserve">
+    <value>Révision du nettoyage</value>
+  </data>
+  <data name="NavigationTipsItem.Content" xml:space="preserve">
+    <value>Conseils d’organisation</value>
+  </data>
+  <data name="NavigationAutomationItem.Content" xml:space="preserve">
+    <value>Automatisation</value>
+  </data>
+  <data name="NavigationHelpItem.Content" xml:space="preserve">
+    <value>Aide</value>
+  </data>
+  <data name="OrganizationTipsTitle" xml:space="preserve">
+    <value>Conseils de Storage Lens</value>
+  </data>
+  <data name="OrganizationTipsText" xml:space="preserve">
+    <value>Commencez par les fichiers de cache et les fichiers temporaires, puis examinez les anciens téléchargements et les doublons volumineux. Examinez attentivement les fichiers système avant le nettoyage.</value>
+  </data>
+  <data name="OrganizationTipsCloseButton" xml:space="preserve">
+    <value>J’ai compris</value>
+  </data>
+  <data name="OverviewTitle.Text" xml:space="preserve">
+    <value>Vue d’ensemble du stockage</value>
+  </data>
+  <data name="OverviewSubtitle.Text" xml:space="preserve">
+    <value>Découvrez ce qui occupe de l’espace, ce qui évolue et ce qu’il est prudent d’examiner ensuite.</value>
+  </data>
+  <data name="DriveSelector.Header" xml:space="preserve">
+    <value>Lecteur</value>
+  </data>
+  <data name="ScanStorageButtonLabel.Text" xml:space="preserve">
+    <value>Analyser le lecteur</value>
+  </data>
+  <data name="CancelScanButton.Content" xml:space="preserve">
+    <value>Annuler l’analyse</value>
+  </data>
+  <data name="ScanProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>Progression de l’analyse du lecteur</value>
+  </data>
+  <data name="NoScanDataInfoBar.Title" xml:space="preserve">
+    <value>Créer l’index de stockage</value>
+  </data>
+  <data name="NoScanDataInfoBar.Message" xml:space="preserve">
+    <value>Sélectionnez un lecteur et lancez une analyse. Les analyses terminées restent sur cet appareil et alimentent l’Explorateur de stockage, la révision du nettoyage et les comparaisons d’évolution.</value>
+  </data>
+  <data name="OverviewErrorInfoBar.Title" xml:space="preserve">
+    <value>Impossible de charger les données de stockage</value>
+  </data>
+  <data name="OverviewCoverageInfoBar.Title" xml:space="preserve">
+    <value>Couverture de l’index</value>
+  </data>
+  <data name="OverviewCoverageFormat" xml:space="preserve">
+    <value>{0} de l’allocation sur disque sont indexés. {1} n’est pas attribué aux fichiers indexés, et {2} emplacements inaccessibles ou exclus ont été enregistrés.</value>
+  </data>
+  <data name="OverviewLegacyCoverageFormat" xml:space="preserve">
+    <value>L’index hérité contient {0} de tailles de fichiers indexés. {1} n’est pas attribué ; l’allocation physique restera inconnue jusqu’à la prochaine analyse du lecteur. {2} emplacements inaccessibles ou exclus ont été enregistrés.</value>
+  </data>
+  <data name="StorageUsageRing.AutomationProperties.Name" xml:space="preserve">
+    <value>Utilisation du lecteur</value>
+  </data>
+  <data name="StorageUsedLabel.Text" xml:space="preserve">
+    <value>utilisé</value>
+  </data>
+  <data name="IndexDetailsExpander.Header" xml:space="preserve">
+    <value>Détails de l’analyse</value>
+  </data>
+  <data name="OverviewStorageProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>Espace de stockage du lecteur utilisé</value>
+  </data>
+  <data name="CategoryStorageProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>Part de l’espace de stockage utilisé</value>
+  </data>
+  <data name="UsedSpaceLabel.Text" xml:space="preserve">
+    <value>Utilisé</value>
+  </data>
+  <data name="FreeSpaceLabel.Text" xml:space="preserve">
+    <value>Libre</value>
+  </data>
+  <data name="CapacityLabel.Text" xml:space="preserve">
+    <value>Capacité</value>
+  </data>
+  <data name="CleanupOpportunityLabel.Text" xml:space="preserve">
+    <value>Espace à examiner</value>
+  </data>
+  <data name="CleanupOpportunityValue.Text" xml:space="preserve">
+    <value>42 GB</value>
+  </data>
+  <data name="CleanupOpportunityDescription.Text" xml:space="preserve">
+    <value>Données temporaires, anciens téléchargements, caches de packages, doublons et fichiers de restauration.</value>
+  </data>
+  <data name="ReviewCleanupButton.Content" xml:space="preserve">
+    <value>Examiner le nettoyage</value>
+  </data>
+  <data name="CategoryBreakdownTitle.Text" xml:space="preserve">
+    <value>Stockage par catégorie</value>
+  </data>
+  <data name="TopFoldersTitle.Text" xml:space="preserve">
+    <value>Dossiers les plus volumineux</value>
+  </data>
+  <data name="TopFoldersDescription.Text" xml:space="preserve">
+    <value>Sous-dossiers volumineux, avec exploration automatique des grands dossiers parents.</value>
+  </data>
+  <data name="ExploreStorageButton.Content" xml:space="preserve">
+    <value>Explorer l’arborescence</value>
+  </data>
+  <data name="CleanupSuggestionsTitle.Text" xml:space="preserve">
+    <value>Action suivante recommandée</value>
+  </data>
+  <data name="OpenCleanupReviewButton.Content" xml:space="preserve">
+    <value>Ouvrir la révision du nettoyage</value>
+  </data>
+  <data name="LargestFilesTitle.Text" xml:space="preserve">
+    <value>Fichiers les plus volumineux</value>
+  </data>
+  <data name="LargestFilesDescription.Text" xml:space="preserve">
+    <value>Fichiers individuels classés par taille. Les totaux des dossiers sont affichés séparément.</value>
+  </data>
+  <data name="GrowingFoldersTitle.Text" xml:space="preserve">
+    <value>Dossiers en croissance rapide</value>
+  </data>
+  <data name="GrowingFoldersDescription.Text" xml:space="preserve">
+    <value>Repérez les croissances récentes avant qu’elles ne provoquent un manque d’espace.</value>
+  </data>
+  <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
+    <value>Aucun dossier en forte croissance repéré pour le moment</value>
+  </data>
+  <data name="GrowingFoldersEmptyHint.Text" xml:space="preserve">
+    <value>La croissance apparaît après des analyses comparables.</value>
+  </data>
+  <data name="GrowthTrackingThresholdFormat" xml:space="preserve">
+    <value>Suivi des dossiers de {0:N0} GB ou plus</value>
+  </data>
+  <data name="RefreshingPreview" xml:space="preserve">
+    <value>Actualisation de l’aperçu du stockage…</value>
+  </data>
+  <data name="PreviewUpdated" xml:space="preserve">
+    <value>Aperçu mis à jour à l’instant</value>
+  </data>
+  <data name="PreviewLastUpdated" xml:space="preserve">
+    <value>Mis à jour il y a 8 minutes</value>
+  </data>
+  <data name="ExplorerTitle.Text" xml:space="preserve">
+    <value>Explorateur de stockage</value>
+  </data>
+  <data name="ExplorerSubtitle.Text" xml:space="preserve">
+    <value>Suivez l’utilisation réelle des dossiers, inspectez les éléments volumineux et filtrez par catégorie ou étiquette.</value>
+  </data>
+  <data name="ExplorerNoScanInfoBar.Title" xml:space="preserve">
+    <value>Aucune analyse terminée pour ce lecteur</value>
+  </data>
+  <data name="ExplorerNoScanInfoBar.Message" xml:space="preserve">
+    <value>Retournez à la Vue d’ensemble et analysez le lecteur pour remplir cette vue.</value>
+  </data>
+  <data name="ExplorerErrorInfoBar.Title" xml:space="preserve">
+    <value>Impossible d’actualiser l’Explorateur</value>
+  </data>
+  <data name="ExplorerDriveSelector.Header" xml:space="preserve">
+    <value>Lecteur</value>
+  </data>
+  <data name="ExplorerSearchBox.PlaceholderText" xml:space="preserve">
+    <value>Filtrer les fichiers et dossiers</value>
+  </data>
+  <data name="CategoryFilter.Header" xml:space="preserve">
+    <value>Catégorie</value>
+  </data>
+  <data name="SortSelector.Header" xml:space="preserve">
+    <value>Trier</value>
+  </data>
+  <data name="ClearFiltersButton.Content" xml:space="preserve">
+    <value>Réinitialiser les filtres</value>
+  </data>
+  <data name="FolderTreeTitle.Text" xml:space="preserve">
+    <value>Arborescence</value>
+  </data>
+  <data name="StorageItemsTitle.Text" xml:space="preserve">
+    <value>Éléments dans cette vue</value>
+  </data>
+  <data name="NavigateUpButton.AutomationProperties.Name" xml:space="preserve">
+    <value>Remonter d’un dossier</value>
+  </data>
+  <data name="ReclaimableCandidateLabel.Text" xml:space="preserve">
+    <value>À examiner avant le nettoyage</value>
+  </data>
+  <data name="SystemItemLabel.Text" xml:space="preserve">
+    <value>Élément système</value>
+  </data>
+  <data name="OpenLocationButton.Content" xml:space="preserve">
+    <value>Ouvrir dans l’Explorateur de fichiers</value>
+  </data>
+  <data name="OpenChildrenButton.Content" xml:space="preserve">
+    <value>Ouvrir le dossier</value>
+  </data>
+  <data name="ExplorerAllItems" xml:space="preserve">
+    <value>Tous les éléments</value>
+  </data>
+  <data name="ExplorerLargestFirst" xml:space="preserve">
+    <value>Du plus volumineux au moins volumineux</value>
+  </data>
+  <data name="ExplorerRecentlyModified" xml:space="preserve">
+    <value>Récemment modifiés</value>
+  </data>
+  <data name="ExplorerSortName" xml:space="preserve">
+    <value>Nom</value>
+  </data>
+  <data name="SafetySafe" xml:space="preserve">
+    <value>Sûr</value>
+  </data>
+  <data name="SafetyReview" xml:space="preserve">
+    <value>À examiner</value>
+  </data>
+  <data name="SafetyCaution" xml:space="preserve">
+    <value>Attention</value>
+  </data>
+  <data name="ItemCountSingularFormat" xml:space="preserve">
+    <value>{0:N0} élément</value>
+  </data>
+  <data name="ItemCountPluralFormat" xml:space="preserve">
+    <value>{0:N0} éléments</value>
+  </data>
+  <data name="CleanupTitle.Text" xml:space="preserve">
+    <value>Révision du nettoyage</value>
+  </data>
+  <data name="CleanupSubtitle.Text" xml:space="preserve">
+    <value>Examinez les recommandations selon leur niveau de sécurité avant toute suppression.</value>
+  </data>
+  <data name="CleanupDriveSelector.AutomationProperties.Name" xml:space="preserve">
+    <value>Lecteur</value>
+  </data>
+  <data name="SelectSafeButton.Content" xml:space="preserve">
+    <value>Sélectionner les éléments sûrs</value>
+  </data>
+  <data name="ClearSelectionButton.Content" xml:space="preserve">
+    <value>Effacer la sélection</value>
+  </data>
+  <data name="CleanupSafetyInfoBar.Title" xml:space="preserve">
+    <value>Examinez d’abord, puis agissez</value>
+  </data>
+  <data name="CleanupSafetyInfoBar.Message" xml:space="preserve">
+    <value>Chaque candidat est revérifié juste avant le nettoyage. Les éléments admissibles sont déplacés vers la Corbeille ; rien n’est supprimé définitivement.</value>
+  </data>
+  <data name="ReclaimableSpaceLabel.Text" xml:space="preserve">
+    <value>récupérable</value>
+  </data>
+  <data name="SelectedForReviewLabel.Text" xml:space="preserve">
+    <value>Sélectionné pour examen</value>
+  </data>
+  <data name="SelectedGroupsLabel.Text" xml:space="preserve">
+    <value>groupes</value>
+  </data>
+  <data name="SelectedGroupSingular" xml:space="preserve">
+    <value>groupe</value>
+  </data>
+  <data name="SelectedGroupPlural" xml:space="preserve">
+    <value>groupes</value>
+  </data>
+  <data name="ReviewSelectedButton.Content" xml:space="preserve">
+    <value>Examiner la sélection</value>
+  </data>
+  <data name="CleanupReviewDialog.Title" xml:space="preserve">
+    <value>Examiner le nettoyage sélectionné</value>
+  </data>
+  <data name="CleanupReviewDialog.PrimaryButtonText" xml:space="preserve">
+    <value>Déplacer vers la Corbeille</value>
+  </data>
+  <data name="CleanupReviewDialog.CloseButtonText" xml:space="preserve">
+    <value>Annuler</value>
+  </data>
+  <data name="CleanupReviewDialogMessage.Text" xml:space="preserve">
+    <value>Confirmez les groupes sélectionnés. Storage Lens vérifie à nouveau chaque candidat et déplace uniquement vers la Corbeille les fichiers qui sont toujours admissibles.</value>
+  </data>
+  <data name="CleanupReviewSelectionLabel.Text" xml:space="preserve">
+    <value>Groupes sélectionnés</value>
+  </data>
+  <data name="CleanupReviewSafetyNote.Text" xml:space="preserve">
+    <value>Les fichiers peuvent être restaurés depuis la Corbeille. Les fichiers verrouillés, modifiés, protégés, disponibles uniquement dans le cloud ou non autorisés sont ignorés et signalés.</value>
+  </data>
+  <data name="CleanupCandidatesDialog.Title" xml:space="preserve">
+    <value>Fichiers inclus dans ce nettoyage</value>
+  </data>
+  <data name="CleanupCandidatesDialog.CloseButtonText" xml:space="preserve">
+    <value>Fermer</value>
+  </data>
+  <data name="CleanupCandidatesPreviewNote.Text" xml:space="preserve">
+    <value>Les cases décochées sont exclues du nettoyage. Ouvrez un fichier dans l’Explorateur de stockage pour un examen plus détaillé.</value>
+  </data>
+  <data name="CleanupCandidateFoldersHeader.Text" xml:space="preserve">
+    <value>Dossiers</value>
+  </data>
+  <data name="CleanupCandidateFoldersHint.Text" xml:space="preserve">
+    <value>Choisissez un dossier pour examiner tous les fichiers correspondants de son arborescence.</value>
+  </data>
+  <data name="CleanupCandidateFilesHeader.Text" xml:space="preserve">
+    <value>Fichiers de l’arborescence sélectionnée</value>
+  </data>
+  <data name="IncludeCleanupFolderButton.Content" xml:space="preserve">
+    <value>Inclure le dossier</value>
+  </data>
+  <data name="ExcludeCleanupFolderButton.Content" xml:space="preserve">
+    <value>Exclure le dossier</value>
+  </data>
+  <data name="CleanupFolderSummaryFormat" xml:space="preserve">
+    <value>{0} fichiers - {1}</value>
+  </data>
+  <data name="CleanupFolderSelectionFormat" xml:space="preserve">
+    <value>{0} sur {1} sélectionnés dans cette arborescence</value>
+  </data>
+  <data name="CleanupCandidatesBackButton.AutomationProperties.Name" xml:space="preserve">
+    <value>Retour à la vérification du nettoyage</value>
+  </data>
+  <data name="CleanupCardInspectFiles.Text" xml:space="preserve">
+    <value>Examiner les fichiers</value>
+  </data>
+  <data name="CleanupActionInspectFiles" xml:space="preserve">
+    <value>Examiner les fichiers</value>
+  </data>
+  <data name="CleanupActionInspectAdvisory" xml:space="preserve">
+    <value>Examiner les fichiers signalés</value>
+  </data>
+  <data name="CleanupActionManagedWindows" xml:space="preserve">
+    <value>Examiner les fichiers gérés par Windows</value>
+  </data>
+  <data name="CleanupReclaimableSpaceLabel" xml:space="preserve">
+    <value>récupérable</value>
+  </data>
+  <data name="CleanupAdvisorySpaceLabel" xml:space="preserve">
+    <value>informatif</value>
+  </data>
+  <data name="CleanupWindowsManagedSpaceLabel" xml:space="preserve">
+    <value>géré par Windows</value>
+  </data>
+  <data name="CleanupInspectionOnlyFormat" xml:space="preserve">
+    <value>{0} fichiers informatifs dans cette arborescence</value>
+  </data>
+  <data name="WindowsOldManagedCleanupInfoBar.Title" xml:space="preserve">
+    <value>Windows gère ce nettoyage</value>
+  </data>
+  <data name="WindowsOldManagedCleanupInfoBar.Message" xml:space="preserve">
+    <value>Windows.old est une copie de restauration protégée. Storage Lens ne la supprime pas fichier par fichier ; utilisez l’Assistant Stockage pour l’examiner et la supprimer en toute sécurité.</value>
+  </data>
+  <data name="OpenStorageSenseButton.Content" xml:space="preserve">
+    <value>Ouvrir l’Assistant Stockage</value>
+  </data>
+  <data name="ManagedCleanupLaunchFailed" xml:space="preserve">
+    <value>Impossible d’ouvrir les paramètres de stockage Windows.</value>
+  </data>
+  <data name="CleanupResultNoChangesTitle" xml:space="preserve">
+    <value>Aucun fichier modifié</value>
+  </data>
+  <data name="CleanupResultSuccessTitle" xml:space="preserve">
+    <value>Nettoyage terminé</value>
+  </data>
+  <data name="CleanupResultPartialTitle" xml:space="preserve">
+    <value>Le nettoyage nécessite votre attention</value>
+  </data>
+  <data name="CleanupResultNoChangesDetails" xml:space="preserve">
+    <value>Aucun fichier actuel n’a été déplacé. Les candidats obsolètes ou modifiés ont été ignorés et retirés de l’index local ; actualisez la recommandation avant de réessayer.</value>
+  </data>
+  <data name="CleanupResultExcludedDetailsFormat" xml:space="preserve">
+    <value>Aucun fichier n’a été déplacé, car {0} éléments ont été intentionnellement exclus de ce nettoyage.</value>
+  </data>
+  <data name="CleanupCandidatesErrorInfoBar.Title" xml:space="preserve">
+    <value>Impossible de charger les fichiers</value>
+  </data>
+  <data name="CleanupCandidatesEmptyText.Text" xml:space="preserve">
+    <value>Aucun fichier admissible dans cette arborescence. Choisissez un autre dossier ou une autre catégorie.</value>
+  </data>
+  <data name="CleanupCandidatesLoadTimeout" xml:space="preserve">
+    <value>La liste des fichiers a mis trop de temps à se charger. Fermez cette boîte de dialogue et réessayez lorsque l’analyse du stockage est inactive.</value>
+  </data>
+  <data name="CleanupCandidatesLoadFailed" xml:space="preserve">
+    <value>Impossible de charger la liste des fichiers : {0}</value>
+  </data>
+  <data name="PreviousCandidatePageButton.Content" xml:space="preserve">
+    <value>Précédent</value>
+  </data>
+  <data name="NextCandidatePageButton.Content" xml:space="preserve">
+    <value>Suivant</value>
+  </data>
+  <data name="CleanupProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>Progression du nettoyage</value>
+  </data>
+  <data name="CleanupDialogErrorInfoBar.Title" xml:space="preserve">
+    <value>Impossible de poursuivre le nettoyage</value>
+  </data>
+  <data name="CleanupResultDialog.Title" xml:space="preserve">
+    <value>Nettoyage terminé</value>
+  </data>
+  <data name="CleanupResultDialog.CloseButtonText" xml:space="preserve">
+    <value>Fermer</value>
+  </data>
+  <data name="SettingsTitle.Text" xml:space="preserve">
+    <value>Paramètres</value>
+  </data>
+  <data name="SettingsSubtitle.Text" xml:space="preserve">
+    <value>Choisissez comment Storage Lens présente le stockage et recommande le nettoyage.</value>
+  </data>
+  <data name="ResetSettingsButton.Content" xml:space="preserve">
+    <value>Rétablir les valeurs par défaut</value>
+  </data>
+  <data name="SettingsPrototypeInfoBar.Title" xml:space="preserve">
+    <value>Paramètres de sécurité</value>
+  </data>
+  <data name="SettingsPrototypeInfoBar.Message" xml:space="preserve">
+    <value>Les préférences sont enregistrées sur cet appareil. La confirmation finale du nettoyage et l’exclusion des fichiers disponibles uniquement dans le cloud ne peuvent pas être désactivées.</value>
+  </data>
+  <data name="AppearanceSettingsTitle.Text" xml:space="preserve">
+    <value>Apparence</value>
+  </data>
+  <data name="AppearanceSettingsDescription.Text" xml:space="preserve">
+    <value>Suivez automatiquement le paramètre de Windows ou choisissez un thème fixe pour l’application.</value>
+  </data>
+  <data name="ThemeSelector.Header" xml:space="preserve">
+    <value>Thème de l’application</value>
+  </data>
+  <data name="ThemeSystemOption.Content" xml:space="preserve">
+    <value>Utiliser le paramètre système</value>
+  </data>
+  <data name="ThemeLightOption.Content" xml:space="preserve">
+    <value>Clair</value>
+  </data>
+  <data name="ThemeDarkOption.Content" xml:space="preserve">
+    <value>Sombre</value>
+  </data>
+  <data name="ScanSettingsTitle.Text" xml:space="preserve">
+    <value>Analyse du stockage</value>
+  </data>
+  <data name="ScanOnLaunchToggle.Header" xml:space="preserve">
+    <value>Actualiser la vue d’ensemble au démarrage de l’application</value>
+  </data>
+  <data name="ShowSystemItemsToggle.Header" xml:space="preserve">
+    <value>Afficher les fichiers système et les dossiers protégés</value>
+  </data>
+  <data name="ShowHiddenItemsToggle.Header" xml:space="preserve">
+    <value>Afficher les fichiers masqués dans les résultats</value>
+  </data>
+  <data name="CleanupSettingsTitle.Text" xml:space="preserve">
+    <value>Sécurité du nettoyage</value>
+  </data>
+  <data name="LocalIndexTitle.Text" xml:space="preserve">
+    <value>Index de stockage local</value>
+  </data>
+  <data name="CompactIndexButton.Content" xml:space="preserve">
+    <value>Compacter l’index</value>
+  </data>
+  <data name="CheckIndexButton.Content" xml:space="preserve">
+    <value>Vérifier l’intégrité de l’index</value>
+  </data>
+  <data name="SmartSuggestionsToggle.Header" xml:space="preserve">
+    <value>Proposer des suggestions de nettoyage intelligentes</value>
+  </data>
+  <data name="ConfirmCleanupToggle.Header" xml:space="preserve">
+    <value>Exiger une confirmation finale</value>
+  </data>
+  <data name="ExcludeCloudOnlyToggle.Header" xml:space="preserve">
+    <value>Exclure les fichiers disponibles uniquement dans le cloud des suggestions de nettoyage</value>
+  </data>
+  <data name="AboutDescription.Text" xml:space="preserve">
+    <value>Une vue privée de votre stockage. Vos données restent sur cet appareil.</value>
+  </data>
+  <data name="AboutVersion.Text" xml:space="preserve">
+    <value>Version 1.0</value>
+  </data>
+  <data name="ByteUnitBytes" xml:space="preserve">
+    <value>B</value>
+  </data>
+  <data name="ByteUnitKilobytes" xml:space="preserve">
+    <value>KB</value>
+  </data>
+  <data name="ByteUnitMegabytes" xml:space="preserve">
+    <value>MB</value>
+  </data>
+  <data name="ByteUnitGigabytes" xml:space="preserve">
+    <value>GB</value>
+  </data>
+  <data name="ByteUnitTerabytes" xml:space="preserve">
+    <value>TB</value>
+  </data>
+  <data name="ModifiedTodayFormat" xml:space="preserve">
+    <value>Aujourd’hui, {0:t}</value>
+  </data>
+  <data name="ModifiedYesterday" xml:space="preserve">
+    <value>Hier</value>
+  </data>
+  <data name="AutomationTitle.Text" xml:space="preserve">
+    <value>Automatisation</value>
+  </data>
+  <data name="AutomationSubtitle.Text" xml:space="preserve">
+    <value>Surveillez l’espace libre et planifiez les révisions du nettoyage sans vérifier manuellement chaque lecteur.</value>
+  </data>
+  <data name="AutomationPreviewAlertButton.Content" xml:space="preserve">
+    <value>Aperçu de l’alerte</value>
+  </data>
+  <data name="AutomationSafetyInfoBar.Title" xml:space="preserve">
+    <value>Surveillance en arrière-plan et sécurité du nettoyage</value>
+  </data>
+  <data name="AutomationSafetyInfoBar.Message" xml:space="preserve">
+    <value>Les analyses en arrière-plan ont lieu pendant l’inactivité. Le nettoyage automatique est désactivé par défaut.</value>
+  </data>
+  <data name="StorageMonitorCardTitle.Text" xml:space="preserve">
+    <value>Moniteur de stockage</value>
+  </data>
+  <data name="StorageMonitorCardDescription.Text" xml:space="preserve">
+    <value>Alertes de manque d’espace et de croissance des dossiers.</value>
+  </data>
+  <data name="NotificationPreferencesTitle.Text" xml:space="preserve">
+    <value>Notifications</value>
+  </data>
+  <data name="BackgroundIndexCardTitle.Text" xml:space="preserve">
+    <value>Indexation des lecteurs en période d’inactivité</value>
+  </data>
+  <data name="BackgroundIndexCardDescription.Text" xml:space="preserve">
+    <value>Actualisez les index des lecteurs pendant la maintenance de Windows afin que les informations sur le stockage restent à jour sans interrompre votre travail.</value>
+  </data>
+  <data name="BackgroundIndexSafetyInfoBar.Title" xml:space="preserve">
+    <value>Impact faible</value>
+  </data>
+  <data name="BackgroundIndexSafetyInfoBar.Message" xml:space="preserve">
+    <value>La tâche d’indexation s’exécute en votre absence et utilise les modifications incrémentielles du journal lorsqu’elles sont disponibles.</value>
+  </data>
+  <data name="StorageMonitorToggle.Header" xml:space="preserve">
+    <value>Exécuter en arrière-plan</value>
+  </data>
+  <data name="MonitorFrequencyComboBox.Header" xml:space="preserve">
+    <value>Fréquence de vérification</value>
+  </data>
+  <data name="LowSpaceThresholdNumberBox.Header" xml:space="preserve">
+    <value>Alerte d’espace insuffisant sous (GB)</value>
+  </data>
+  <data name="GrowthThresholdNumberBox.Header" xml:space="preserve">
+    <value>Alerte de croissance après ajout de (GB)</value>
+  </data>
+  <data name="TrackedFolderSizeNumberBox.Header" xml:space="preserve">
+    <value>Suivre les dossiers d’au moins cette taille (GB)</value>
+  </data>
+  <data name="LowSpaceNotificationsToggle.Header" xml:space="preserve">
+    <value>Notifications d’espace insuffisant</value>
+  </data>
+  <data name="FolderGrowthNotificationsToggle.Header" xml:space="preserve">
+    <value>Notifications de croissance rapide</value>
+  </data>
+  <data name="BackgroundIndexToggle.Header" xml:space="preserve">
+    <value>Indexer les lecteurs en période d’inactivité</value>
+  </data>
+  <data name="BackgroundIndexToggle.OffContent" xml:space="preserve">
+    <value>Désactivé</value>
+  </data>
+  <data name="BackgroundIndexToggle.OnContent" xml:space="preserve">
+    <value>Activé</value>
+  </data>
+  <data name="BackgroundIndexIntervalNumberBox.Header" xml:space="preserve">
+    <value>Cadence d’indexation (jours)</value>
+  </data>
+  <data name="AutomationUnsavedChanges" xml:space="preserve">
+    <value>Modifications non appliquées</value>
+  </data>
+  <data name="SaveAutomationButton.Content" xml:space="preserve">
+    <value>Appliquer les paramètres de surveillance</value>
+  </data>
+  <data name="CleanupSchedulesTitle.Text" xml:space="preserve">
+    <value>Révisions de nettoyage planifiées</value>
+  </data>
+  <data name="CleanupSchedulesDescription.Text" xml:space="preserve">
+    <value>Choisissez les catégories et la cadence. Les planifications échues créent une notification qui ouvre la liste de révision exacte.</value>
+  </data>
+  <data name="AddCleanupScheduleButton.Content" xml:space="preserve">
+    <value>Ajouter une planification</value>
+  </data>
+  <data name="EditScheduleButton.Content" xml:space="preserve">
+    <value>Modifier</value>
+  </data>
+  <data name="DeleteScheduleButton.Content" xml:space="preserve">
+    <value>Supprimer</value>
+  </data>
+  <data name="ScheduleDialog.Title" xml:space="preserve">
+    <value>Planification du nettoyage</value>
+  </data>
+  <data name="ScheduleDialog.PrimaryButtonText" xml:space="preserve">
+    <value>Enregistrer la planification</value>
+  </data>
+  <data name="ScheduleDialog.CloseButtonText" xml:space="preserve">
+    <value>Annuler</value>
+  </data>
+  <data name="ScheduleNameTextBox.Header" xml:space="preserve">
+    <value>Nom de la planification</value>
+  </data>
+  <data name="ScheduleNameTextBox.PlaceholderText" xml:space="preserve">
+    <value>Révision hebdomadaire du cache</value>
+  </data>
+  <data name="ScheduleFrequencyComboBox.Header" xml:space="preserve">
+    <value>Fréquence</value>
+  </data>
+  <data name="ScheduleEnabledToggle.Header" xml:space="preserve">
+    <value>Planification activée</value>
+  </data>
+  <data name="ScheduleAutomaticCleanupToggle.Header" xml:space="preserve">
+    <value>Recycler automatiquement les fichiers sûrs admissibles</value>
+  </data>
+  <data name="ScheduleCategoriesLabel.Text" xml:space="preserve">
+    <value>Catégories à examiner</value>
+  </data>
+  <data name="ScheduleSafetyInfoBar.Title" xml:space="preserve">
+    <value>Planification en mode révision uniquement</value>
+  </data>
+  <data name="ScheduleSafetyInfoBar.Message" xml:space="preserve">
+    <value>Les planifications de révision vous avertissent sans modifier les fichiers. Le mode automatique prend uniquement en charge les fichiers temporaires, revérifiés avant leur déplacement vers la Corbeille. Les caches de packages exigent une vérification manuelle.</value>
+  </data>
+  <data name="ScheduleValidationInfoBar.Title" xml:space="preserve">
+    <value>Finalisez la planification</value>
+  </data>
+  <data name="ScheduleValidationInfoBar.Message" xml:space="preserve">
+    <value>Saisissez un nom et sélectionnez une catégorie. Le mode automatique prend uniquement en charge les fichiers temporaires ; les caches de packages exigent une vérification manuelle.</value>
+  </data>
+  <data name="HelpTitle.Text" xml:space="preserve">
+    <value>Aide</value>
+  </data>
+  <data name="HelpSubtitle.Text" xml:space="preserve">
+    <value>Apprenez à interpréter l’utilisation du stockage, à explorer les dossiers volumineux, à comprendre la sécurité du nettoyage et à configurer l’automatisation.</value>
+  </data>
+  <data name="HelpQuickStartTitle.Text" xml:space="preserve">
+    <value>Démarrage rapide</value>
+  </data>
+  <data name="HelpQuickStartDescription.Text" xml:space="preserve">
+    <value>Storage Lens est conçu autour du flux de travail lire → examiner → réviser.</value>
+  </data>
+  <data name="HelpQuickStartStepOne.Text" xml:space="preserve">
+    <value>1. Commencez par la Vue d’ensemble et comparez l’espace utilisé, libre et à examiner.</value>
+  </data>
+  <data name="HelpQuickStartStepTwo.Text" xml:space="preserve">
+    <value>2. Cliquez sur une catégorie, un élément volumineux ou un dossier en croissance pour l’ouvrir dans l’Explorateur de stockage.</value>
+  </data>
+  <data name="HelpQuickStartStepThree.Text" xml:space="preserve">
+    <value>3. Ouvrez la vérification du nettoyage, examinez tous les fichiers correspondants de chaque arborescence, décochez ceux à conserver, puis confirmez le nettoyage.</value>
+  </data>
+  <data name="HelpCategoriesTitle.Text" xml:space="preserve">
+    <value>Lecture des catégories</value>
+  </data>
+  <data name="HelpCategoriesDescription.Text" xml:space="preserve">
+    <value>Les catégories regroupent le stockage par usage : applications, vidéos, photos, système, documents, données temporaires ou autres. Cliquez sur une vignette de catégorie pour filtrer tous les éléments correspondants sur le lecteur sélectionné.</value>
+  </data>
+  <data name="HelpDrillDownTitle.Text" xml:space="preserve">
+    <value>Exploration détaillée des dossiers</value>
+  </data>
+  <data name="HelpDrillDownDescription.Text" xml:space="preserve">
+    <value>Sélectionnez un dossier dans l’arborescence ou cliquez sur la ligne d’un dossier dans la liste des éléments pour afficher son contenu direct. Utilisez le bouton de remontée pour revenir à son dossier parent.</value>
+  </data>
+  <data name="HelpGrowthTitle.Text" xml:space="preserve">
+    <value>Recherche des dossiers en croissance</value>
+  </data>
+  <data name="HelpGrowthDescription.Text" xml:space="preserve">
+    <value>La section sur la croissance compare les instantanés des analyses récentes et indique où l’espace disponible disparaît le plus rapidement. Modifiez la taille minimale des dossiers suivis dans Automatisation ; elle est de 1 GB au départ.</value>
+  </data>
+  <data name="HelpCleanupSafetyTitle.Text" xml:space="preserve">
+    <value>Sécurité du nettoyage</value>
+  </data>
+  <data name="HelpCleanupSafetyDescription.Text" xml:space="preserve">
+    <value>Sûr, À examiner et Attention sont des niveaux de confiance distincts. Cliquez sur une recommandation pour consulter chaque page de candidats. Le nettoyage confirmé déplace les éléments admissibles vers la Corbeille ; les fichiers protégés et modifiés sont ignorés.</value>
+  </data>
+  <data name="HelpMonitoringTitle.Text" xml:space="preserve">
+    <value>Surveillance en arrière-plan</value>
+  </data>
+  <data name="HelpMonitoringDescription.Text" xml:space="preserve">
+    <value>Activez la surveillance dans Automatisation pour recevoir des alertes d’espace et de croissance des dossiers.</value>
+  </data>
+  <data name="HelpSchedulesTitle.Text" xml:space="preserve">
+    <value>Révisions de nettoyage planifiées</value>
+  </data>
+  <data name="HelpSchedulesDescription.Text" xml:space="preserve">
+    <value>Créez des vérifications quotidiennes, hebdomadaires, bimensuelles ou mensuelles. Les examens envoient une notification ; le nettoyage automatique déplace uniquement les fichiers toujours admissibles vers la Corbeille.</value>
+  </data>
+  <data name="HelpSafetyInfoBar.Title" xml:space="preserve">
+    <value>Vos fichiers restent les vôtres</value>
+  </data>
+  <data name="HelpSafetyInfoBar.Message" xml:space="preserve">
+    <value>L’analyse du stockage est indexée localement sur cet appareil. La surveillance en arrière-plan lit les lecteurs et les dossiers suivis ; le nettoyage ne déplace les éléments admissibles vers la Corbeille qu’après validation.</value>
+  </data>
+  <data name="OverviewNotScanned" xml:space="preserve">
+    <value>Aucune analyse terminée pour l’instant</value>
+  </data>
+  <data name="OverviewScanSummaryFormat" xml:space="preserve">
+    <value>Dernière analyse {0} · {1} fichiers indexés</value>
+  </data>
+  <data name="ScanningDriveFormat" xml:space="preserve">
+    <value>Analyse de {0}…</value>
+  </data>
+  <data name="ScanProgressFormat" xml:space="preserve">
+    <value>{0} fichiers · {1} indexés · {2} éléments inaccessibles</value>
+  </data>
+  <data name="ScanCompletedFormat" xml:space="preserve">
+    <value>Analyse terminée · {0} fichiers · {1} éléments inaccessibles</value>
+  </data>
+  <data name="ScanCancelled" xml:space="preserve">
+    <value>Analyse annulée ; l’instantané terminé précédent reste disponible.</value>
+  </data>
+  <data name="CancellingScan" xml:space="preserve">
+    <value>Annulation de l’analyse…</value>
+  </data>
+  <data name="ScanFailed" xml:space="preserve">
+    <value>Échec de l’analyse du lecteur. L’instantané terminé précédent reste disponible.</value>
+  </data>
+  <data name="PreparingCleanup" xml:space="preserve">
+    <value>Chargement et validation des candidats au nettoyage…</value>
+  </data>
+  <data name="CleanupProgressFormat" xml:space="preserve">
+    <value>{0} éléments traités sur {1}</value>
+  </data>
+  <data name="CleanupCancelled" xml:space="preserve">
+    <value>Nettoyage annulé.</value>
+  </data>
+  <data name="CleanupFailed" xml:space="preserve">
+    <value>Impossible de terminer le nettoyage.</value>
+  </data>
+  <data name="CleanupResultSummaryFormat" xml:space="preserve">
+    <value>{0} éléments déplacés vers la Corbeille ({3}). {1} ont échoué et {2} ont été ignorés.</value>
+  </data>
+  <data name="CleanupResultNoFailures" xml:space="preserve">
+    <value>Tous les éléments sélectionnés et admissibles ont été traités sans erreur.</value>
+  </data>
+  <data name="CancelCleanupButton.Content" xml:space="preserve">
+    <value>Arrêter le nettoyage</value>
+  </data>
+  <data name="CancellingCleanup" xml:space="preserve">
+    <value>Arrêt du nettoyage après l’élément en cours…</value>
+  </data>
+  <data name="NoCleanupCandidates" xml:space="preserve">
+    <value>Aucun candidat trouvé</value>
+  </data>
+  <data name="CleanupCandidatePageFormat" xml:space="preserve">
+    <value>Affichage de {0}–{1} candidats sur {2}</value>
+  </data>
+  <data name="CategoryAppsGames" xml:space="preserve">
+    <value>Applications et jeux</value>
+  </data>
+  <data name="CategoryVideos" xml:space="preserve">
+    <value>Vidéos</value>
+  </data>
+  <data name="CategoryPhotos" xml:space="preserve">
+    <value>Photos</value>
+  </data>
+  <data name="CategorySystem" xml:space="preserve">
+    <value>Système</value>
+  </data>
+  <data name="CategoryDocuments" xml:space="preserve">
+    <value>Documents</value>
+  </data>
+  <data name="CategoryCacheTemporary" xml:space="preserve">
+    <value>Cache et données temporaires</value>
+  </data>
+  <data name="CategoryOther" xml:space="preserve">
+    <value>Autres</value>
+  </data>
+  <data name="CategoryAppsGamesDescription" xml:space="preserve">
+    <value>Applications installées, exécutables, disques virtuels et bibliothèques de jeux</value>
+  </data>
+  <data name="CategoryVideosDescription" xml:space="preserve">
+    <value>Enregistrements, clips, exportations et caches multimédias</value>
+  </data>
+  <data name="CategoryPhotosDescription" xml:space="preserve">
+    <value>Pellicule, captures d’écran et bibliothèques d’images</value>
+  </data>
+  <data name="CategorySystemDescription" xml:space="preserve">
+    <value>Fichiers Windows, de maintenance et de récupération</value>
+  </data>
+  <data name="CategoryDocumentsDescription" xml:space="preserve">
+    <value>Fichiers de travail, archives, courriers et documents</value>
+  </data>
+  <data name="CategoryCacheTemporaryDescription" xml:space="preserve">
+    <value>Données temporaires, de package et de cache pouvant être régénérées</value>
+  </data>
+  <data name="CategoryOtherDescription" xml:space="preserve">
+    <value>Outils de développement et fichiers non classés</value>
+  </data>
+  <data name="TagSystem" xml:space="preserve">
+    <value>Système</value>
+  </data>
+  <data name="TagCache" xml:space="preserve">
+    <value>Cache</value>
+  </data>
+  <data name="TagReview" xml:space="preserve">
+    <value>À examiner</value>
+  </data>
+  <data name="TagPersonal" xml:space="preserve">
+    <value>Personnel</value>
+  </data>
+  <data name="TagApps" xml:space="preserve">
+    <value>Applications</value>
+  </data>
+  <data name="TagOther" xml:space="preserve">
+    <value>Autre</value>
+  </data>
+  <data name="CleanupPolicy0Name" xml:space="preserve">
+    <value>Fichiers temporaires des applications</value>
+  </data>
+  <data name="CleanupPolicy0Description" xml:space="preserve">
+    <value>Fichiers de cache connus, temporaires et pouvant être recréés, datant de plus de 24 heures.</value>
+  </data>
+  <data name="CleanupPolicy1Name" xml:space="preserve">
+    <value>Téléchargements datant de plus de 90 jours</value>
+  </data>
+  <data name="CleanupPolicy1Description" xml:space="preserve">
+    <value>Anciens programmes d’installation, archives et documents du dossier Téléchargements de l’utilisateur.</value>
+  </data>
+  <data name="CleanupPolicy2Name" xml:space="preserve">
+    <value>Caches de packages</value>
+  </data>
+  <data name="CleanupPolicy2Description" xml:space="preserve">
+    <value>Caches utilisateur recréables de plus de 24 heures. Fermez d’abord les applications et compilations ; les packages devront peut-être être restaurés ou retéléchargés.</value>
+  </data>
+  <data name="CleanupPolicy3Name" xml:space="preserve">
+    <value>Fichiers volumineux en double</value>
+  </data>
+  <data name="CleanupPolicy3Description" xml:space="preserve">
+    <value>Fichiers en double dont le contenu est vérifié ; le chemin d’origine est conservé.</value>
+  </data>
+  <data name="CleanupPolicy4Name" xml:space="preserve">
+    <value>Installation précédente de Windows</value>
+  </data>
+  <data name="CleanupPolicy4Description" xml:space="preserve">
+    <value>Windows.old peut occuper beaucoup d’espace, mais il a une incidence sur la restauration et doit être supprimé à l’aide des outils Windows.</value>
+  </data>
+  <data name="ScheduleDaily" xml:space="preserve">
+    <value>Quotidien</value>
+  </data>
+  <data name="ScheduleWeekly" xml:space="preserve">
+    <value>Hebdomadaire</value>
+  </data>
+  <data name="ScheduleEveryWeeksFormat" xml:space="preserve">
+    <value>Toutes les {0} semaines</value>
+  </data>
+  <data name="ScheduleMonthly" xml:space="preserve">
+    <value>Mensuel</value>
+  </data>
+  <data name="ScheduleEveryDaysFormat" xml:space="preserve">
+    <value>Tous les {0} jours</value>
+  </data>
+  <data name="ScheduleModeRecycle" xml:space="preserve">
+    <value>Recycler les éléments sûrs</value>
+  </data>
+  <data name="ScheduleModeReview" xml:space="preserve">
+    <value>Révision uniquement</value>
+  </data>
+  <data name="ScheduleNextReviewFormat" xml:space="preserve">
+    <value>Prochaine révision {0:g}</value>
+  </data>
+  <data name="GrowthSummaryFormat" xml:space="preserve">
+    <value>+{0:0}% en {1} jours</value>
+  </data>
+  <data name="KindFile" xml:space="preserve">
+    <value>Fichier</value>
+  </data>
+  <data name="KindExtensionFileFormat" xml:space="preserve">
+    <value>Fichier {0}</value>
+  </data>
+  <data name="AutomationSettingsStored" xml:space="preserve">
+    <value>Les paramètres sont stockés sur cet appareil. Les planifications d’aperçu ne créent que des notifications de révision.</value>
+  </data>
+  <data name="MonitorEveryTwoDays" xml:space="preserve">
+    <value>Tous les 2 jours</value>
+  </data>
+  <data name="ScheduleEveryTwoWeeks" xml:space="preserve">
+    <value>Toutes les 2 semaines</value>
+  </data>
+  <data name="BackgroundMonitoringOff" xml:space="preserve">
+    <value>La surveillance en arrière-plan est désactivée</value>
+  </data>
+  <data name="NextCheckOneDay" xml:space="preserve">
+    <value>Prochaine vérification dans environ 1 jour</value>
+  </data>
+  <data name="NextCheckManyDaysFormat" xml:space="preserve">
+    <value>Prochaine vérification dans environ {0} jours</value>
+  </data>
+  <data name="IdleIndexNotRun" xml:space="preserve">
+    <value>L’indexation en période d’inactivité n’est pas encore terminée.</value>
+  </data>
+  <data name="LastIdleIndexStatusFormat" xml:space="preserve">
+    <value>Dernière indexation en période d’inactivité : {0:g} — {1}</value>
+  </data>
+  <data name="LastIdleIndexFormat" xml:space="preserve">
+    <value>Dernière indexation en période d’inactivité : {0:g}</value>
+  </data>
+  <data name="PreviewAlertTitle" xml:space="preserve">
+    <value>Alerte d’aperçu Storage Lens</value>
+  </data>
+  <data name="PreviewAlertMessageFormat" xml:space="preserve">
+    <value>L’espace libre approche du seuil de {0:0} GB que vous avez défini. Examinez les dossiers qui croissent le plus rapidement avant qu’ils n’occupent davantage d’espace.</value>
+  </data>
+  <data name="PreviewAlertSent" xml:space="preserve">
+    <value>Une notification d’aperçu a été envoyée.</value>
+  </data>
+  <data name="ScanPhaseScanning" xml:space="preserve">
+    <value>Analyse en cours</value>
+  </data>
+  <data name="ScanPhaseEnumerating" xml:space="preserve">
+    <value>Énumération</value>
+  </data>
+  <data name="ScanPhaseFinalizing" xml:space="preserve">
+    <value>Finalisation</value>
+  </data>
+  <data name="ScanPhaseFingerprinting" xml:space="preserve">
+    <value>Calcul des empreintes</value>
+  </data>
+  <data name="ScanPhaseComplete" xml:space="preserve">
+    <value>Terminé</value>
+  </data>
+  <data name="ScanRateFormat" xml:space="preserve">
+    <value>{0:N0} éléments/s</value>
+  </data>
+  <data name="LocalIndexChecking" xml:space="preserve">
+    <value>Vérification de l’index local…</value>
+  </data>
+  <data name="LocalIndexDetailFormat" xml:space="preserve">
+    <value>Base de données {0} · WAL {1}</value>
+  </data>
+  <data name="LocalIndexStoredOnDevice" xml:space="preserve">
+    <value>L’index est stocké uniquement sur cet appareil.</value>
+  </data>
+  <data name="LocalIndexNotCreated" xml:space="preserve">
+    <value>Aucun index de lecteur n’a encore été créé.</value>
+  </data>
+  <data name="LocalIndexCompacting" xml:space="preserve">
+    <value>Compactage de l’index local. Laissez Storage Lens ouvert.</value>
+  </data>
+  <data name="LocalIndexCompacted" xml:space="preserve">
+    <value>L’index local a été compacté.</value>
+  </data>
+  <data name="LocalIndexCompactFailedFormat" xml:space="preserve">
+    <value>Impossible de compacter l’index : {0}</value>
+  </data>
+  <data name="LocalIndexCheckingHealth" xml:space="preserve">
+    <value>Vérification de l’intégrité de la base de données. Laissez Storage Lens ouvert.</value>
+  </data>
+  <data name="LocalIndexHealthy" xml:space="preserve">
+    <value>L’index local a réussi les vérifications d’intégrité de SQLite et des clés étrangères.</value>
+  </data>
+  <data name="LocalIndexHealthFailedFormat" xml:space="preserve">
+    <value>La vérification de l’intégrité de l’index a détecté un problème : {0} ; {1} violation(s) de clé étrangère.</value>
+  </data>
+  <data name="LocalIndexHealthExceptionFormat" xml:space="preserve">
+    <value>Impossible de terminer la vérification de l’intégrité de l’index : {0}</value>
+  </data>
+  <data name="LoadingCleanupCandidates" xml:space="preserve">
+    <value>Chargement des fichiers…</value>
+  </data>
+  <data name="LoadingCleanupCandidatesText.Text" xml:space="preserve">
+    <value>Chargement des fichiers…</value>
+  </data>
+  <data name="DriveNameLocal" xml:space="preserve">
+    <value>Disque local</value>
+  </data>
+  <data name="DriveNameRemovable" xml:space="preserve">
+    <value>Lecteur amovible</value>
+  </data>
+  <data name="DriveNameNetwork" xml:space="preserve">
+    <value>Lecteur réseau</value>
+  </data>
+  <data name="ExplorerNoItemSelected" xml:space="preserve">
+    <value>Aucun élément sélectionné</value>
+  </data>
+  <data name="ExplorerSelectItemHint" xml:space="preserve">
+    <value>Sélectionnez un dossier ou un fichier pour l’examiner.</value>
+  </data>
+  <data name="CleanupIndexedDrivesFormat" xml:space="preserve">
+    <value>Tous les lecteurs indexés : {0}</value>
+  </data>
+  <data name="ClearCategoryFilesButton.Content" xml:space="preserve">
+    <value>Effacer la sélection de la catégorie</value>
+  </data>
+  <data name="RecycleFolderFilesButton.Content" xml:space="preserve">
+    <value>Recycler les fichiers sélectionnés</value>
+  </data>
+  <data name="CleanupFolderSelectionHint.Text" xml:space="preserve">
+    <value>Seuls les fichiers sélectionnés dans l’arborescence actuelle seront recyclés. Effacez la sélection de la catégorie pour choisir des dossiers et fichiers précis.</value>
+  </data>
+  <data name="CleanupFolderReviewDialog.Title" xml:space="preserve">
+    <value>Recycler les fichiers sélectionnés dans ce dossier ?</value>
+  </data>
+  <data name="CleanupFolderReviewDialog.PrimaryButtonText" xml:space="preserve">
+    <value>Déplacer vers la Corbeille</value>
+  </data>
+  <data name="CleanupFolderReviewDialog.CloseButtonText" xml:space="preserve">
+    <value>Annuler</value>
+  </data>
+  <data name="CleanupFolderReviewMessage.Text" xml:space="preserve">
+    <value>Seuls les fichiers cochés dans ce dossier et ses sous-dossiers seront déplacés vers la Corbeille. Les fichiers extérieurs à ce dossier resteront intacts.</value>
+  </data>
+  <data name="CleanupCacheReviewInfoBar.Title" xml:space="preserve">
+    <value>Vérifiez les caches de packages avant de les recycler</value>
+  </data>
+  <data name="CleanupCacheReviewInfoBar.Message" xml:space="preserve">
+    <value>Fermez d’abord les applications et compilations. Seuls les caches utilisateur autorisés de plus de 24 heures sont admissibles. Les packages devront peut-être être restaurés ou retéléchargés. Le nettoyage automatique est désactivé pour cette catégorie.</value>
+  </data>
+</root>

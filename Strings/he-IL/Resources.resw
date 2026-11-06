@@ -1,0 +1,1014 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms</value>
+  </resheader>
+  <data name="NavigationSearchBox.PlaceholderText" xml:space="preserve">
+    <value>חיפוש קבצים ותיקיות</value>
+  </data>
+  <data name="NavigationOverviewItem.Content" xml:space="preserve">
+    <value>סקירה כללית</value>
+  </data>
+  <data name="NavigationExplorerItem.Content" xml:space="preserve">
+    <value>סייר האחסון</value>
+  </data>
+  <data name="NavigationCleanupItem.Content" xml:space="preserve">
+    <value>סקירת ניקוי</value>
+  </data>
+  <data name="NavigationTipsItem.Content" xml:space="preserve">
+    <value>עצות לארגון</value>
+  </data>
+  <data name="NavigationAutomationItem.Content" xml:space="preserve">
+    <value>אוטומציה</value>
+  </data>
+  <data name="NavigationHelpItem.Content" xml:space="preserve">
+    <value>עזרה</value>
+  </data>
+  <data name="OrganizationTipsTitle" xml:space="preserve">
+    <value>טיפים של Storage Lens</value>
+  </data>
+  <data name="OrganizationTipsText" xml:space="preserve">
+    <value>התחילו בקבצי מטמון וקבצים זמניים, ולאחר מכן בדקו הורדות ישנות וכפילויות גדולות. בדקו בזהירות קובצי מערכת לפני הניקוי.</value>
+  </data>
+  <data name="OrganizationTipsCloseButton" xml:space="preserve">
+    <value>הבנתי</value>
+  </data>
+  <data name="OverviewTitle.Text" xml:space="preserve">
+    <value>סקירת אחסון</value>
+  </data>
+  <data name="OverviewSubtitle.Text" xml:space="preserve">
+    <value>ראו מה תופס מקום, מה משתנה ומה בטוח לבדוק בהמשך.</value>
+  </data>
+  <data name="DriveSelector.Header" xml:space="preserve">
+    <value>כונן</value>
+  </data>
+  <data name="ScanStorageButtonLabel.Text" xml:space="preserve">
+    <value>סריקת כונן</value>
+  </data>
+  <data name="CancelScanButton.Content" xml:space="preserve">
+    <value>ביטול הסריקה</value>
+  </data>
+  <data name="ScanProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>התקדמות סריקת הכונן</value>
+  </data>
+  <data name="NoScanDataInfoBar.Title" xml:space="preserve">
+    <value>יצירת אינדקס האחסון</value>
+  </data>
+  <data name="NoScanDataInfoBar.Message" xml:space="preserve">
+    <value>בחרו כונן והתחילו סריקה. סריקות שהושלמו נשארות במכשיר זה ומפעילות את הסייר, סקירת הניקוי והשוואות גידול.</value>
+  </data>
+  <data name="OverviewErrorInfoBar.Title" xml:space="preserve">
+    <value>לא ניתן היה לטעון את נתוני האחסון</value>
+  </data>
+  <data name="OverviewCoverageInfoBar.Title" xml:space="preserve">
+    <value>כיסוי האינדקס</value>
+  </data>
+  <data name="OverviewCoverageFormat" xml:space="preserve">
+    <value>נוספו לאינדקס {0} מההקצאה שבדיסק. {1} לא מיוחס לקבצים שנכללו באינדקס, ונרשמו {2} מיקומים שלא הייתה גישה אליהם או שהוחרגו.</value>
+  </data>
+  <data name="OverviewLegacyCoverageFormat" xml:space="preserve">
+    <value>האינדקס הישן מכיל {0} מגודלי הקבצים שנכללו בו. {1} אינו מיוחס; ההקצאה הפיזית אינה ידועה עד לסריקת הכונן הבאה. נרשמו {2} מיקומים שלא הייתה גישה אליהם או שהוחרגו.</value>
+  </data>
+  <data name="StorageUsageRing.AutomationProperties.Name" xml:space="preserve">
+    <value>שימוש בכונן</value>
+  </data>
+  <data name="StorageUsedLabel.Text" xml:space="preserve">
+    <value>בשימוש</value>
+  </data>
+  <data name="IndexDetailsExpander.Header" xml:space="preserve">
+    <value>פרטי הסריקה</value>
+  </data>
+  <data name="OverviewStorageProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>אחסון הכונן שבשימוש</value>
+  </data>
+  <data name="CategoryStorageProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>חלק משטח האחסון שבשימוש</value>
+  </data>
+  <data name="UsedSpaceLabel.Text" xml:space="preserve">
+    <value>בשימוש</value>
+  </data>
+  <data name="FreeSpaceLabel.Text" xml:space="preserve">
+    <value>פנוי</value>
+  </data>
+  <data name="CapacityLabel.Text" xml:space="preserve">
+    <value>קיבולת</value>
+  </data>
+  <data name="CleanupOpportunityLabel.Text" xml:space="preserve">
+    <value>מקום לבדיקה</value>
+  </data>
+  <data name="CleanupOpportunityValue.Text" xml:space="preserve">
+    <value>42 GB</value>
+  </data>
+  <data name="CleanupOpportunityDescription.Text" xml:space="preserve">
+    <value>נתונים זמניים, הורדות ישנות, מטמוני חבילות, קבצים כפולים וקבצי שחזור.</value>
+  </data>
+  <data name="ReviewCleanupButton.Content" xml:space="preserve">
+    <value>סקירת ניקוי</value>
+  </data>
+  <data name="CategoryBreakdownTitle.Text" xml:space="preserve">
+    <value>אחסון לפי קטגוריה</value>
+  </data>
+  <data name="TopFoldersTitle.Text" xml:space="preserve">
+    <value>התיקיות הגדולות ביותר</value>
+  </data>
+  <data name="TopFoldersDescription.Text" xml:space="preserve">
+    <value>תיקיות משנה שתופסות שטח רב, עם מעבר אוטומטי לעומק תיקיות האב.</value>
+  </data>
+  <data name="ExploreStorageButton.Content" xml:space="preserve">
+    <value>חקירת עץ התיקיות</value>
+  </data>
+  <data name="CleanupSuggestionsTitle.Text" xml:space="preserve">
+    <value>הפעולה הבאה המומלצת</value>
+  </data>
+  <data name="OpenCleanupReviewButton.Content" xml:space="preserve">
+    <value>פתיחת סקירת הניקוי</value>
+  </data>
+  <data name="LargestFilesTitle.Text" xml:space="preserve">
+    <value>הקבצים הגדולים ביותר</value>
+  </data>
+  <data name="LargestFilesDescription.Text" xml:space="preserve">
+    <value>קבצים בודדים ממוינים לפי גודל. הגדלים הכוללים של תיקיות מוצגים בנפרד.</value>
+  </data>
+  <data name="GrowingFoldersTitle.Text" xml:space="preserve">
+    <value>תיקיות שגדלות במהירות</value>
+  </data>
+  <data name="GrowingFoldersDescription.Text" xml:space="preserve">
+    <value>זהו גידול לאחרונה לפני שהוא הופך לבעיה של חוסר מקום.</value>
+  </data>
+  <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
+    <value>טרם זוהו תיקיות שגדלות במהירות</value>
+  </data>
+  <data name="GrowingFoldersEmptyHint.Text" xml:space="preserve">
+    <value>הגדילה תוצג לאחר סריקות שניתן להשוות ביניהן.</value>
+  </data>
+  <data name="GrowthTrackingThresholdFormat" xml:space="preserve">
+    <value>מעקב אחר תיקיות של {0:N0} GB ומעלה</value>
+  </data>
+  <data name="RefreshingPreview" xml:space="preserve">
+    <value>מרעננים את התצוגה המקדימה של האחסון…</value>
+  </data>
+  <data name="PreviewUpdated" xml:space="preserve">
+    <value>התצוגה המקדימה עודכנה כעת</value>
+  </data>
+  <data name="PreviewLastUpdated" xml:space="preserve">
+    <value>עודכן לפני 8 דקות</value>
+  </data>
+  <data name="ExplorerTitle.Text" xml:space="preserve">
+    <value>סייר האחסון</value>
+  </data>
+  <data name="ExplorerSubtitle.Text" xml:space="preserve">
+    <value>עקבו אחר השימוש האמיתי בתיקיות, בדקו פריטים גדולים וסננו לפי קטגוריה או תגית.</value>
+  </data>
+  <data name="ExplorerNoScanInfoBar.Title" xml:space="preserve">
+    <value>אין סריקה שהושלמה לכונן זה</value>
+  </data>
+  <data name="ExplorerNoScanInfoBar.Message" xml:space="preserve">
+    <value>חזרו לסקירה הכללית וסרקו את הכונן כדי לאכלס תצוגה זו.</value>
+  </data>
+  <data name="ExplorerErrorInfoBar.Title" xml:space="preserve">
+    <value>לא ניתן היה לרענן את הסייר</value>
+  </data>
+  <data name="ExplorerDriveSelector.Header" xml:space="preserve">
+    <value>כונן</value>
+  </data>
+  <data name="ExplorerSearchBox.PlaceholderText" xml:space="preserve">
+    <value>סינון קבצים ותיקיות</value>
+  </data>
+  <data name="CategoryFilter.Header" xml:space="preserve">
+    <value>קטגוריה</value>
+  </data>
+  <data name="SortSelector.Header" xml:space="preserve">
+    <value>מיון</value>
+  </data>
+  <data name="ClearFiltersButton.Content" xml:space="preserve">
+    <value>איפוס מסננים</value>
+  </data>
+  <data name="FolderTreeTitle.Text" xml:space="preserve">
+    <value>עץ תיקיות</value>
+  </data>
+  <data name="StorageItemsTitle.Text" xml:space="preserve">
+    <value>פריטים בתצוגה זו</value>
+  </data>
+  <data name="NavigateUpButton.AutomationProperties.Name" xml:space="preserve">
+    <value>מעבר תיקייה אחת למעלה</value>
+  </data>
+  <data name="ReclaimableCandidateLabel.Text" xml:space="preserve">
+    <value>בדיקה לצורך ניקוי</value>
+  </data>
+  <data name="SystemItemLabel.Text" xml:space="preserve">
+    <value>פריט מערכת</value>
+  </data>
+  <data name="OpenLocationButton.Content" xml:space="preserve">
+    <value>פתיחה בסייר הקבצים</value>
+  </data>
+  <data name="OpenChildrenButton.Content" xml:space="preserve">
+    <value>פתיחת תיקייה</value>
+  </data>
+  <data name="ExplorerAllItems" xml:space="preserve">
+    <value>כל הפריטים</value>
+  </data>
+  <data name="ExplorerLargestFirst" xml:space="preserve">
+    <value>הגדולים ביותר תחילה</value>
+  </data>
+  <data name="ExplorerRecentlyModified" xml:space="preserve">
+    <value>שונו לאחרונה</value>
+  </data>
+  <data name="ExplorerSortName" xml:space="preserve">
+    <value>שם</value>
+  </data>
+  <data name="SafetySafe" xml:space="preserve">
+    <value>בטוח</value>
+  </data>
+  <data name="SafetyReview" xml:space="preserve">
+    <value>בדיקה</value>
+  </data>
+  <data name="SafetyCaution" xml:space="preserve">
+    <value>זהירות</value>
+  </data>
+  <data name="ItemCountSingularFormat" xml:space="preserve">
+    <value>{0:N0} פריט</value>
+  </data>
+  <data name="ItemCountPluralFormat" xml:space="preserve">
+    <value>{0:N0} פריטים</value>
+  </data>
+  <data name="CleanupTitle.Text" xml:space="preserve">
+    <value>סקירת ניקוי</value>
+  </data>
+  <data name="CleanupSubtitle.Text" xml:space="preserve">
+    <value>בדקו את ההמלצות לפי רמת הבטיחות לפני שמסירים דבר כלשהו.</value>
+  </data>
+  <data name="CleanupDriveSelector.AutomationProperties.Name" xml:space="preserve">
+    <value>כונן</value>
+  </data>
+  <data name="SelectSafeButton.Content" xml:space="preserve">
+    <value>בחירת פריטים בטוחים</value>
+  </data>
+  <data name="ClearSelectionButton.Content" xml:space="preserve">
+    <value>ניקוי הבחירה</value>
+  </data>
+  <data name="CleanupSafetyInfoBar.Title" xml:space="preserve">
+    <value>בדקו תחילה, ולאחר מכן פעלו</value>
+  </data>
+  <data name="CleanupSafetyInfoBar.Message" xml:space="preserve">
+    <value>כל מועמד נבדק מחדש מיד לפני הניקוי. פריטים זכאים מועברים לסל המיחזור; שום פריט אינו נמחק לצמיתות.</value>
+  </data>
+  <data name="ReclaimableSpaceLabel.Text" xml:space="preserve">
+    <value>ניתן לשחרר</value>
+  </data>
+  <data name="SelectedForReviewLabel.Text" xml:space="preserve">
+    <value>נבחר לבדיקה</value>
+  </data>
+  <data name="SelectedGroupsLabel.Text" xml:space="preserve">
+    <value>קבוצות</value>
+  </data>
+  <data name="SelectedGroupSingular" xml:space="preserve">
+    <value>קבוצה</value>
+  </data>
+  <data name="SelectedGroupPlural" xml:space="preserve">
+    <value>קבוצות</value>
+  </data>
+  <data name="ReviewSelectedButton.Content" xml:space="preserve">
+    <value>סקירת הבחירה</value>
+  </data>
+  <data name="CleanupReviewDialog.Title" xml:space="preserve">
+    <value>סקירת הניקוי שנבחר</value>
+  </data>
+  <data name="CleanupReviewDialog.PrimaryButtonText" xml:space="preserve">
+    <value>העברה לסל המיחזור</value>
+  </data>
+  <data name="CleanupReviewDialog.CloseButtonText" xml:space="preserve">
+    <value>ביטול</value>
+  </data>
+  <data name="CleanupReviewDialogMessage.Text" xml:space="preserve">
+    <value>אשרו את הקבוצות שנבחרו. Storage Lens יבדוק מחדש כל מועמד ויעביר לסל המיחזור רק קבצים שעדיין זכאים.</value>
+  </data>
+  <data name="CleanupReviewSelectionLabel.Text" xml:space="preserve">
+    <value>קבוצות שנבחרו</value>
+  </data>
+  <data name="CleanupReviewSafetyNote.Text" xml:space="preserve">
+    <value>ניתן לשחזר קבצים מסל המיחזור. קבצים נעולים, שהשתנו, מוגנים, קבצים שמאוחסנים בענן בלבד או קבצים אסורים מדולגים ומדווחים.</value>
+  </data>
+  <data name="CleanupCandidatesDialog.Title" xml:space="preserve">
+    <value>קבצים שנכללו בניקוי זה</value>
+  </data>
+  <data name="CleanupCandidatesDialog.CloseButtonText" xml:space="preserve">
+    <value>סגירה</value>
+  </data>
+  <data name="CleanupCandidatesPreviewNote.Text" xml:space="preserve">
+    <value>פריטים שתיבת הסימון שלהם בוטלה לא ייכללו בניקוי. פתח קובץ בסייר האחסון לבדיקה מקרוב.</value>
+  </data>
+  <data name="CleanupCandidateFoldersHeader.Text" xml:space="preserve">
+    <value>תיקיות</value>
+  </data>
+  <data name="CleanupCandidateFoldersHint.Text" xml:space="preserve">
+    <value>בחר תיקייה כדי לבדוק את כל הקבצים התואמים בעץ התיקיות שלה.</value>
+  </data>
+  <data name="CleanupCandidateFilesHeader.Text" xml:space="preserve">
+    <value>קבצים בעץ התיקיות שנבחר</value>
+  </data>
+  <data name="IncludeCleanupFolderButton.Content" xml:space="preserve">
+    <value>כלול תיקייה</value>
+  </data>
+  <data name="ExcludeCleanupFolderButton.Content" xml:space="preserve">
+    <value>אל תכלול תיקייה</value>
+  </data>
+  <data name="CleanupFolderSummaryFormat" xml:space="preserve">
+    <value>{0} קבצים - {1}</value>
+  </data>
+  <data name="CleanupFolderSelectionFormat" xml:space="preserve">
+    <value>נבחרו {0} מתוך {1} בעץ תיקיות זה</value>
+  </data>
+  <data name="CleanupCandidatesBackButton.AutomationProperties.Name" xml:space="preserve">
+    <value>חזרה לבדיקת הניקוי</value>
+  </data>
+  <data name="CleanupCardInspectFiles.Text" xml:space="preserve">
+    <value>בדיקת קבצים</value>
+  </data>
+  <data name="CleanupActionInspectFiles" xml:space="preserve">
+    <value>בדיקת קבצים</value>
+  </data>
+  <data name="CleanupActionInspectAdvisory" xml:space="preserve">
+    <value>בדיקת קבצים להערכה</value>
+  </data>
+  <data name="CleanupActionManagedWindows" xml:space="preserve">
+    <value>בדוק קבצים המנוהלים על ידי Windows</value>
+  </data>
+  <data name="CleanupReclaimableSpaceLabel" xml:space="preserve">
+    <value>ניתן לשחזור</value>
+  </data>
+  <data name="CleanupAdvisorySpaceLabel" xml:space="preserve">
+    <value>להערכה</value>
+  </data>
+  <data name="CleanupWindowsManagedSpaceLabel" xml:space="preserve">
+    <value>מנוהל על ידי Windows</value>
+  </data>
+  <data name="CleanupInspectionOnlyFormat" xml:space="preserve">
+    <value>{0} קבצים להערכה בעץ תיקיות זה</value>
+  </data>
+  <data name="WindowsOldManagedCleanupInfoBar.Title" xml:space="preserve">
+    <value>Windows מנהל ניקוי זה</value>
+  </data>
+  <data name="WindowsOldManagedCleanupInfoBar.Message" xml:space="preserve">
+    <value>Windows.old היא עותק שחזור מוגן. Storage Lens אינו מוחק אותה קובץ אחר קובץ; השתמש ב־Storage Sense לבדיקתה ולהסרתה בבטחה.</value>
+  </data>
+  <data name="OpenStorageSenseButton.Content" xml:space="preserve">
+    <value>פתח את Storage Sense</value>
+  </data>
+  <data name="ManagedCleanupLaunchFailed" xml:space="preserve">
+    <value>לא ניתן לפתוח את הגדרות האחסון של Windows.</value>
+  </data>
+  <data name="CleanupResultNoChangesTitle" xml:space="preserve">
+    <value>לא השתנו קבצים</value>
+  </data>
+  <data name="CleanupResultSuccessTitle" xml:space="preserve">
+    <value>הניקוי הושלם</value>
+  </data>
+  <data name="CleanupResultPartialTitle" xml:space="preserve">
+    <value>הניקוי דורש תשומת לב</value>
+  </data>
+  <data name="CleanupResultNoChangesDetails" xml:space="preserve">
+    <value>אף קובץ נוכחי לא הועבר. מועמדים ישנים או שהשתנו דולגו והוסרו מהאינדקס המקומי; רענן את ההמלצה לפני ניסיון נוסף.</value>
+  </data>
+  <data name="CleanupResultExcludedDetailsFormat" xml:space="preserve">
+    <value>לא הועברו קבצים משום ש־{0} פריטים הוצאו בכוונה מניקוי זה.</value>
+  </data>
+  <data name="CleanupCandidatesErrorInfoBar.Title" xml:space="preserve">
+    <value>לא ניתן היה לטעון את הקבצים</value>
+  </data>
+  <data name="CleanupCandidatesEmptyText.Text" xml:space="preserve">
+    <value>אין קבצים זכאים בעץ תיקיות זה. בחר תיקייה או קטגוריה אחרת.</value>
+  </data>
+  <data name="CleanupCandidatesLoadTimeout" xml:space="preserve">
+    <value>טעינת רשימת הקבצים ארכה זמן רב מדי. סגרו תיבת דו-שיח זו ונסו שוב לאחר שתסתיים סריקת האחסון.</value>
+  </data>
+  <data name="CleanupCandidatesLoadFailed" xml:space="preserve">
+    <value>לא ניתן היה לטעון את רשימת הקבצים: {0}</value>
+  </data>
+  <data name="PreviousCandidatePageButton.Content" xml:space="preserve">
+    <value>הקודם</value>
+  </data>
+  <data name="NextCandidatePageButton.Content" xml:space="preserve">
+    <value>הבא</value>
+  </data>
+  <data name="CleanupProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>התקדמות הניקוי</value>
+  </data>
+  <data name="CleanupDialogErrorInfoBar.Title" xml:space="preserve">
+    <value>לא ניתן היה להמשיך בניקוי</value>
+  </data>
+  <data name="CleanupResultDialog.Title" xml:space="preserve">
+    <value>הניקוי הושלם</value>
+  </data>
+  <data name="CleanupResultDialog.CloseButtonText" xml:space="preserve">
+    <value>סגירה</value>
+  </data>
+  <data name="SettingsTitle.Text" xml:space="preserve">
+    <value>הגדרות</value>
+  </data>
+  <data name="SettingsSubtitle.Text" xml:space="preserve">
+    <value>בחרו כיצד Storage Lens מציג וממליץ על ניקוי אחסון.</value>
+  </data>
+  <data name="ResetSettingsButton.Content" xml:space="preserve">
+    <value>איפוס לברירות המחדל</value>
+  </data>
+  <data name="SettingsPrototypeInfoBar.Title" xml:space="preserve">
+    <value>הגדרות בטיחות</value>
+  </data>
+  <data name="SettingsPrototypeInfoBar.Message" xml:space="preserve">
+    <value>ההעדפות נשמרות במכשיר זה. לא ניתן להשבית את אישור הניקוי הסופי ואת החרגת קבצים שמאוחסנים בענן בלבד.</value>
+  </data>
+  <data name="AppearanceSettingsTitle.Text" xml:space="preserve">
+    <value>מראה</value>
+  </data>
+  <data name="AppearanceSettingsDescription.Text" xml:space="preserve">
+    <value>עקבו אוטומטית אחר Windows או בחרו ערכת נושא קבועה ליישום.</value>
+  </data>
+  <data name="ThemeSelector.Header" xml:space="preserve">
+    <value>ערכת הנושא של היישום</value>
+  </data>
+  <data name="ThemeSystemOption.Content" xml:space="preserve">
+    <value>שימוש בהגדרת המערכת</value>
+  </data>
+  <data name="ThemeLightOption.Content" xml:space="preserve">
+    <value>בהיר</value>
+  </data>
+  <data name="ThemeDarkOption.Content" xml:space="preserve">
+    <value>כהה</value>
+  </data>
+  <data name="ScanSettingsTitle.Text" xml:space="preserve">
+    <value>סריקת אחסון</value>
+  </data>
+  <data name="ScanOnLaunchToggle.Header" xml:space="preserve">
+    <value>רענון הסקירה הכללית בעת הפעלת היישום</value>
+  </data>
+  <data name="ShowSystemItemsToggle.Header" xml:space="preserve">
+    <value>הצגת קובצי מערכת ותיקיות מוגנות</value>
+  </data>
+  <data name="ShowHiddenItemsToggle.Header" xml:space="preserve">
+    <value>הצגת קבצים מוסתרים בתוצאות</value>
+  </data>
+  <data name="CleanupSettingsTitle.Text" xml:space="preserve">
+    <value>בטיחות ניקוי</value>
+  </data>
+  <data name="LocalIndexTitle.Text" xml:space="preserve">
+    <value>אינדקס אחסון מקומי</value>
+  </data>
+  <data name="CompactIndexButton.Content" xml:space="preserve">
+    <value>דחיסת האינדקס</value>
+  </data>
+  <data name="CheckIndexButton.Content" xml:space="preserve">
+    <value>בדיקת תקינות האינדקס</value>
+  </data>
+  <data name="SmartSuggestionsToggle.Header" xml:space="preserve">
+    <value>הצעת המלצות ניקוי חכמות</value>
+  </data>
+  <data name="ConfirmCleanupToggle.Header" xml:space="preserve">
+    <value>דרישת אישור סופי</value>
+  </data>
+  <data name="ExcludeCloudOnlyToggle.Header" xml:space="preserve">
+    <value>החרגת קבצים שמאוחסנים בענן בלבד מהצעות הניקוי</value>
+  </data>
+  <data name="AboutDescription.Text" xml:space="preserve">
+    <value>תובנות אחסון פרטיות. הנתונים נשארים במכשיר הזה.</value>
+  </data>
+  <data name="AboutVersion.Text" xml:space="preserve">
+    <value>גרסה 1.0</value>
+  </data>
+  <data name="ByteUnitBytes" xml:space="preserve">
+    <value>B</value>
+  </data>
+  <data name="ByteUnitKilobytes" xml:space="preserve">
+    <value>KB</value>
+  </data>
+  <data name="ByteUnitMegabytes" xml:space="preserve">
+    <value>MB</value>
+  </data>
+  <data name="ByteUnitGigabytes" xml:space="preserve">
+    <value>GB</value>
+  </data>
+  <data name="ByteUnitTerabytes" xml:space="preserve">
+    <value>TB</value>
+  </data>
+  <data name="ModifiedTodayFormat" xml:space="preserve">
+    <value>היום, {0:t}</value>
+  </data>
+  <data name="ModifiedYesterday" xml:space="preserve">
+    <value>אתמול</value>
+  </data>
+  <data name="AutomationTitle.Text" xml:space="preserve">
+    <value>אוטומציה</value>
+  </data>
+  <data name="AutomationSubtitle.Text" xml:space="preserve">
+    <value>עקבו אחר המקום הפנוי ותזמנו סקירות ניקוי בלי לבדוק כל כונן ידנית.</value>
+  </data>
+  <data name="AutomationPreviewAlertButton.Content" xml:space="preserve">
+    <value>תצוגה מקדימה של התראה</value>
+  </data>
+  <data name="AutomationSafetyInfoBar.Title" xml:space="preserve">
+    <value>ניטור ברקע ובטיחות ניקוי</value>
+  </data>
+  <data name="AutomationSafetyInfoBar.Message" xml:space="preserve">
+    <value>סריקות רקע פועלות בזמן חוסר פעילות. ניקוי אוטומטי כבוי כברירת מחדל.</value>
+  </data>
+  <data name="StorageMonitorCardTitle.Text" xml:space="preserve">
+    <value>ניטור אחסון</value>
+  </data>
+  <data name="StorageMonitorCardDescription.Text" xml:space="preserve">
+    <value>התראות על מחסור במקום ועל גדילה מהירה של תיקיות.</value>
+  </data>
+  <data name="NotificationPreferencesTitle.Text" xml:space="preserve">
+    <value>התראות</value>
+  </data>
+  <data name="BackgroundIndexCardTitle.Text" xml:space="preserve">
+    <value>אינדוקס כוננים בזמן חוסר פעילות</value>
+  </data>
+  <data name="BackgroundIndexCardDescription.Text" xml:space="preserve">
+    <value>רעננו אינדקסים של כוננים במהלך תחזוקת Windows, כדי שהתובנות לגבי האחסון יישארו עדכניות בלי להפריע לעבודה.</value>
+  </data>
+  <data name="BackgroundIndexSafetyInfoBar.Title" xml:space="preserve">
+    <value>השפעה נמוכה</value>
+  </data>
+  <data name="BackgroundIndexSafetyInfoBar.Message" xml:space="preserve">
+    <value>משימת האינדקס פועלת כשאינכם נמצאים ומשתמשת בשינויים מצטברים ביומן, כשהם זמינים.</value>
+  </data>
+  <data name="StorageMonitorToggle.Header" xml:space="preserve">
+    <value>הפעלה ברקע</value>
+  </data>
+  <data name="MonitorFrequencyComboBox.Header" xml:space="preserve">
+    <value>תדירות בדיקה</value>
+  </data>
+  <data name="LowSpaceThresholdNumberBox.Header" xml:space="preserve">
+    <value>התראת מעט מקום מתחת ל־(GB)</value>
+  </data>
+  <data name="GrowthThresholdNumberBox.Header" xml:space="preserve">
+    <value>התראת גידול לאחר הוספת (GB)</value>
+  </data>
+  <data name="TrackedFolderSizeNumberBox.Header" xml:space="preserve">
+    <value>מעקב אחר תיקיות בגודל של לפחות (GB)</value>
+  </data>
+  <data name="LowSpaceNotificationsToggle.Header" xml:space="preserve">
+    <value>התראות על מעט מקום</value>
+  </data>
+  <data name="FolderGrowthNotificationsToggle.Header" xml:space="preserve">
+    <value>התראות על גידול מהיר</value>
+  </data>
+  <data name="BackgroundIndexToggle.Header" xml:space="preserve">
+    <value>יצירת אינדקס לכוננים בזמן חוסר פעילות</value>
+  </data>
+  <data name="BackgroundIndexToggle.OffContent" xml:space="preserve">
+    <value>כבוי</value>
+  </data>
+  <data name="BackgroundIndexToggle.OnContent" xml:space="preserve">
+    <value>פועל</value>
+  </data>
+  <data name="BackgroundIndexIntervalNumberBox.Header" xml:space="preserve">
+    <value>תדירות אינדוקס (ימים)</value>
+  </data>
+  <data name="AutomationUnsavedChanges" xml:space="preserve">
+    <value>השינויים לא הוחלו</value>
+  </data>
+  <data name="SaveAutomationButton.Content" xml:space="preserve">
+    <value>החלת הגדרות הניטור</value>
+  </data>
+  <data name="CleanupSchedulesTitle.Text" xml:space="preserve">
+    <value>סקירות ניקוי מתוזמנות</value>
+  </data>
+  <data name="CleanupSchedulesDescription.Text" xml:space="preserve">
+    <value>בחרו קטגוריות ותדירות. לוח זמנים שהגיע מועדו יוצר התראה שפותחת את רשימת הסקירה המדויקת.</value>
+  </data>
+  <data name="AddCleanupScheduleButton.Content" xml:space="preserve">
+    <value>הוספת לוח זמנים</value>
+  </data>
+  <data name="EditScheduleButton.Content" xml:space="preserve">
+    <value>עריכה</value>
+  </data>
+  <data name="DeleteScheduleButton.Content" xml:space="preserve">
+    <value>מחיקה</value>
+  </data>
+  <data name="ScheduleDialog.Title" xml:space="preserve">
+    <value>לוח זמנים לניקוי</value>
+  </data>
+  <data name="ScheduleDialog.PrimaryButtonText" xml:space="preserve">
+    <value>שמירת לוח הזמנים</value>
+  </data>
+  <data name="ScheduleDialog.CloseButtonText" xml:space="preserve">
+    <value>ביטול</value>
+  </data>
+  <data name="ScheduleNameTextBox.Header" xml:space="preserve">
+    <value>שם לוח הזמנים</value>
+  </data>
+  <data name="ScheduleNameTextBox.PlaceholderText" xml:space="preserve">
+    <value>סקירת מטמון שבועית</value>
+  </data>
+  <data name="ScheduleFrequencyComboBox.Header" xml:space="preserve">
+    <value>תדירות</value>
+  </data>
+  <data name="ScheduleEnabledToggle.Header" xml:space="preserve">
+    <value>לוח הזמנים מופעל</value>
+  </data>
+  <data name="ScheduleAutomaticCleanupToggle.Header" xml:space="preserve">
+    <value>מיחזור אוטומטי של קבצים בטוחים וזכאים</value>
+  </data>
+  <data name="ScheduleCategoriesLabel.Text" xml:space="preserve">
+    <value>קטגוריות לסקירה</value>
+  </data>
+  <data name="ScheduleSafetyInfoBar.Title" xml:space="preserve">
+    <value>לוח זמנים לסקירה בלבד</value>
+  </data>
+  <data name="ScheduleSafetyInfoBar.Message" xml:space="preserve">
+    <value>לוחות בדיקה שולחים הודעות בלי לשנות קבצים. המצב האוטומטי תומך בקובצי יישומים זמניים בלבד, עם אימות כל קובץ ושימוש בסל המיחזור. מטמוני חבילות דורשים בדיקה ידנית.</value>
+  </data>
+  <data name="ScheduleValidationInfoBar.Title" xml:space="preserve">
+    <value>השלמת לוח הזמנים</value>
+  </data>
+  <data name="ScheduleValidationInfoBar.Message" xml:space="preserve">
+    <value>הזן שם ובחר קטגוריה. מצב אוטומטי תומך בקובצי יישומים זמניים בלבד; מטמוני חבילות דורשים בדיקה ידנית.</value>
+  </data>
+  <data name="HelpTitle.Text" xml:space="preserve">
+    <value>עזרה</value>
+  </data>
+  <data name="HelpSubtitle.Text" xml:space="preserve">
+    <value>למדו כיצד לקרוא את השימוש באחסון, לחקור לעומק תיקיות גדולות, להבין את בטיחות הניקוי ולהגדיר אוטומציה.</value>
+  </data>
+  <data name="HelpQuickStartTitle.Text" xml:space="preserve">
+    <value>התחלה מהירה</value>
+  </data>
+  <data name="HelpQuickStartDescription.Text" xml:space="preserve">
+    <value>Storage Lens תוכנן כתהליך עבודה של קריאה ← חקירה ← סקירה.</value>
+  </data>
+  <data name="HelpQuickStartStepOne.Text" xml:space="preserve">
+    <value>1. התחילו בסקירה הכללית והשוו בין המקום שבשימוש, המקום הפנוי והמקום הניתן לבדיקה.</value>
+  </data>
+  <data name="HelpQuickStartStepTwo.Text" xml:space="preserve">
+    <value>2. לחצו על קטגוריה, על הפריט הגדול ביותר או על תיקייה גדלה כדי לפתוח אותה בסייר האחסון.</value>
+  </data>
+  <data name="HelpQuickStartStepThree.Text" xml:space="preserve">
+    <value>3. פתח את בדיקת הניקוי, בדוק את כל הקבצים התואמים בכל עץ תיקיות, בטל סימון עבור קבצים שברצונך לשמור, ואשר את הניקוי.</value>
+  </data>
+  <data name="HelpCategoriesTitle.Text" xml:space="preserve">
+    <value>קריאת קטגוריות</value>
+  </data>
+  <data name="HelpCategoriesDescription.Text" xml:space="preserve">
+    <value>קטגוריות מקבצות אחסון לפי שימוש: יישומים, וידאו, תמונות, מערכת, מסמכים, נתונים זמניים או אחר. לחצו על אריח קטגוריה כדי לסנן את כל הפריטים התואמים בכונן שנבחר.</value>
+  </data>
+  <data name="HelpDrillDownTitle.Text" xml:space="preserve">
+    <value>ניווט פנימה בתיקיות</value>
+  </data>
+  <data name="HelpDrillDownDescription.Text" xml:space="preserve">
+    <value>בחרו תיקייה מהעץ או לחצו על שורת תיקייה ברשימת הפריטים כדי להציג את הצאצאים הישירים שלה. השתמשו בלחצן למעלה כדי לחזור לתיקיית האב.</value>
+  </data>
+  <data name="HelpGrowthTitle.Text" xml:space="preserve">
+    <value>איתור תיקיות גדלות</value>
+  </data>
+  <data name="HelpGrowthDescription.Text" xml:space="preserve">
+    <value>המקטע 'גידול' משווה צילומי סריקה אחרונים ומציג היכן המקום הפנוי מתרוקן במהירות הגבוהה ביותר. שנו את הגודל המינימלי של תיקייה במעקב באוטומציה; הוא מתחיל ב־1 GB.</value>
+  </data>
+  <data name="HelpCleanupSafetyTitle.Text" xml:space="preserve">
+    <value>בטיחות ניקוי</value>
+  </data>
+  <data name="HelpCleanupSafetyDescription.Text" xml:space="preserve">
+    <value>בטוח, בדיקה וזהירות הם רמות אמון נפרדות. לחצו על המלצה כדי לבדוק כל עמוד של מועמד. ניקוי שאושר מעביר פריטים זכאים לסל המיחזור; קבצים מוגנים וקבצים שהשתנו מדולגים.</value>
+  </data>
+  <data name="HelpMonitoringTitle.Text" xml:space="preserve">
+    <value>ניטור ברקע</value>
+  </data>
+  <data name="HelpMonitoringDescription.Text" xml:space="preserve">
+    <value>הפעילו ניטור באוטומציה לקבלת התראות על מקום פנוי וגדילת תיקיות.</value>
+  </data>
+  <data name="HelpSchedulesTitle.Text" xml:space="preserve">
+    <value>סקירות ניקוי מתוזמנות</value>
+  </data>
+  <data name="HelpSchedulesDescription.Text" xml:space="preserve">
+    <value>צור בדיקות קטגוריות יומיות, שבועיות, דו־שבועיות או חודשיות. לוחות בדיקה שולחים התראה; ניקוי אוטומטי מעביר רק קבצים שעדיין זכאים לסל המיחזור.</value>
+  </data>
+  <data name="HelpSafetyInfoBar.Title" xml:space="preserve">
+    <value>הקבצים שלכם נשארים שלכם</value>
+  </data>
+  <data name="HelpSafetyInfoBar.Message" xml:space="preserve">
+    <value>ניתוח האחסון מתויג באינדקס מקומי במכשיר זה. הניטור ברקע קורא כוננים ותיקיות במעקב; הניקוי מעביר לסל המיחזור רק פריטים זכאים לאחר אימות.</value>
+  </data>
+  <data name="OverviewNotScanned" xml:space="preserve">
+    <value>עדיין אין סריקה שהושלמה</value>
+  </data>
+  <data name="OverviewScanSummaryFormat" xml:space="preserve">
+    <value>הסריקה האחרונה {0} · {1} קבצים נוספו לאינדקס</value>
+  </data>
+  <data name="ScanningDriveFormat" xml:space="preserve">
+    <value>סורק את {0}…</value>
+  </data>
+  <data name="ScanProgressFormat" xml:space="preserve">
+    <value>{0} קבצים · {1} נוספו לאינדקס · {2} פריטים ללא גישה</value>
+  </data>
+  <data name="ScanCompletedFormat" xml:space="preserve">
+    <value>הסריקה הושלמה · {0} קבצים · {1} פריטים ללא גישה</value>
+  </data>
+  <data name="ScanCancelled" xml:space="preserve">
+    <value>הסריקה בוטלה; צילום המצב השלם הקודם עדיין זמין.</value>
+  </data>
+  <data name="CancellingScan" xml:space="preserve">
+    <value>מבטל את הסריקה…</value>
+  </data>
+  <data name="ScanFailed" xml:space="preserve">
+    <value>סריקת הכונן נכשלה. צילום המצב השלם הקודם נשאר זמין.</value>
+  </data>
+  <data name="PreparingCleanup" xml:space="preserve">
+    <value>טוען ומאמת מועמדים לניקוי…</value>
+  </data>
+  <data name="CleanupProgressFormat" xml:space="preserve">
+    <value>עובדו {0} מתוך {1}</value>
+  </data>
+  <data name="CleanupCancelled" xml:space="preserve">
+    <value>הניקוי בוטל.</value>
+  </data>
+  <data name="CleanupFailed" xml:space="preserve">
+    <value>לא ניתן היה להשלים את הניקוי.</value>
+  </data>
+  <data name="CleanupResultSummaryFormat" xml:space="preserve">
+    <value>{0} פריטים הועברו לסל המיחזור ({3}). {1} נכשלו ו־{2} דולגו.</value>
+  </data>
+  <data name="CleanupResultNoFailures" xml:space="preserve">
+    <value>כל הפריטים שנבחרו והיו זכאים הושלמו ללא שגיאות.</value>
+  </data>
+  <data name="CancelCleanupButton.Content" xml:space="preserve">
+    <value>עצירת הניקוי</value>
+  </data>
+  <data name="CancellingCleanup" xml:space="preserve">
+    <value>עוצר את הניקוי לאחר הפריט הנוכחי…</value>
+  </data>
+  <data name="NoCleanupCandidates" xml:space="preserve">
+    <value>לא נמצאו מועמדים</value>
+  </data>
+  <data name="CleanupCandidatePageFormat" xml:space="preserve">
+    <value>מציג {0}–{1} מתוך {2} מועמדים</value>
+  </data>
+  <data name="CategoryAppsGames" xml:space="preserve">
+    <value>אפליקציות ומשחקים</value>
+  </data>
+  <data name="CategoryVideos" xml:space="preserve">
+    <value>סרטונים</value>
+  </data>
+  <data name="CategoryPhotos" xml:space="preserve">
+    <value>תמונות</value>
+  </data>
+  <data name="CategorySystem" xml:space="preserve">
+    <value>מערכת</value>
+  </data>
+  <data name="CategoryDocuments" xml:space="preserve">
+    <value>מסמכים</value>
+  </data>
+  <data name="CategoryCacheTemporary" xml:space="preserve">
+    <value>מטמון וקבצים זמניים</value>
+  </data>
+  <data name="CategoryOther" xml:space="preserve">
+    <value>אחר</value>
+  </data>
+  <data name="CategoryAppsGamesDescription" xml:space="preserve">
+    <value>אפליקציות מותקנות, קובצי הפעלה, דיסקים וירטואליים וספריות משחקים</value>
+  </data>
+  <data name="CategoryVideosDescription" xml:space="preserve">
+    <value>הקלטות, קטעים, ייצואים ומטמוני מדיה</value>
+  </data>
+  <data name="CategoryPhotosDescription" xml:space="preserve">
+    <value>תמונות ממצלמה, צילומי מסך וספריות תמונות</value>
+  </data>
+  <data name="CategorySystemDescription" xml:space="preserve">
+    <value>קובצי Windows, שירות ושחזור</value>
+  </data>
+  <data name="CategoryDocumentsDescription" xml:space="preserve">
+    <value>קובצי עבודה, ארכיונים, דואר ומסמכים</value>
+  </data>
+  <data name="CategoryCacheTemporaryDescription" xml:space="preserve">
+    <value>נתונים זמניים, נתוני חבילות ונתוני מטמון הניתנים לבנייה מחדש</value>
+  </data>
+  <data name="CategoryOtherDescription" xml:space="preserve">
+    <value>כלי פיתוח וקבצים שאינם מסווגים</value>
+  </data>
+  <data name="TagSystem" xml:space="preserve">
+    <value>מערכת</value>
+  </data>
+  <data name="TagCache" xml:space="preserve">
+    <value>מטמון</value>
+  </data>
+  <data name="TagReview" xml:space="preserve">
+    <value>בדיקה</value>
+  </data>
+  <data name="TagPersonal" xml:space="preserve">
+    <value>אישי</value>
+  </data>
+  <data name="TagApps" xml:space="preserve">
+    <value>אפליקציות</value>
+  </data>
+  <data name="TagOther" xml:space="preserve">
+    <value>אחר</value>
+  </data>
+  <data name="CleanupPolicy0Name" xml:space="preserve">
+    <value>קובצי יישום זמניים</value>
+  </data>
+  <data name="CleanupPolicy0Description" xml:space="preserve">
+    <value>קובצי מטמון ידועים, זמניים וניתנים לבנייה מחדש, שחלפו יותר מ־24 שעות.</value>
+  </data>
+  <data name="CleanupPolicy1Name" xml:space="preserve">
+    <value>הורדות מלפני יותר מ־90 ימים</value>
+  </data>
+  <data name="CleanupPolicy1Description" xml:space="preserve">
+    <value>מתקינים, ארכיונים ומסמכים ישנים בתיקיית ההורדות של המשתמש.</value>
+  </data>
+  <data name="CleanupPolicy2Name" xml:space="preserve">
+    <value>מטמוני חבילות</value>
+  </data>
+  <data name="CleanupPolicy2Description" xml:space="preserve">
+    <value>מטמוני משתמש ניתנים לשחזור שגילם מעל 24 שעות. סגור תחילה יישומים ובניות; ייתכן שיהיה צורך לשחזר או להוריד חבילות מחדש.</value>
+  </data>
+  <data name="CleanupPolicy3Name" xml:space="preserve">
+    <value>קבצים כפולים גדולים</value>
+  </data>
+  <data name="CleanupPolicy3Description" xml:space="preserve">
+    <value>קבצים כפולים שתוכנם אומת; הנתיב המקורי נשמר.</value>
+  </data>
+  <data name="CleanupPolicy4Name" xml:space="preserve">
+    <value>התקנת Windows קודמת</value>
+  </data>
+  <data name="CleanupPolicy4Description" xml:space="preserve">
+    <value>Windows.old עשוי לתפוס מקום רב, אך הוא משפיע על האפשרות לחזור לאחור ויש להסירו באמצעות כלי Windows.</value>
+  </data>
+  <data name="ScheduleDaily" xml:space="preserve">
+    <value>יומי</value>
+  </data>
+  <data name="ScheduleWeekly" xml:space="preserve">
+    <value>שבועי</value>
+  </data>
+  <data name="ScheduleEveryWeeksFormat" xml:space="preserve">
+    <value>כל {0} שבועות</value>
+  </data>
+  <data name="ScheduleMonthly" xml:space="preserve">
+    <value>חודשי</value>
+  </data>
+  <data name="ScheduleEveryDaysFormat" xml:space="preserve">
+    <value>כל {0} ימים</value>
+  </data>
+  <data name="ScheduleModeRecycle" xml:space="preserve">
+    <value>העברת פריטים בטוחים לסל המיחזור</value>
+  </data>
+  <data name="ScheduleModeReview" xml:space="preserve">
+    <value>סקירה בלבד</value>
+  </data>
+  <data name="ScheduleNextReviewFormat" xml:space="preserve">
+    <value>הסקירה הבאה {0:g}</value>
+  </data>
+  <data name="GrowthSummaryFormat" xml:space="preserve">
+    <value>עלייה של +{0:0}% בתוך {1} ימים</value>
+  </data>
+  <data name="KindFile" xml:space="preserve">
+    <value>קובץ</value>
+  </data>
+  <data name="KindExtensionFileFormat" xml:space="preserve">
+    <value>קובץ {0}</value>
+  </data>
+  <data name="AutomationSettingsStored" xml:space="preserve">
+    <value>ההגדרות נשמרות במכשיר זה. לוחות זמנים לתצוגה מקדימה יוצרים התראות סקירה בלבד.</value>
+  </data>
+  <data name="MonitorEveryTwoDays" xml:space="preserve">
+    <value>כל יומיים</value>
+  </data>
+  <data name="ScheduleEveryTwoWeeks" xml:space="preserve">
+    <value>כל שבועיים</value>
+  </data>
+  <data name="BackgroundMonitoringOff" xml:space="preserve">
+    <value>ניטור ברקע כבוי</value>
+  </data>
+  <data name="NextCheckOneDay" xml:space="preserve">
+    <value>הבדיקה הבאה בעוד יום אחד בערך</value>
+  </data>
+  <data name="NextCheckManyDaysFormat" xml:space="preserve">
+    <value>הבדיקה הבאה בעוד כ־{0} ימים</value>
+  </data>
+  <data name="IdleIndexNotRun" xml:space="preserve">
+    <value>יצירת האינדקס בזמן חוסר פעילות עדיין לא הושלמה.</value>
+  </data>
+  <data name="LastIdleIndexStatusFormat" xml:space="preserve">
+    <value>האינדקס האחרון בזמן חוסר פעילות: {0:g} — {1}</value>
+  </data>
+  <data name="LastIdleIndexFormat" xml:space="preserve">
+    <value>האינדקס האחרון בזמן חוסר פעילות: {0:g}</value>
+  </data>
+  <data name="PreviewAlertTitle" xml:space="preserve">
+    <value>התראת תצוגה מקדימה של Storage Lens</value>
+  </data>
+  <data name="PreviewAlertMessageFormat" xml:space="preserve">
+    <value>המקום הפנוי מתקרב לסף של {0:0} GB. בדקו את התיקיות שגדלות בקצב המהיר ביותר לפני שהן יתפסו מקום נוסף.</value>
+  </data>
+  <data name="PreviewAlertSent" xml:space="preserve">
+    <value>נשלחה התראת תצוגה מקדימה.</value>
+  </data>
+  <data name="ScanPhaseScanning" xml:space="preserve">
+    <value>סורק</value>
+  </data>
+  <data name="ScanPhaseEnumerating" xml:space="preserve">
+    <value>מאתר פריטים</value>
+  </data>
+  <data name="ScanPhaseFinalizing" xml:space="preserve">
+    <value>מסיים</value>
+  </data>
+  <data name="ScanPhaseFingerprinting" xml:space="preserve">
+    <value>יוצר טביעות של קבצים</value>
+  </data>
+  <data name="ScanPhaseComplete" xml:space="preserve">
+    <value>הושלם</value>
+  </data>
+  <data name="ScanRateFormat" xml:space="preserve">
+    <value>{0:N0} פריטים לשנייה</value>
+  </data>
+  <data name="LocalIndexChecking" xml:space="preserve">
+    <value>בודק את האינדקס המקומי…</value>
+  </data>
+  <data name="LocalIndexDetailFormat" xml:space="preserve">
+    <value>מסד נתונים {0} · WAL {1}</value>
+  </data>
+  <data name="LocalIndexStoredOnDevice" xml:space="preserve">
+    <value>האינדקס מאוחסן במכשיר זה בלבד.</value>
+  </data>
+  <data name="LocalIndexNotCreated" xml:space="preserve">
+    <value>עדיין לא נוצר אינדקס לכונן.</value>
+  </data>
+  <data name="LocalIndexCompacting" xml:space="preserve">
+    <value>דוחס את האינדקס המקומי. השאירו את Storage Lens פתוח.</value>
+  </data>
+  <data name="LocalIndexCompacted" xml:space="preserve">
+    <value>האינדקס המקומי נדחס בהצלחה.</value>
+  </data>
+  <data name="LocalIndexCompactFailedFormat" xml:space="preserve">
+    <value>לא ניתן היה לדחוס את האינדקס: {0}</value>
+  </data>
+  <data name="LocalIndexCheckingHealth" xml:space="preserve">
+    <value>בודק את תקינות מסד הנתונים. השאירו את Storage Lens פתוח.</value>
+  </data>
+  <data name="LocalIndexHealthy" xml:space="preserve">
+    <value>האינדקס המקומי עבר את בדיקות התקינות של SQLite ובדיקות foreign-key.</value>
+  </data>
+  <data name="LocalIndexHealthFailedFormat" xml:space="preserve">
+    <value>בדיקת תקינות האינדקס מצאה בעיה: {0}; {1} הפרות foreign-key.</value>
+  </data>
+  <data name="LocalIndexHealthExceptionFormat" xml:space="preserve">
+    <value>בדיקת תקינות האינדקס לא הושלמה: {0}</value>
+  </data>
+  <data name="LoadingCleanupCandidates" xml:space="preserve">
+    <value>טוען קבצים…</value>
+  </data>
+  <data name="LoadingCleanupCandidatesText.Text" xml:space="preserve">
+    <value>טוען קבצים…</value>
+  </data>
+  <data name="DriveNameLocal" xml:space="preserve">
+    <value>דיסק מקומי</value>
+  </data>
+  <data name="DriveNameRemovable" xml:space="preserve">
+    <value>כונן נשלף</value>
+  </data>
+  <data name="DriveNameNetwork" xml:space="preserve">
+    <value>כונן רשת</value>
+  </data>
+  <data name="ExplorerNoItemSelected" xml:space="preserve">
+    <value>לא נבחר פריט</value>
+  </data>
+  <data name="ExplorerSelectItemHint" xml:space="preserve">
+    <value>בחרו תיקייה או קובץ כדי לבדוק אותו.</value>
+  </data>
+  <data name="CleanupIndexedDrivesFormat" xml:space="preserve">
+    <value>כל הכוננים שנוספו לאינדקס: {0}</value>
+  </data>
+  <data name="ClearCategoryFilesButton.Content" xml:space="preserve">
+    <value>נקה את בחירת הקטגוריה</value>
+  </data>
+  <data name="RecycleFolderFilesButton.Content" xml:space="preserve">
+    <value>העבר את הקבצים שנבחרו לסל המיחזור</value>
+  </data>
+  <data name="CleanupFolderSelectionHint.Text" xml:space="preserve">
+    <value>רק קבצים שנבחרו בעץ התיקיות הנוכחי יועברו לסל המיחזור. נקה את בחירת הקטגוריה כדי לבחור תיקיות וקבצים מסוימים.</value>
+  </data>
+  <data name="CleanupFolderReviewDialog.Title" xml:space="preserve">
+    <value>להעביר לסל המיחזור את הקבצים שנבחרו בתיקייה זו?</value>
+  </data>
+  <data name="CleanupFolderReviewDialog.PrimaryButtonText" xml:space="preserve">
+    <value>העבר לסל המיחזור</value>
+  </data>
+  <data name="CleanupFolderReviewDialog.CloseButtonText" xml:space="preserve">
+    <value>ביטול</value>
+  </data>
+  <data name="CleanupFolderReviewMessage.Text" xml:space="preserve">
+    <value>רק קבצים שסומנו בתיקייה זו ובתיקיות המשנה שלה יועברו לסל המיחזור. קבצים מחוץ לתיקייה זו לא ישתנו.</value>
+  </data>
+  <data name="CleanupCacheReviewInfoBar.Title" xml:space="preserve">
+    <value>בדוק את מטמוני החבילות לפני העברתם לסל המיחזור</value>
+  </data>
+  <data name="CleanupCacheReviewInfoBar.Message" xml:space="preserve">
+    <value>סגור תחילה יישומים ובניות. רק מטמוני משתמש במיקומים מורשים שגילם מעל 24 שעות זכאים לניקוי. ייתכן שיהיה צורך לשחזר או להוריד חבילות מחדש. ניקוי אוטומטי מושבת עבור קטגוריה זו.</value>
+  </data>
+</root>

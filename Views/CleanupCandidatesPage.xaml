@@ -1,0 +1,458 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="StorageLens.Views.CleanupCandidatesPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:controls="using:StorageLens.Controls"
+    xmlns:local="using:StorageLens"
+    xmlns:models="using:StorageLens.Models"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    NavigationCacheMode="Required"
+    mc:Ignorable="d">
+    <Grid RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid
+            Padding="36,28,36,0"
+            ColumnSpacing="20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Button
+                x:Uid="CleanupCandidatesBackButton"
+                VerticalAlignment="Top"
+                Click="BackButton_Click">
+                <SymbolIcon Symbol="Back" />
+            </Button>
+
+            <StackPanel
+                Grid.Column="1"
+                Spacing="4">
+                <TextBlock
+                    Text="{x:Bind ViewModel.ActiveRecommendationName, Mode=OneWay}"
+                    Style="{StaticResource TitleTextBlockStyle}" />
+                <TextBlock
+                    Text="{x:Bind ViewModel.ActiveRecommendationDescription, Mode=OneWay}"
+                    Style="{StaticResource MutedTextBlockStyle}"
+                    TextWrapping="Wrap" />
+                <Grid
+                    Margin="0,8,0,0"
+                    HorizontalAlignment="Left"
+                    Padding="8,4"
+                    Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                    CornerRadius="{StaticResource ControlCornerRadius}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE8D7;" />
+                        <TextBlock
+                            Text="{x:Bind ViewModel.ActiveRecommendationSafety, Mode=OneWay}"
+                            Style="{StaticResource CaptionTextBlockStyle}" />
+                    </StackPanel>
+                </Grid>
+                <InfoBar
+                    x:Uid="WindowsOldManagedCleanupInfoBar"
+                    Margin="0,8,0,0"
+                    IsClosable="False"
+                    IsOpen="{x:Bind ViewModel.IsWindowsManagedCleanup, Mode=OneWay}"
+                    Severity="Warning">
+                    <InfoBar.ActionButton>
+                        <Button
+                            x:Uid="OpenStorageSenseButton"
+                            Click="OpenStorageSenseButton_Click" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
+                <InfoBar
+                    x:Uid="CleanupCacheReviewInfoBar"
+                    Margin="0,8,0,0"
+                    IsClosable="False"
+                    IsOpen="{x:Bind ViewModel.IsPackageCacheCleanup, Mode=OneWay}"
+                    Severity="Warning" />
+            </StackPanel>
+
+            <StackPanel
+                Grid.Column="2"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                Spacing="2">
+                <TextBlock
+                    Text="{x:Bind ViewModel.ActiveCandidateSelectionSizeText, Mode=OneWay}"
+                    HorizontalAlignment="Right"
+                    Style="{StaticResource TitleTextBlockStyle}" />
+                <TextBlock
+                    Text="{x:Bind ViewModel.ActiveCandidateSelectionText, Mode=OneWay}"
+                    HorizontalAlignment="Right"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+        </Grid>
+
+        <InfoBar
+            x:Name="FolderCleanupResultInfoBar"
+            Grid.Row="1"
+            Margin="36,0"
+            IsClosable="True"
+            IsOpen="False" />
+
+        <Grid
+            Grid.Row="2"
+            Margin="36,0"
+            ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="7*" />
+            </Grid.ColumnDefinitions>
+
+            <controls:AcrylicCardGrid
+                Style="{StaticResource CardGridStyle}"
+                RowSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <StackPanel Spacing="2">
+                    <TextBlock
+                        x:Uid="CleanupCandidateFoldersHeader"
+                        Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <TextBlock
+                        x:Uid="CleanupCandidateFoldersHint"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                    <Button
+                        x:Uid="ClearCategoryFilesButton"
+                        Margin="0,8,0,0"
+                        Command="{x:Bind ViewModel.ClearCategoryFilesCommand}" />
+                </StackPanel>
+
+                <TreeView
+                    x:Name="CleanupCandidateTreeView"
+                    Grid.Row="1"
+                    IsEnabled="{x:Bind ViewModel.CanEditCandidateSelection, Mode=OneWay}"
+                    ItemsSource="{x:Bind ViewModel.CandidateFolders}"
+                    SelectedItem="{x:Bind ViewModel.SelectedCandidateFolder, Mode=OneWay}"
+                    SelectionMode="Single"
+                    SelectionChanged="CleanupCandidateTreeView_SelectionChanged">
+                    <TreeView.ItemTemplate>
+                        <DataTemplate x:DataType="models:CleanupCandidateFolderNode">
+                            <TreeViewItem
+                                AutomationProperties.Name="{x:Bind AccessibleSummary}"
+                                HasUnrealizedChildren="{x:Bind HasChildren}"
+                                IsExpanded="{x:Bind IsExpanded, Mode=TwoWay}"
+                                ItemsSource="{x:Bind Children}">
+                                <TreeViewItem.Content>
+                                    <Grid
+                                        Padding="0,6"
+                                        RowSpacing="2">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock
+                                            Text="{x:Bind Name}"
+                                            Style="{StaticResource BodyStrongTextBlockStyle}"
+                                            TextTrimming="CharacterEllipsis" />
+                                        <TextBlock
+                                            Grid.Row="1"
+                                            Text="{x:Bind SummaryText}"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </Grid>
+                                </TreeViewItem.Content>
+                                <ToolTipService.ToolTip>
+                                    <TextBlock
+                                        Text="{x:Bind DisplayPath}"
+                                        FlowDirection="LeftToRight" />
+                                </ToolTipService.ToolTip>
+                            </TreeViewItem>
+                        </DataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </controls:AcrylicCardGrid>
+
+            <controls:AcrylicCardGrid
+                Grid.Column="1"
+                Style="{StaticResource CardGridStyle}"
+                RowSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Spacing="2">
+                        <TextBlock
+                            x:Uid="CleanupCandidateFilesHeader"
+                            Style="{StaticResource SubtitleTextBlockStyle}" />
+                        <TextBlock
+                            Text="{x:Bind ViewModel.ActiveCandidateFolderPath, Mode=OneWay}"
+                            FlowDirection="LeftToRight"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <TextBlock
+                        Grid.Column="1"
+                        Text="{x:Bind ViewModel.ActiveCandidateSelectionSizeText, Mode=OneWay}"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource BodyStrongTextBlockStyle}" />
+                </Grid>
+
+                <Grid Grid.Row="1" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        Text="{x:Bind ViewModel.ActiveCandidateSelectionText, Mode=OneWay}"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Button
+                        Grid.Column="1"
+                        x:Uid="IncludeCleanupFolderButton"
+                        Command="{x:Bind ViewModel.IncludeActiveFolderCommand}" />
+                    <Button
+                        Grid.Column="2"
+                        x:Uid="ExcludeCleanupFolderButton"
+                        Command="{x:Bind ViewModel.ExcludeActiveFolderCommand}" />
+                </Grid>
+
+                <Grid Grid.Row="2">
+                    <ListView
+                        x:Name="CleanupCandidateList"
+                        IsEnabled="{x:Bind ViewModel.CanEditCandidateSelection, Mode=OneWay}"
+                        ItemsSource="{x:Bind ViewModel.ActiveCandidates, Mode=OneWay}"
+                        IncrementalLoadingThreshold="0.8"
+                        IsItemClickEnabled="False"
+                        SelectionMode="None">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Padding" Value="0" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="models:CleanupCandidate">
+                                <Grid
+                                    Padding="8"
+                                    ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox
+                                        MinWidth="0"
+                                        VerticalAlignment="Center"
+                                        AutomationProperties.Name="{x:Bind AccessibleSummary}"
+                                        IsEnabled="{x:Bind IsSelectionEnabled}"
+                                        IsChecked="{x:Bind IsSelected, Mode=OneWay}"
+                                        Command="{x:Bind SetSelectionCommand}"
+                                        CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}"
+                                        Visibility="{x:Bind IsSelectionEnabled}" />
+                                    <FontIcon
+                                        Glyph="&#xE946;"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                        Visibility="{x:Bind IsInspectionOnly}" />
+                                    <Button
+                                        Grid.Column="1"
+                                        Padding="10"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Stretch"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        AutomationProperties.Name="{x:Bind AccessibleSummary}"
+                                        Click="CleanupCandidateOpenButton_Click"
+                                        Tag="{x:Bind Item.Path, Mode=OneWay}">
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <FontIcon
+                                                Glyph="{x:Bind Item.Glyph}"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            <StackPanel
+                                                Grid.Column="1"
+                                                Spacing="2">
+                                                <TextBlock
+                                                    Text="{x:Bind Item.Name}"
+                                                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                                                    TextTrimming="CharacterEllipsis" />
+                                                <TextBlock
+                                                    Text="{x:Bind Item.DisplayPath}"
+                                                    FlowDirection="LeftToRight"
+                                                    Style="{StaticResource CaptionTextBlockStyle}"
+                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                    TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <TextBlock
+                                                Grid.Column="2"
+                                                Text="{x:Bind local:StorageFormatter.FormatBytes(Item.DisplaySizeBytes)}"
+                                                VerticalAlignment="Center"
+                                                Style="{StaticResource BodyStrongTextBlockStyle}" />
+                                            <FontIcon
+                                                Grid.Column="3"
+                                                Glyph="&#xE8A7;"
+                                                VerticalAlignment="Center"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        </Grid>
+                                        <ToolTipService.ToolTip>
+                                            <TextBlock
+                                                Text="{x:Bind Item.DisplayPath}"
+                                                FlowDirection="LeftToRight" />
+                                        </ToolTipService.ToolTip>
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+                    <InfoBar
+                        x:Uid="CleanupCandidatesErrorInfoBar"
+                        VerticalAlignment="Top"
+                        IsClosable="False"
+                        IsOpen="{x:Bind ViewModel.HasCandidateError, Mode=OneWay}"
+                        Message="{x:Bind ViewModel.CandidateErrorMessage, Mode=OneWay}"
+                        Severity="Error" />
+                    <TextBlock
+                        x:Uid="CleanupCandidatesEmptyText"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource MutedTextBlockStyle}"
+                        TextAlignment="Center"
+                        TextWrapping="Wrap"
+                        Visibility="{x:Bind ViewModel.HasNoCandidates, Mode=OneWay}" />
+                    <StackPanel
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="12"
+                        Visibility="{x:Bind ViewModel.IsCandidateFolderLoading, Mode=OneWay}">
+                        <ProgressRing
+                            Width="32"
+                            Height="32"
+                            IsActive="{x:Bind ViewModel.IsCandidateFolderLoading, Mode=OneWay}" />
+                        <TextBlock
+                            x:Uid="LoadingCleanupCandidatesText"
+                            Style="{StaticResource CaptionTextBlockStyle}" />
+                    </StackPanel>
+                </Grid>
+            </controls:AcrylicCardGrid>
+
+            <Grid
+                Grid.ColumnSpan="2"
+                Visibility="{x:Bind ViewModel.IsCandidateLoading, Mode=OneWay}"
+                Background="{ThemeResource SmokeFillColorDefaultBrush}">
+                <StackPanel
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="12">
+                    <ProgressRing
+                        Width="40"
+                        Height="40"
+                        IsActive="{x:Bind ViewModel.IsCandidateLoading, Mode=OneWay}" />
+                    <TextBlock
+                        x:Uid="LoadingCleanupCandidatesText"
+                        Style="{StaticResource BodyStrongTextBlockStyle}" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <Grid
+            Grid.Row="3"
+            Padding="36,16"
+            Background="{ThemeResource SolidBackgroundFillColorBaseAltBrush}"
+            BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+            BorderThickness="0,1,0,0"
+            ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Spacing="4">
+                <TextBlock
+                    Text="{x:Bind ViewModel.ActiveCandidateSelectionText, Mode=OneWay}"
+                    Style="{StaticResource BodyStrongTextBlockStyle}"
+                    AutomationProperties.LiveSetting="Polite" />
+                <TextBlock
+                    x:Uid="CleanupFolderSelectionHint"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    TextWrapping="Wrap" />
+            </StackPanel>
+            <TextBlock
+                Grid.Column="1"
+                Text="{x:Bind ViewModel.ActiveCandidateSelectionSizeText, Mode=OneWay}"
+                VerticalAlignment="Center"
+                Style="{StaticResource SubtitleTextBlockStyle}" />
+            <Button
+                Grid.Column="2"
+                x:Uid="RecycleFolderFilesButton"
+                VerticalAlignment="Center"
+                Style="{StaticResource AccentButtonStyle}"
+                IsEnabled="{x:Bind ViewModel.CanRecycleActiveFolder, Mode=OneWay}"
+                Click="RecycleFolderFilesButton_Click" />
+        </Grid>
+
+        <ContentDialog
+            x:Name="FolderCleanupReviewDialog"
+            x:Uid="CleanupFolderReviewDialog"
+            Grid.RowSpan="4"
+            DefaultButton="Close"
+            IsPrimaryButtonEnabled="{x:Bind ViewModel.CanRecycleActiveFolder, Mode=OneWay}"
+            PrimaryButtonClick="FolderCleanupReviewDialog_PrimaryButtonClick"
+            Closing="FolderCleanupReviewDialog_Closing">
+            <StackPanel Spacing="12">
+                <TextBlock
+                    x:Uid="CleanupFolderReviewMessage"
+                    TextWrapping="Wrap" />
+                <TextBlock
+                    Text="{x:Bind ViewModel.ActiveCandidateFolderPath, Mode=OneWay}"
+                    FlowDirection="LeftToRight"
+                    TextWrapping="Wrap"
+                    IsTextSelectionEnabled="True"
+                    Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <TextBlock
+                    Text="{x:Bind ViewModel.ActiveCandidateSelectionText, Mode=OneWay}"
+                    TextWrapping="Wrap" />
+                <TextBlock
+                    Text="{x:Bind ViewModel.ActiveCandidateSelectionSizeText, Mode=OneWay}"
+                    Style="{StaticResource SubtitleTextBlockStyle}" />
+                <TextBlock
+                    x:Uid="CleanupReviewSafetyNote"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    TextWrapping="Wrap" />
+                <ProgressBar
+                    Maximum="1"
+                    Value="{x:Bind ViewModel.CleanupProgress, Mode=OneWay}"
+                    Visibility="{x:Bind ViewModel.IsCleaning, Mode=OneWay}" />
+                <TextBlock
+                    Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    TextWrapping="Wrap" />
+                <Button
+                    x:Uid="CancelCleanupButton"
+                    Command="{x:Bind ViewModel.CancelCleanupCommand}"
+                    Visibility="{x:Bind ViewModel.IsCleaning, Mode=OneWay}" />
+            </StackPanel>
+        </ContentDialog>
+    </Grid>
+</Page>

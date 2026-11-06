@@ -1,0 +1,921 @@
+﻿<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms</value>
+  </resheader>
+  <data name="NavigationSearchBox.PlaceholderText" xml:space="preserve">
+    <value>ファイルとフォルダーを検索</value>
+  </data>
+  <data name="NavigationOverviewItem.Content" xml:space="preserve">
+    <value>概要</value>
+  </data>
+  <data name="NavigationExplorerItem.Content" xml:space="preserve">
+    <value>ストレージ エクスプローラー</value>
+  </data>
+  <data name="NavigationCleanupItem.Content" xml:space="preserve">
+    <value>クリーンアップの確認</value>
+  </data>
+  <data name="NavigationTipsItem.Content" xml:space="preserve">
+    <value>整理のヒント</value>
+  </data>
+  <data name="NavigationAutomationItem.Content" xml:space="preserve">
+    <value>自動化</value>
+  </data>
+  <data name="NavigationHelpItem.Content" xml:space="preserve">
+    <value>ヘルプ</value>
+  </data>
+  <data name="OrganizationTipsTitle" xml:space="preserve">
+    <value>Storage Lens のヒント</value>
+  </data>
+  <data name="OrganizationTipsText" xml:space="preserve">
+    <value>キャッシュや一時ファイルから始め、古いダウンロードや大きな重複ファイルを確認してください。クリーンアップ前に、システム ファイルを慎重に確認してください。</value>
+  </data>
+  <data name="OrganizationTipsCloseButton" xml:space="preserve">
+    <value>わかりました</value>
+  </data>
+  <data name="OverviewTitle.Text" xml:space="preserve">
+    <value>ストレージの概要</value>
+  </data>
+  <data name="OverviewSubtitle.Text" xml:space="preserve">
+    <value>容量の使用状況、変化、次に安全に確認できる項目を把握できます。</value>
+  </data>
+  <data name="DriveSelector.Header" xml:space="preserve">
+    <value>ドライブ</value>
+  </data>
+  <data name="ScanStorageButtonLabel.Text" xml:space="preserve">
+    <value>ドライブをスキャン</value>
+  </data>
+  <data name="CancelScanButton.Content" xml:space="preserve">
+    <value>スキャンをキャンセル</value>
+  </data>
+  <data name="ScanProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>ドライブのスキャン進行状況</value>
+  </data>
+  <data name="NoScanDataInfoBar.Title" xml:space="preserve">
+    <value>ストレージ インデックスを構築</value>
+  </data>
+  <data name="NoScanDataInfoBar.Message" xml:space="preserve">
+    <value>ドライブを選択してスキャンを開始します。完了したスキャンはこのデバイスに保存され、ストレージ エクスプローラー、クリーンアップの確認、増加量の比較で使用されます。</value>
+  </data>
+  <data name="OverviewErrorInfoBar.Title" xml:space="preserve">
+    <value>ストレージ データを読み込めませんでした</value>
+  </data>
+  <data name="OverviewCoverageInfoBar.Title" xml:space="preserve">
+    <value>インデックス カバレッジ</value>
+  </data>
+  <data name="OverviewCoverageFormat" xml:space="preserve">
+    <value>ディスク上の割り当て容量の {0} がインデックスに登録されています。{1} はインデックスに登録済みのファイルに割り当てられておらず、アクセス不能または除外された場所が {2} 件記録されました。</value>
+  </data>
+  <data name="OverviewLegacyCoverageFormat" xml:space="preserve">
+    <value>レガシー インデックスには、インデックス登録済みファイル サイズの {0} が含まれています。{1} は割り当てられておらず、次回のドライブ スキャンまで物理割り当て量は不明です。アクセス不能または除外された場所が {2} 件記録されました。</value>
+  </data>
+  <data name="StorageUsageRing.AutomationProperties.Name" xml:space="preserve">
+    <value>ドライブ使用量</value>
+  </data>
+  <data name="StorageUsedLabel.Text" xml:space="preserve">
+    <value>使用中</value>
+  </data>
+  <data name="IndexDetailsExpander.Header" xml:space="preserve">
+    <value>スキャンの詳細</value>
+  </data>
+  <data name="OverviewStorageProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>使用済みドライブ容量</value>
+  </data>
+  <data name="CategoryStorageProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>使用済み容量に占める割合</value>
+  </data>
+  <data name="UsedSpaceLabel.Text" xml:space="preserve">
+    <value>使用済み</value>
+  </data>
+  <data name="FreeSpaceLabel.Text" xml:space="preserve">
+    <value>空き</value>
+  </data>
+  <data name="CapacityLabel.Text" xml:space="preserve">
+    <value>容量</value>
+  </data>
+  <data name="CleanupOpportunityLabel.Text" xml:space="preserve">
+    <value>確認対象の領域</value>
+  </data>
+  <data name="CleanupOpportunityValue.Text" xml:space="preserve">
+    <value>42 GB</value>
+  </data>
+  <data name="CleanupOpportunityDescription.Text" xml:space="preserve">
+    <value>一時データ、古いダウンロード、パッケージ キャッシュ、重複ファイル、ロールバック ファイル。</value>
+  </data>
+  <data name="ReviewCleanupButton.Content" xml:space="preserve">
+    <value>クリーンアップを確認</value>
+  </data>
+  <data name="CategoryBreakdownTitle.Text" xml:space="preserve">
+    <value>カテゴリ別ストレージ</value>
+  </data>
+  <data name="TopFoldersTitle.Text" xml:space="preserve">
+    <value>大きいフォルダー</value>
+  </data>
+  <data name="TopFoldersDescription.Text" xml:space="preserve">
+    <value>大きな親フォルダーを自動的に掘り下げ、容量を多く使用するサブフォルダーを表示します。</value>
+  </data>
+  <data name="ExploreStorageButton.Content" xml:space="preserve">
+    <value>フォルダー ツリーを表示</value>
+  </data>
+  <data name="CleanupSuggestionsTitle.Text" xml:space="preserve">
+    <value>次におすすめ</value>
+  </data>
+  <data name="OpenCleanupReviewButton.Content" xml:space="preserve">
+    <value>クリーンアップの確認を開く</value>
+  </data>
+  <data name="LargestFilesTitle.Text" xml:space="preserve">
+    <value>大きいファイル</value>
+  </data>
+  <data name="LargestFilesDescription.Text" xml:space="preserve">
+    <value>個々のファイルをサイズ順に表示します。フォルダーの合計サイズは別に表示します。</value>
+  </data>
+  <data name="GrowingFoldersTitle.Text" xml:space="preserve">
+    <value>急速に増加しているフォルダー</value>
+  </data>
+  <data name="GrowingFoldersDescription.Text" xml:space="preserve">
+    <value>領域不足になる前に最近の増加を把握します。</value>
+  </data>
+  <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
+    <value>急増しているフォルダーはまだ見つかっていません</value>
+  </data>
+  <data name="GrowingFoldersEmptyHint.Text" xml:space="preserve">
+    <value>比較可能なスキャンの後に増加状況が表示されます。</value>
+  </data>
+  <data name="GrowthTrackingThresholdFormat" xml:space="preserve">
+    <value>{0:N0} GB 以上のフォルダーを追跡中</value>
+  </data>
+  <data name="RefreshingPreview" xml:space="preserve">
+    <value>ストレージ プレビューを更新しています…</value>
+  </data>
+  <data name="PreviewUpdated" xml:space="preserve">
+    <value>プレビューをたった今更新しました</value>
+  </data>
+  <data name="PreviewLastUpdated" xml:space="preserve">
+    <value>8 分前に更新</value>
+  </data>
+  <data name="ExplorerTitle.Text" xml:space="preserve">
+    <value>ストレージ エクスプローラー</value>
+  </data>
+  <data name="ExplorerSubtitle.Text" xml:space="preserve">
+    <value>実際のフォルダー使用量をたどり、大きい項目を確認し、カテゴリまたはタグでフィルターします。</value>
+  </data>
+  <data name="ExplorerNoScanInfoBar.Title" xml:space="preserve">
+    <value>このドライブに完了済みのスキャンはありません</value>
+  </data>
+  <data name="ExplorerNoScanInfoBar.Message" xml:space="preserve">
+    <value>概要に戻り、ドライブをスキャンしてこのビューに表示します。</value>
+  </data>
+  <data name="ExplorerErrorInfoBar.Title" xml:space="preserve">
+    <value>ストレージ エクスプローラーを更新できませんでした</value>
+  </data>
+  <data name="ExplorerDriveSelector.Header" xml:space="preserve">
+    <value>ドライブ</value>
+  </data>
+  <data name="ExplorerSearchBox.PlaceholderText" xml:space="preserve">
+    <value>ファイルとフォルダーをフィルター</value>
+  </data>
+  <data name="CategoryFilter.Header" xml:space="preserve">
+    <value>カテゴリ</value>
+  </data>
+  <data name="SortSelector.Header" xml:space="preserve">
+    <value>並べ替え</value>
+  </data>
+  <data name="ClearFiltersButton.Content" xml:space="preserve">
+    <value>フィルターをリセット</value>
+  </data>
+  <data name="FolderTreeTitle.Text" xml:space="preserve">
+    <value>フォルダー ツリー</value>
+  </data>
+  <data name="StorageItemsTitle.Text" xml:space="preserve">
+    <value>このビューの項目</value>
+  </data>
+  <data name="NavigateUpButton.AutomationProperties.Name" xml:space="preserve">
+    <value>1 つ上のフォルダーへ</value>
+  </data>
+  <data name="ReclaimableCandidateLabel.Text" xml:space="preserve">
+    <value>クリーンアップ対象として確認</value>
+  </data>
+  <data name="SystemItemLabel.Text" xml:space="preserve">
+    <value>システム項目</value>
+  </data>
+  <data name="OpenLocationButton.Content" xml:space="preserve">
+    <value>エクスプローラーで開く</value>
+  </data>
+  <data name="OpenChildrenButton.Content" xml:space="preserve">
+    <value>フォルダーを開く</value>
+  </data>
+  <data name="ExplorerAllItems" xml:space="preserve">
+    <value>すべての項目</value>
+  </data>
+  <data name="ExplorerLargestFirst" xml:space="preserve">
+    <value>サイズの大きい順</value>
+  </data>
+  <data name="ExplorerRecentlyModified" xml:space="preserve">
+    <value>最近更新</value>
+  </data>
+  <data name="ExplorerSortName" xml:space="preserve">
+    <value>名前</value>
+  </data>
+  <data name="SafetySafe" xml:space="preserve">
+    <value>安全</value>
+  </data>
+  <data name="SafetyReview" xml:space="preserve">
+    <value>要確認</value>
+  </data>
+  <data name="SafetyCaution" xml:space="preserve">
+    <value>注意</value>
+  </data>
+  <data name="ItemCountSingularFormat" xml:space="preserve">
+    <value>{0:N0} 個の項目</value>
+  </data>
+  <data name="ItemCountPluralFormat" xml:space="preserve">
+    <value>{0:N0} 個の項目</value>
+  </data>
+  <data name="CleanupTitle.Text" xml:space="preserve">
+    <value>クリーンアップの確認</value>
+  </data>
+  <data name="CleanupSubtitle.Text" xml:space="preserve">
+    <value>何も削除する前に、安全性レベル別に推奨項目を確認してください。</value>
+  </data>
+  <data name="CleanupDriveSelector.AutomationProperties.Name" xml:space="preserve">
+    <value>ドライブ</value>
+  </data>
+  <data name="SelectSafeButton.Content" xml:space="preserve">
+    <value>安全な項目を選択</value>
+  </data>
+  <data name="ClearSelectionButton.Content" xml:space="preserve">
+    <value>選択を解除</value>
+  </data>
+  <data name="CleanupSafetyInfoBar.Title" xml:space="preserve">
+    <value>先に確認してから実行</value>
+  </data>
+  <data name="CleanupSafetyInfoBar.Message" xml:space="preserve">
+    <value>各候補はクリーンアップ直前に再検証されます。対象の項目はごみ箱に移動され、完全には削除されません。</value>
+  </data>
+  <data name="ReclaimableSpaceLabel.Text" xml:space="preserve">
+    <value>解放可能</value>
+  </data>
+  <data name="SelectedForReviewLabel.Text" xml:space="preserve">
+    <value>確認対象として選択</value>
+  </data>
+  <data name="SelectedGroupsLabel.Text" xml:space="preserve">
+    <value>グループ</value>
+  </data>
+  <data name="SelectedGroupSingular" xml:space="preserve">
+    <value>グループ</value>
+  </data>
+  <data name="SelectedGroupPlural" xml:space="preserve">
+    <value>グループ</value>
+  </data>
+  <data name="ReviewSelectedButton.Content" xml:space="preserve">
+    <value>選択内容を確認</value>
+  </data>
+  <data name="CleanupReviewDialog.Title" xml:space="preserve">
+    <value>選択したクリーンアップを確認</value>
+  </data>
+  <data name="CleanupReviewDialog.PrimaryButtonText" xml:space="preserve">
+    <value>ごみ箱に移動</value>
+  </data>
+  <data name="CleanupReviewDialog.CloseButtonText" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="CleanupReviewDialogMessage.Text" xml:space="preserve">
+    <value>選択したグループを確認してください。Storage Lens は各候補を再確認し、引き続き対象となるファイルだけをごみ箱に移動します。</value>
+  </data>
+  <data name="CleanupReviewSelectionLabel.Text" xml:space="preserve">
+    <value>選択したグループ</value>
+  </data>
+  <data name="CleanupReviewSafetyNote.Text" xml:space="preserve">
+    <value>ファイルはごみ箱から復元できます。ロック中、変更済み、保護対象、クラウド上のみ、または許可されていないファイルはスキップされ、報告されます。</value>
+  </data>
+  <data name="CleanupCandidatesDialog.Title" xml:space="preserve">
+    <value>このクリーンアップに含まれるファイル</value>
+  </data>
+  <data name="CleanupCandidatesDialog.CloseButtonText" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="CleanupCandidatesPreviewNote.Text" xml:space="preserve">
+    <value>チェックを外した項目はクリーンアップから除外されます。ファイルをストレージ エクスプローラーで開いて詳しく確認できます。</value>
+  </data>
+  <data name="CleanupCandidateFoldersHeader.Text" xml:space="preserve">
+    <value>フォルダー</value>
+  </data>
+  <data name="CleanupCandidateFoldersHint.Text" xml:space="preserve">
+    <value>フォルダーを選ぶと、そのツリー内の一致するすべてのファイルを確認できます。</value>
+  </data>
+  <data name="CleanupCandidateFilesHeader.Text" xml:space="preserve">
+    <value>選択したフォルダー ツリー内のファイル</value>
+  </data>
+  <data name="IncludeCleanupFolderButton.Content" xml:space="preserve">
+    <value>フォルダーを含める</value>
+  </data>
+  <data name="ExcludeCleanupFolderButton.Content" xml:space="preserve">
+    <value>フォルダーを除外</value>
+  </data>
+  <data name="CleanupFolderSummaryFormat" xml:space="preserve">
+    <value>{0} ファイル - {1}</value>
+  </data>
+  <data name="CleanupFolderSelectionFormat" xml:space="preserve">
+    <value>このフォルダー ツリーで {1} 件中 {0} 件を選択</value>
+  </data>
+  <data name="CleanupCandidatesBackButton.AutomationProperties.Name" xml:space="preserve">
+    <value>クリーンアップ レビューに戻る</value>
+  </data>
+  <data name="CleanupCardInspectFiles.Text" xml:space="preserve">
+    <value>ファイルを確認</value>
+  </data>
+  <data name="CleanupActionInspectFiles" xml:space="preserve">
+    <value>ファイルを確認</value>
+  </data>
+  <data name="CleanupActionInspectAdvisory" xml:space="preserve">
+    <value>確認対象ファイルを検査</value>
+  </data>
+  <data name="CleanupActionManagedWindows" xml:space="preserve">
+    <value>Windows 管理ファイルを確認</value>
+  </data>
+  <data name="CleanupReclaimableSpaceLabel" xml:space="preserve">
+    <value>回収可能</value>
+  </data>
+  <data name="CleanupAdvisorySpaceLabel" xml:space="preserve">
+    <value>参考情報</value>
+  </data>
+  <data name="CleanupWindowsManagedSpaceLabel" xml:space="preserve">
+    <value>Windows 管理</value>
+  </data>
+  <data name="CleanupInspectionOnlyFormat" xml:space="preserve">
+    <value>このフォルダー ツリーに確認対象ファイル {0} 件</value>
+  </data>
+  <data name="WindowsOldManagedCleanupInfoBar.Title" xml:space="preserve">
+    <value>Windows がこのクリーンアップを管理します</value>
+  </data>
+  <data name="WindowsOldManagedCleanupInfoBar.Message" xml:space="preserve">
+    <value>Windows.old は保護されたロールバック コピーです。Storage Lens ではファイル単位で削除せず、ストレージ センサーで安全に確認して削除してください。</value>
+  </data>
+  <data name="OpenStorageSenseButton.Content" xml:space="preserve">
+    <value>ストレージ センサーを開く</value>
+  </data>
+  <data name="ManagedCleanupLaunchFailed" xml:space="preserve">
+    <value>Windows のストレージ設定を開けませんでした。</value>
+  </data>
+  <data name="CleanupResultNoChangesTitle" xml:space="preserve">
+    <value>ファイルは変更されませんでした</value>
+  </data>
+  <data name="CleanupResultSuccessTitle" xml:space="preserve">
+    <value>クリーンアップ完了</value>
+  </data>
+  <data name="CleanupResultPartialTitle" xml:space="preserve">
+    <value>クリーンアップの確認が必要です</value>
+  </data>
+  <data name="CleanupResultNoChangesDetails" xml:space="preserve">
+    <value>現在のファイルは移動されませんでした。古い候補または変更された候補はスキップされ、ローカル インデックスから削除されました。再試行前におすすめを更新してください。</value>
+  </data>
+  <data name="CleanupResultExcludedDetailsFormat" xml:space="preserve">
+    <value>このクリーンアップから {0} 件を意図的に除外したため、ファイルは移動されませんでした。</value>
+  </data>
+  <data name="CleanupCandidatesErrorInfoBar.Title" xml:space="preserve">
+    <value>ファイルを読み込めませんでした</value>
+  </data>
+  <data name="CleanupCandidatesEmptyText.Text" xml:space="preserve">
+    <value>このフォルダー ツリーには対象ファイルがありません。別のフォルダーまたはカテゴリを選択してください。</value>
+  </data>
+  <data name="CleanupCandidatesLoadTimeout" xml:space="preserve">
+    <value>ファイル一覧の読み込みに時間がかかりすぎました。このダイアログを閉じ、ストレージ スキャンがアイドル状態になってからもう一度お試しください。</value>
+  </data>
+  <data name="CleanupCandidatesLoadFailed" xml:space="preserve">
+    <value>ファイル一覧を読み込めませんでした: {0}</value>
+  </data>
+  <data name="PreviousCandidatePageButton.Content" xml:space="preserve">
+    <value>前へ</value>
+  </data>
+  <data name="NextCandidatePageButton.Content" xml:space="preserve">
+    <value>次へ</value>
+  </data>
+  <data name="CleanupProgressBar.AutomationProperties.Name" xml:space="preserve">
+    <value>クリーンアップの進行状況</value>
+  </data>
+  <data name="CleanupDialogErrorInfoBar.Title" xml:space="preserve">
+    <value>クリーンアップを続行できませんでした</value>
+  </data>
+  <data name="CleanupResultDialog.Title" xml:space="preserve">
+    <value>クリーンアップ完了</value>
+  </data>
+  <data name="CleanupResultDialog.CloseButtonText" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="SettingsTitle.Text" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="SettingsSubtitle.Text" xml:space="preserve">
+    <value>Storage Lens がストレージ クリーンアップをどのように表示して提案するかを選択します。</value>
+  </data>
+  <data name="ResetSettingsButton.Content" xml:space="preserve">
+    <value>初期設定に戻す</value>
+  </data>
+  <data name="SettingsPrototypeInfoBar.Title" xml:space="preserve">
+    <value>安全性の設定</value>
+  </data>
+  <data name="SettingsPrototypeInfoBar.Message" xml:space="preserve">
+    <value>設定はこのデバイスに保存されます。最終確認とクラウド上のみのファイルの除外は無効にできません。</value>
+  </data>
+  <data name="AppearanceSettingsTitle.Text" xml:space="preserve">
+    <value>外観</value>
+  </data>
+  <data name="AppearanceSettingsDescription.Text" xml:space="preserve">
+    <value>Windows の設定に自動で従うか、固定のアプリ テーマを選択します。</value>
+  </data>
+  <data name="ThemeSelector.Header" xml:space="preserve">
+    <value>アプリ テーマ</value>
+  </data>
+  <data name="ThemeSystemOption.Content" xml:space="preserve">
+    <value>システム設定を使用</value>
+  </data>
+  <data name="ThemeLightOption.Content" xml:space="preserve">
+    <value>ライト</value>
+  </data>
+  <data name="ThemeDarkOption.Content" xml:space="preserve">
+    <value>ダーク</value>
+  </data>
+  <data name="ScanSettingsTitle.Text" xml:space="preserve">
+    <value>ストレージ スキャン</value>
+  </data>
+  <data name="ScanOnLaunchToggle.Header" xml:space="preserve">
+    <value>アプリ起動時に概要を更新する</value>
+  </data>
+  <data name="ShowSystemItemsToggle.Header" xml:space="preserve">
+    <value>システム ファイルと保護されたフォルダーを表示する</value>
+  </data>
+  <data name="ShowHiddenItemsToggle.Header" xml:space="preserve">
+    <value>結果に隠しファイルを表示する</value>
+  </data>
+  <data name="CleanupSettingsTitle.Text" xml:space="preserve">
+    <value>クリーンアップの安全性</value>
+  </data>
+  <data name="LocalIndexTitle.Text" xml:space="preserve">
+    <value>ローカル ストレージ インデックス</value>
+  </data>
+  <data name="CompactIndexButton.Content" xml:space="preserve">
+    <value>インデックスを最適化</value>
+  </data>
+  <data name="CheckIndexButton.Content" xml:space="preserve">
+    <value>インデックスの状態を確認</value>
+  </data>
+  <data name="SmartSuggestionsToggle.Header" xml:space="preserve">
+    <value>スマート クリーンアップの提案を表示</value>
+  </data>
+  <data name="ConfirmCleanupToggle.Header" xml:space="preserve">
+    <value>最終確認を必須にする</value>
+  </data>
+  <data name="ExcludeCloudOnlyToggle.Header" xml:space="preserve">
+    <value>クラウド上のみのファイルをクリーンアップ候補から除外する</value>
+  </data>
+  <data name="AboutDescription.Text" xml:space="preserve">
+    <value>プライバシーを守るストレージ分析。データはこのデバイスに保存されます。</value>
+  </data>
+  <data name="AboutVersion.Text" xml:space="preserve">
+    <value>バージョン 1.0</value>
+  </data>
+  <data name="ByteUnitBytes" xml:space="preserve">
+    <value>B</value>
+  </data>
+  <data name="ByteUnitKilobytes" xml:space="preserve">
+    <value>KB</value>
+  </data>
+  <data name="ByteUnitMegabytes" xml:space="preserve">
+    <value>MB</value>
+  </data>
+  <data name="ByteUnitGigabytes" xml:space="preserve">
+    <value>GB</value>
+  </data>
+  <data name="ByteUnitTerabytes" xml:space="preserve">
+    <value>TB</value>
+  </data>
+  <data name="ModifiedTodayFormat" xml:space="preserve">
+    <value>今日、{0:t}</value>
+  </data>
+  <data name="ModifiedYesterday" xml:space="preserve">
+    <value>昨日</value>
+  </data>
+  <data name="AutomationTitle.Text" xml:space="preserve">
+    <value>自動化</value>
+  </data>
+  <data name="AutomationSubtitle.Text" xml:space="preserve">
+    <value>すべてのドライブを手動で確認することなく、空き容量を監視し、クリーンアップの確認スケジュールを設定します。</value>
+  </data>
+  <data name="AutomationPreviewAlertButton.Content" xml:space="preserve">
+    <value>アラートをプレビュー</value>
+  </data>
+  <data name="AutomationSafetyInfoBar.Title" xml:space="preserve">
+    <value>バックグラウンド監視とクリーンアップの安全性</value>
+  </data>
+  <data name="AutomationSafetyInfoBar.Message" xml:space="preserve">
+    <value>バックグラウンド スキャンはアイドル時に実行されます。自動クリーンアップは既定でオフです。</value>
+  </data>
+  <data name="StorageMonitorCardTitle.Text" xml:space="preserve">
+    <value>ストレージ モニター</value>
+  </data>
+  <data name="StorageMonitorCardDescription.Text" xml:space="preserve">
+    <value>空き容量不足とフォルダーの急増を通知します。</value>
+  </data>
+  <data name="NotificationPreferencesTitle.Text" xml:space="preserve">
+    <value>通知</value>
+  </data>
+  <data name="BackgroundIndexCardTitle.Text" xml:space="preserve">
+    <value>アイドル時のドライブ インデックス作成</value>
+  </data>
+  <data name="BackgroundIndexCardDescription.Text" xml:space="preserve">
+    <value>作業の妨げにならないよう、Windows のメンテナンス中にドライブ インデックスを更新してストレージ分析を最新の状態に保ちます。</value>
+  </data>
+  <data name="BackgroundIndexSafetyInfoBar.Title" xml:space="preserve">
+    <value>低負荷</value>
+  </data>
+  <data name="BackgroundIndexSafetyInfoBar.Message" xml:space="preserve">
+    <value>インデックス タスクは離席中に実行され、利用可能な場合は増分ジャーナルの変更を使用します。</value>
+  </data>
+  <data name="StorageMonitorToggle.Header" xml:space="preserve">
+    <value>バックグラウンドで実行</value>
+  </data>
+  <data name="MonitorFrequencyComboBox.Header" xml:space="preserve">
+    <value>確認する頻度</value>
+  </data>
+  <data name="LowSpaceThresholdNumberBox.Header" xml:space="preserve">
+    <value>空き容量警告のしきい値 (GB)</value>
+  </data>
+  <data name="GrowthThresholdNumberBox.Header" xml:space="preserve">
+    <value>増加警告の追加量 (GB)</value>
+  </data>
+  <data name="TrackedFolderSizeNumberBox.Header" xml:space="preserve">
+    <value>追跡するフォルダーの最小サイズ (GB)</value>
+  </data>
+  <data name="LowSpaceNotificationsToggle.Header" xml:space="preserve">
+    <value>空き容量の通知</value>
+  </data>
+  <data name="FolderGrowthNotificationsToggle.Header" xml:space="preserve">
+    <value>急速な増加の通知</value>
+  </data>
+  <data name="BackgroundIndexToggle.Header" xml:space="preserve">
+    <value>アイドル時にドライブをインデックス作成</value>
+  </data>
+  <data name="BackgroundIndexToggle.OffContent" xml:space="preserve">
+    <value>オフ</value>
+  </data>
+  <data name="BackgroundIndexToggle.OnContent" xml:space="preserve">
+    <value>オン</value>
+  </data>
+  <data name="BackgroundIndexIntervalNumberBox.Header" xml:space="preserve">
+    <value>インデックス作成間隔 (日)</value>
+  </data>
+  <data name="AutomationUnsavedChanges" xml:space="preserve">
+    <value>変更は未適用です</value>
+  </data>
+  <data name="SaveAutomationButton.Content" xml:space="preserve">
+    <value>監視設定を適用</value>
+  </data>
+  <data name="CleanupSchedulesTitle.Text" xml:space="preserve">
+    <value>スケジュールされたクリーンアップの確認</value>
+  </data>
+  <data name="CleanupSchedulesDescription.Text" xml:space="preserve">
+    <value>カテゴリと実行間隔を選択します。期限になったスケジュールは、対象の確認リストを開く通知を作成します。</value>
+  </data>
+  <data name="AddCleanupScheduleButton.Content" xml:space="preserve">
+    <value>スケジュールを追加</value>
+  </data>
+  <data name="EditScheduleButton.Content" xml:space="preserve">
+    <value>編集</value>
+  </data>
+  <data name="DeleteScheduleButton.Content" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="ScheduleDialog.Title" xml:space="preserve">
+    <value>クリーンアップ スケジュール</value>
+  </data>
+  <data name="ScheduleDialog.PrimaryButtonText" xml:space="preserve">
+    <value>スケジュールを保存</value>
+  </data>
+  <data name="ScheduleDialog.CloseButtonText" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="ScheduleNameTextBox.Header" xml:space="preserve">
+    <value>スケジュール名</value>
+  </data>
+  <data name="ScheduleNameTextBox.PlaceholderText" xml:space="preserve">
+    <value>毎週のキャッシュ確認</value>
+  </data>
+  <data name="ScheduleFrequencyComboBox.Header" xml:space="preserve">
+    <value>頻度</value>
+  </data>
+  <data name="ScheduleEnabledToggle.Header" xml:space="preserve">
+    <value>スケジュールを有効にする</value>
+  </data>
+  <data name="ScheduleAutomaticCleanupToggle.Header" xml:space="preserve">
+    <value>対象となる安全なファイルを自動的にごみ箱へ移動</value>
+  </data>
+  <data name="ScheduleCategoriesLabel.Text" xml:space="preserve">
+    <value>確認するカテゴリ</value>
+  </data>
+  <data name="ScheduleSafetyInfoBar.Title" xml:space="preserve">
+    <value>確認のみのスケジュール</value>
+  </data>
+  <data name="ScheduleSafetyInfoBar.Message" xml:space="preserve">
+    <value>確認のみのスケジュールはファイルを変更せずに通知します。自動モードはアプリの一時ファイルのみをサポートし、再検証してごみ箱に移動します。パッケージ キャッシュには手動確認が必要です。</value>
+  </data>
+  <data name="ScheduleValidationInfoBar.Title" xml:space="preserve">
+    <value>スケジュールを完了</value>
+  </data>
+  <data name="ScheduleValidationInfoBar.Message" xml:space="preserve">
+    <value>名前を入力してカテゴリを選択してください。自動モードはアプリの一時ファイルのみをサポートし、パッケージ キャッシュには手動確認が必要です。</value>
+  </data>
+  <data name="HelpTitle.Text" xml:space="preserve">
+    <value>ヘルプ</value>
+  </data>
+  <data name="HelpSubtitle.Text" xml:space="preserve">
+    <value>ストレージ使用量の読み方、大きいフォルダーの調査方法、クリーンアップの安全性、自動化の構成について説明します。</value>
+  </data>
+  <data name="HelpQuickStartTitle.Text" xml:space="preserve">
+    <value>クイック スタート</value>
+  </data>
+  <data name="HelpQuickStartDescription.Text" xml:space="preserve">
+    <value>Storage Lens は「把握 → 調査 → 確認」のワークフローとして設計されています。</value>
+  </data>
+  <data name="HelpQuickStartStepOne.Text" xml:space="preserve">
+    <value>1. 概要で開始し、使用済み、空き、確認対象の領域を比較します。</value>
+  </data>
+  <data name="HelpQuickStartStepTwo.Text" xml:space="preserve">
+    <value>2. カテゴリ、大きい項目、または増加中のフォルダーをクリックすると、ストレージ エクスプローラーで開きます。</value>
+  </data>
+  <data name="HelpQuickStartStepThree.Text" xml:space="preserve">
+    <value>3. クリーンアップ レビューを開き、各フォルダー ツリーの一致するファイルをすべて確認し、保持するファイルのチェックを外してからクリーンアップを確認します。</value>
+  </data>
+  <data name="HelpCategoriesTitle.Text" xml:space="preserve">
+    <value>カテゴリの見方</value>
+  </data>
+  <data name="HelpCategoriesDescription.Text" xml:space="preserve">
+    <value>カテゴリは、ストレージをアプリ、ビデオ、写真、システム、ドキュメント、一時データ、その他などの用途別に分類します。カテゴリ タイルをクリックすると、選択したドライブ全体で一致する項目がフィルターされます。</value>
+  </data>
+  <data name="HelpDrillDownTitle.Text" xml:space="preserve">
+    <value>フォルダーを詳しく表示</value>
+  </data>
+  <data name="HelpDrillDownDescription.Text" xml:space="preserve">
+    <value>ツリーからフォルダーを選択するか、項目一覧のフォルダー行をクリックして、直接の子項目を表示します。上へボタンを使うと親フォルダーに戻ります。</value>
+  </data>
+  <data name="HelpGrowthTitle.Text" xml:space="preserve">
+    <value>増加しているフォルダーの検出</value>
+  </data>
+  <data name="HelpGrowthDescription.Text" xml:space="preserve">
+    <value>増加セクションでは最近のスキャン スナップショットを比較し、空き容量が最も急速に減っている場所を示します。追跡対象フォルダーの最小サイズは自動化で変更できます。既定値は 1 GB です。</value>
+  </data>
+  <data name="HelpCleanupSafetyTitle.Text" xml:space="preserve">
+    <value>クリーンアップの安全性</value>
+  </data>
+  <data name="HelpCleanupSafetyDescription.Text" xml:space="preserve">
+    <value>「安全」「要確認」「注意」は別々の信頼レベルです。推奨項目をクリックすると、各候補ページを確認できます。確認済みのクリーンアップでは対象項目をごみ箱に移動し、保護対象または変更済みのファイルはスキップされます。</value>
+  </data>
+  <data name="HelpMonitoringTitle.Text" xml:space="preserve">
+    <value>バックグラウンド監視</value>
+  </data>
+  <data name="HelpMonitoringDescription.Text" xml:space="preserve">
+    <value>自動化で監視を有効にすると、空き容量不足やフォルダーの増加が通知されます。</value>
+  </data>
+  <data name="HelpSchedulesTitle.Text" xml:space="preserve">
+    <value>スケジュールされたクリーンアップの確認</value>
+  </data>
+  <data name="HelpSchedulesDescription.Text" xml:space="preserve">
+    <value>毎日、毎週、隔週、毎月のカテゴリ レビューを作成できます。レビュー専用のスケジュールは通知を送信し、自動クリーンアップは現在も対象のファイルだけをごみ箱に移動します。</value>
+  </data>
+  <data name="HelpSafetyInfoBar.Title" xml:space="preserve">
+    <value>あなたのファイルはあなたのもの</value>
+  </data>
+  <data name="HelpSafetyInfoBar.Message" xml:space="preserve">
+    <value>ストレージ分析のインデックスは、このデバイス上にローカル保存されます。バックグラウンド監視はドライブと追跡対象のフォルダーを読み取り、クリーンアップは検証後に対象項目をごみ箱に移動するだけです。</value>
+  </data>
+  <data name="OverviewNotScanned" xml:space="preserve">
+    <value>完了済みのスキャンはまだありません</value>
+  </data>
+  <data name="OverviewScanSummaryFormat" xml:space="preserve">
+    <value>最終スキャン: {0} · {1} 個のファイルをインデックス登録</value>
+  </data>
+  <data name="ScanningDriveFormat" xml:space="preserve">
+    <value>{0} をスキャンしています…</value>
+  </data>
+  <data name="ScanProgressFormat" xml:space="preserve">
+    <value>{0} 個のファイル · {1} 個をインデックス登録 · アクセス不能 {2} 個</value>
+  </data>
+  <data name="ScanCompletedFormat" xml:space="preserve">
+    <value>スキャン完了 · {0} 個のファイル · アクセス不能 {1} 個</value>
+  </data>
+  <data name="ScanCancelled" xml:space="preserve">
+    <value>スキャンをキャンセルしました。以前に完了したスナップショットは引き続き利用できます。</value>
+  </data>
+  <data name="CancellingScan" xml:space="preserve">
+    <value>スキャンをキャンセルしています…</value>
+  </data>
+  <data name="ScanFailed" xml:space="preserve">
+    <value>ドライブのスキャンに失敗しました。以前に完了したスナップショットは引き続き利用できます。</value>
+  </data>
+  <data name="PreparingCleanup" xml:space="preserve">
+    <value>クリーンアップ候補を読み込み、検証しています…</value>
+  </data>
+  <data name="CleanupProgressFormat" xml:space="preserve">
+    <value>{0} 件を処理済み（全 {1} 件）</value>
+  </data>
+  <data name="CleanupCancelled" xml:space="preserve">
+    <value>クリーンアップをキャンセルしました。</value>
+  </data>
+  <data name="CleanupFailed" xml:space="preserve">
+    <value>クリーンアップを完了できませんでした。</value>
+  </data>
+  <data name="CleanupResultSummaryFormat" xml:space="preserve">
+    <value>{0} 個の項目をごみ箱に移動しました ({3})。{1} 個が失敗し、{2} 個がスキップされました。</value>
+  </data>
+  <data name="CleanupResultNoFailures" xml:space="preserve">
+    <value>選択され対象となったすべての項目は、エラーなく処理されました。</value>
+  </data>
+  <data name="CancelCleanupButton.Content" xml:space="preserve">
+    <value>クリーンアップを停止</value>
+  </data>
+  <data name="CancellingCleanup" xml:space="preserve">
+    <value>現在の項目を処理した後、クリーンアップを停止しています…</value>
+  </data>
+  <data name="NoCleanupCandidates" xml:space="preserve">
+    <value>候補が見つかりません</value>
+  </data>
+  <data name="CleanupCandidatePageFormat" xml:space="preserve">
+    <value>{0}～{1} 件目を表示（全 {2} 件）</value>
+  </data>
+  <data name="CategoryAppsGames" xml:space="preserve">
+    <value>アプリとゲーム</value>
+  </data>
+  <data name="CategoryVideos" xml:space="preserve">
+    <value>ビデオ</value>
+  </data>
+  <data name="CategoryPhotos" xml:space="preserve">
+    <value>写真</value>
+  </data>
+  <data name="CategorySystem" xml:space="preserve">
+    <value>システム</value>
+  </data>
+  <data name="CategoryDocuments" xml:space="preserve">
+    <value>ドキュメント</value>
+  </data>
+  <data name="CategoryCacheTemporary" xml:space="preserve">
+    <value>キャッシュと一時ファイル</value>
+  </data>
+  <data name="CategoryOther" xml:space="preserve">
+    <value>その他</value>
+  </data>
+  <data name="CategoryAppsGamesDescription" xml:space="preserve">
+    <value>インストール済みアプリ、実行可能ファイル、仮想ディスク、ゲーム ライブラリ</value>
+  </data>
+  <data name="CategoryVideosDescription" xml:space="preserve">
+    <value>録画、クリップ、エクスポート、メディア キャッシュ</value>
+  </data>
+  <data name="CategoryPhotosDescription" xml:space="preserve">
+    <value>カメラ ロール、スクリーンショット、画像ライブラリ</value>
+  </data>
+  <data name="CategorySystemDescription" xml:space="preserve">
+    <value>Windows、サービス、および回復ファイル</value>
+  </data>
+  <data name="CategoryDocumentsDescription" xml:space="preserve">
+    <value>作業ファイル、アーカイブ、メール、ドキュメント</value>
+  </data>
+  <data name="CategoryCacheTemporaryDescription" xml:space="preserve">
+    <value>一時データ、パッケージ データ、再構築可能なキャッシュ データ</value>
+  </data>
+  <data name="CategoryOtherDescription" xml:space="preserve">
+    <value>開発ツールと未分類ファイル</value>
+  </data>
+  <data name="TagSystem" xml:space="preserve">
+    <value>システム</value>
+  </data>
+  <data name="TagCache" xml:space="preserve">
+    <value>キャッシュ</value>
+  </data>
+  <data name="TagReview" xml:space="preserve">
+    <value>要確認</value>
+  </data>
+  <data name="TagPersonal" xml:space="preserve">
+    <value>個人用</value>
+  </data>
+  <data name="TagApps" xml:space="preserve">
+    <value>アプリ</value>
+  </data>
+  <data name="TagOther" xml:space="preserve">
+    <value>その他</value>
+  </data>
+  <data name="CleanupPolicy0Name" xml:space="preserve">
+    <value>アプリの一時ファイル</value>
+  </data>
+  <data name="CleanupPolicy0Description" xml:space="preserve">
+    <value>24 時間以上前に作成された既知の一時ファイルと再構築可能なキャッシュ ファイルです。</value>
+  </data>
+  <data name="CleanupPolicy1Name" xml:space="preserve">
+    <value>90 日以上前のダウンロード</value>
+  </data>
+  <data name="CleanupPolicy1Description" xml:space="preserve">
+    <value>ユーザーのダウンロード フォルダー内にある古いインストーラー、アーカイブ、ドキュメントです。</value>
+  </data>
+  <data name="CleanupPolicy2Name" xml:space="preserve">
+    <value>パッケージ キャッシュ</value>
+  </data>
+  <data name="CleanupPolicy2Description" xml:space="preserve">
+    <value>24 時間以上経過した再構築可能なユーザー キャッシュ。先にアプリとビルドを終了してください。パッケージの復元や再ダウンロードが必要になる場合があります。</value>
+  </data>
+  <data name="CleanupPolicy3Name" xml:space="preserve">
+    <value>大きな重複ファイル</value>
+  </data>
+  <data name="CleanupPolicy3Description" xml:space="preserve">
+    <value>内容の一致が確認された重複ファイルです。元のパスは保持されます。</value>
+  </data>
+  <data name="CleanupPolicy4Name" xml:space="preserve">
+    <value>以前の Windows インストール</value>
+  </data>
+  <data name="CleanupPolicy4Description" xml:space="preserve">
+    <value>Windows.old は大量の領域を使用する場合がありますが、ロールバックに影響するため、Windows ツールから削除してください。</value>
+  </data>
+  <data name="ScheduleDaily" xml:space="preserve">
+    <value>毎日</value>
+  </data>
+  <data name="ScheduleWeekly" xml:space="preserve">
+    <value>毎週</value>
+  </data>
+  <data name="ScheduleEveryWeeksFormat" xml:space="preserve">
+    <value>{0} 週間ごと</value>
+  </data>
+  <data name="ScheduleMonthly" xml:space="preserve">
+    <value>毎月</value>
+  </data>
+  <data name="ScheduleEveryDaysFormat" xml:space="preserve">
+    <value>{0} 日ごと</value>
+  </data>
+  <data name="ScheduleModeRecycle" xml:space="preserve">
+    <value>安全な項目をごみ箱に移動</value>
+  </data>
+  <data name="ScheduleModeReview" xml:space="preserve">
+    <value>確認のみ</value>
+  </data>
+  <data name="ScheduleNextReviewFormat" xml:space="preserve">
+    <value>次回の確認: {0:g}</value>
+  </data>
+  <data name="GrowthSummaryFormat" xml:space="preserve">
+    <value>+{0:0}%（{1} 日間）</value>
+  </data>
+<data name="KindFile" xml:space="preserve"><value>ファイル</value></data><data name="KindExtensionFileFormat" xml:space="preserve"><value>{0} ファイル</value></data><data name="AutomationSettingsStored" xml:space="preserve"><value>設定はこのデバイスに保存されます。プレビュー スケジュールでは、確認通知のみが作成されます。</value></data><data name="MonitorEveryTwoDays" xml:space="preserve"><value>2 日ごと</value></data><data name="ScheduleEveryTwoWeeks" xml:space="preserve"><value>2 週間ごと</value></data><data name="BackgroundMonitoringOff" xml:space="preserve"><value>バックグラウンド監視はオフです</value></data><data name="NextCheckOneDay" xml:space="preserve"><value>次回確認: 約 1 日後</value></data><data name="NextCheckManyDaysFormat" xml:space="preserve"><value>次回確認: 約 {0} 日後</value></data><data name="IdleIndexNotRun" xml:space="preserve"><value>アイドル時のインデックス作成はまだ完了していません。</value></data><data name="LastIdleIndexStatusFormat" xml:space="preserve"><value>前回のアイドル インデックス: {0:g} — {1}</value></data><data name="LastIdleIndexFormat" xml:space="preserve"><value>前回のアイドル インデックス: {0:g}</value></data><data name="PreviewAlertTitle" xml:space="preserve"><value>Storage Lens プレビュー アラート</value></data><data name="PreviewAlertMessageFormat" xml:space="preserve"><value>空き容量が設定したしきい値 {0:0} GB に近づいています。さらに容量を消費する前に、最も急速に増加しているフォルダーを確認してください。</value></data><data name="PreviewAlertSent" xml:space="preserve"><value>プレビュー通知を送信しました。</value></data><data name="ScanPhaseScanning" xml:space="preserve"><value>スキャン中</value></data><data name="ScanPhaseEnumerating" xml:space="preserve"><value>列挙中</value></data><data name="ScanPhaseFinalizing" xml:space="preserve"><value>終了処理中</value></data><data name="ScanPhaseFingerprinting" xml:space="preserve"><value>フィンガープリント作成中</value></data><data name="ScanPhaseComplete" xml:space="preserve"><value>完了</value></data><data name="ScanRateFormat" xml:space="preserve"><value>{0:N0} 項目/秒</value></data><data name="LocalIndexChecking" xml:space="preserve"><value>ローカル インデックスを確認しています…</value></data><data name="LocalIndexDetailFormat" xml:space="preserve"><value>データベース {0} · WAL {1}</value></data><data name="LocalIndexStoredOnDevice" xml:space="preserve"><value>インデックスはこのデバイスだけに保存されます。</value></data><data name="LocalIndexNotCreated" xml:space="preserve"><value>ドライブ インデックスはまだ作成されていません。</value></data><data name="LocalIndexCompacting" xml:space="preserve"><value>ローカル インデックスを最適化しています。Storage Lens を開いたままにしてください。</value></data><data name="LocalIndexCompacted" xml:space="preserve"><value>ローカル インデックスを正常に最適化しました。</value></data><data name="LocalIndexCompactFailedFormat" xml:space="preserve"><value>インデックスを最適化できませんでした: {0}</value></data><data name="LocalIndexCheckingHealth" xml:space="preserve"><value>データベースの整合性を確認しています。Storage Lens を開いたままにしてください。</value></data><data name="LocalIndexHealthy" xml:space="preserve"><value>ローカル インデックスは SQLite の整合性および外部キー チェックに合格しました。</value></data><data name="LocalIndexHealthFailedFormat" xml:space="preserve"><value>インデックスの状態チェックで問題が見つかりました: {0}。外部キー違反は {1} 件です。</value></data><data name="LocalIndexHealthExceptionFormat" xml:space="preserve"><value>インデックスの状態チェックを完了できませんでした: {0}</value></data>  <data name="LoadingCleanupCandidates" xml:space="preserve">
+    <value>ファイルを読み込んでいます…</value>
+  </data>
+  <data name="LoadingCleanupCandidatesText.Text" xml:space="preserve">
+    <value>ファイルを読み込んでいます…</value>
+  </data>
+  <data name="DriveNameLocal" xml:space="preserve">
+    <value>ローカル ディスク</value>
+  </data>
+  <data name="DriveNameRemovable" xml:space="preserve">
+    <value>リムーバブル ドライブ</value>
+  </data>
+  <data name="DriveNameNetwork" xml:space="preserve">
+    <value>ネットワーク ドライブ</value>
+  </data>
+  <data name="ExplorerNoItemSelected" xml:space="preserve">
+    <value>項目が選択されていません</value>
+  </data>
+  <data name="ExplorerSelectItemHint" xml:space="preserve">
+    <value>確認するフォルダーまたはファイルを選択してください。</value>
+  </data>
+  <data name="CleanupIndexedDrivesFormat" xml:space="preserve">
+    <value>インデックス済みのすべてのドライブ: {0}</value>
+  </data>
+  <data name="ClearCategoryFilesButton.Content" xml:space="preserve">
+    <value>カテゴリの選択をクリア</value>
+  </data>
+  <data name="RecycleFolderFilesButton.Content" xml:space="preserve">
+    <value>選択したファイルをごみ箱に移動</value>
+  </data>
+  <data name="CleanupFolderSelectionHint.Text" xml:space="preserve">
+    <value>現在のフォルダー ツリーで選択したファイルのみをごみ箱に移動します。特定のフォルダーとファイルを選ぶには、カテゴリの選択をクリアしてください。</value>
+  </data>
+  <data name="CleanupFolderReviewDialog.Title" xml:space="preserve">
+    <value>このフォルダーで選択したファイルをごみ箱に移動しますか?</value>
+  </data>
+  <data name="CleanupFolderReviewDialog.PrimaryButtonText" xml:space="preserve">
+    <value>ごみ箱に移動</value>
+  </data>
+  <data name="CleanupFolderReviewDialog.CloseButtonText" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="CleanupFolderReviewMessage.Text" xml:space="preserve">
+    <value>このフォルダーとそのサブフォルダー内でチェックされたファイルのみをごみ箱に移動します。このフォルダー以外のファイルは変更されません。</value>
+  </data>
+  <data name="CleanupCacheReviewInfoBar.Title" xml:space="preserve">
+    <value>移動前にパッケージ キャッシュを確認してください</value>
+  </data>
+  <data name="CleanupCacheReviewInfoBar.Message" xml:space="preserve">
+    <value>先にアプリとビルドを終了してください。許可された場所にある 24 時間以上経過したユーザー キャッシュのみが対象です。パッケージの復元や再ダウンロードが必要になる場合があります。このカテゴリでは自動クリーンアップは無効です。</value>
+  </data>
+</root>
