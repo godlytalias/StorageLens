@@ -40,7 +40,8 @@ public sealed class DuplicateDetectionService
                 await _repository.GetSampleHashCollisionGroupsAsync(
                     scanId,
                     Math.Max(1, groupBatchSize),
-                    budgetCancellation.Token);
+                    budgetCancellation.Token,
+                    candidateLimit: maxFiles);
             if (collisionGroups.Count == 0)
             {
                 attempted += await ComputeSampleHashesCoreAsync(
@@ -60,7 +61,10 @@ public sealed class DuplicateDetectionService
                     await _repository.GetSampleHashCollisionGroupsAsync(
                         scanId,
                         Math.Max(1, groupBatchSize),
-                        budgetCancellation.Token);
+                        budgetCancellation.Token,
+                        candidateLimit: maxFiles.HasValue
+                            ? Math.Max(0, maxFiles.Value - attempted)
+                            : null);
             }
 
             while (collisionGroups.Count > 0)
@@ -178,7 +182,10 @@ public sealed class DuplicateDetectionService
                     await _repository.GetSampleHashCollisionGroupsAsync(
                         scanId,
                         Math.Max(1, groupBatchSize),
-                        budgetCancellation.Token);
+                        budgetCancellation.Token,
+                        candidateLimit: maxFiles.HasValue
+                            ? Math.Max(0, maxFiles.Value - attempted)
+                            : null);
             }
         }
         catch (OperationCanceledException) when (
@@ -206,7 +213,10 @@ public sealed class DuplicateDetectionService
                     scanId,
                     maximumFileSize: maximumFileSize,
                     limit: Math.Max(1, groupBatchSize),
-                    cancellationToken: cancellationToken);
+                    cancellationToken: cancellationToken,
+                    candidateLimit: maxFiles.HasValue
+                        ? Math.Max(0, maxFiles.Value - attempted)
+                        : null);
             if (groups.Count == 0)
             {
                 break;

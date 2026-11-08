@@ -19,7 +19,7 @@
     <value>Resumen</value>
   </data>
   <data name="NavigationExplorerItem.Content" xml:space="preserve">
-    <value>Explorador de almacenamiento</value>
+    <value>Navegador de almacenamiento</value>
   </data>
   <data name="NavigationCleanupItem.Content" xml:space="preserve">
     <value>Revisión de limpieza</value>
@@ -64,7 +64,7 @@
     <value>Crear el índice de almacenamiento</value>
   </data>
   <data name="NoScanDataInfoBar.Message" xml:space="preserve">
-    <value>Selecciona una unidad e inicia un análisis. Los análisis completados permanecen en este dispositivo y permiten usar el Explorador de almacenamiento, la revisión de limpieza y las comparaciones de crecimiento.</value>
+    <value>Selecciona una unidad e inicia un análisis. Los análisis completados permanecen en este dispositivo y permiten usar el Navegador de almacenamiento, la revisión de limpieza y las comparaciones de crecimiento.</value>
   </data>
   <data name="OverviewErrorInfoBar.Title" xml:space="preserve">
     <value>No se pudieron cargar los datos de almacenamiento</value>
@@ -163,7 +163,7 @@
     <value>Actualizado hace 8 minutos</value>
   </data>
   <data name="ExplorerTitle.Text" xml:space="preserve">
-    <value>Explorador de almacenamiento</value>
+    <value>Navegador de almacenamiento</value>
   </data>
   <data name="ExplorerSubtitle.Text" xml:space="preserve">
     <value>Rastrea el uso real de las carpetas, inspecciona elementos grandes y filtra por categoría o etiqueta.</value>
@@ -175,7 +175,7 @@
     <value>Vuelve al Resumen y analiza la unidad para rellenar esta vista.</value>
   </data>
   <data name="ExplorerErrorInfoBar.Title" xml:space="preserve">
-    <value>No se pudo actualizar el Explorador</value>
+    <value>No se pudo actualizar el Navegador de almacenamiento</value>
   </data>
   <data name="ExplorerDriveSelector.Header" xml:space="preserve">
     <value>Unidad</value>
@@ -304,7 +304,7 @@
     <value>Cerrar</value>
   </data>
   <data name="CleanupCandidatesPreviewNote.Text" xml:space="preserve">
-    <value>Los elementos desmarcados se excluyen de la limpieza. Abra un archivo en el Explorador de almacenamiento para verlo de cerca.</value>
+    <value>Los elementos desmarcados se excluyen de la limpieza. Abra un archivo en el Navegador de almacenamiento para verlo de cerca.</value>
   </data>
   <data name="CleanupCandidateFoldersHeader.Text" xml:space="preserve">
     <value>Carpetas</value>
@@ -649,7 +649,7 @@
     <value>1. Empieza en Resumen y compara el espacio usado, libre y que se puede revisar.</value>
   </data>
   <data name="HelpQuickStartStepTwo.Text" xml:space="preserve">
-    <value>2. Haz clic en cualquier categoría, elemento grande o carpeta en crecimiento para abrirlo en el Explorador de almacenamiento.</value>
+    <value>2. Haz clic en cualquier categoría, elemento grande o carpeta en crecimiento para abrirlo en el Navegador de almacenamiento.</value>
   </data>
   <data name="HelpQuickStartStepThree.Text" xml:space="preserve">
     <value>3. Abra Revisión de limpieza, inspeccione todos los archivos coincidentes de cada árbol de carpetas, desmarque lo que quiera conservar y confirme la limpieza.</value>
@@ -874,7 +874,7 @@
     <value>Archivo {0}</value>
   </data>
   <data name="AutomationSettingsStored" xml:space="preserve">
-    <value>La configuración se almacena en este dispositivo. Las programaciones de vista previa solo crean notificaciones de revisión.</value>
+    <value>La configuración se almacena en este dispositivo. La vista previa de una alerta envía solo una notificación de prueba; no se cambia ni elimina ningún archivo.</value>
   </data>
   <data name="MonitorEveryTwoDays" xml:space="preserve">
     <value>Cada 2 días</value>
@@ -913,7 +913,7 @@
     <value>Analizando</value>
   </data>
   <data name="ScanPhaseEnumerating" xml:space="preserve">
-    <value>Enumerando</value>
+    <value>Indexando</value>
   </data>
   <data name="ScanPhaseFinalizing" xml:space="preserve">
     <value>Finalizando</value>

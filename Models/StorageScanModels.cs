@@ -74,6 +74,15 @@ public sealed class StorageScanProgress
     public TimeSpan Elapsed { get; init; }
 }
 
+public sealed class StorageScanFinalizationProgress
+{
+    public required string Stage { get; init; }
+
+    public long CompletedItems { get; init; }
+
+    public long TotalItems { get; init; }
+}
+
 public sealed class StorageScanResult
 {
     public required Guid ScanId { get; init; }

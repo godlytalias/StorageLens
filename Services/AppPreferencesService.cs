@@ -16,7 +16,10 @@ public static class AppPreferencesService
         {
             try
             {
-                return JsonSerializer.Deserialize<AppPreferences>(json) ?? new AppPreferences();
+                return JsonSerializer.Deserialize(
+                           json,
+                           StorageLensJsonContext.Default.AppPreferences) ??
+                       new AppPreferences();
             }
             catch (JsonException)
             {
@@ -30,6 +33,8 @@ public static class AppPreferencesService
     public static void Save(AppPreferences preferences)
     {
         ApplicationData.Current.LocalSettings.Values[SettingsKey] =
-            JsonSerializer.Serialize(preferences);
+            JsonSerializer.Serialize(
+                preferences,
+                StorageLensJsonContext.Default.AppPreferences);
     }
 }

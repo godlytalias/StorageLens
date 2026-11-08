@@ -58,9 +58,15 @@
                 x:Uid="DriveSelector"
                 MinWidth="224"
                 VerticalAlignment="Bottom"
-                DisplayMemberPath="DisplayName"
                 ItemsSource="{x:Bind ViewModel.Drives}"
-                SelectedItem="{x:Bind ViewModel.SelectedDrive, Mode=TwoWay}" />
+                SelectedIndex="{x:Bind ViewModel.SelectedDriveIndex, Mode=TwoWay}"
+                IsEnabled="{x:Bind ViewModel.HasAvailableDrive}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:DriveSummary">
+                        <TextBlock Text="{x:Bind DisplayName}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
 
             <Button
                 Grid.Column="2"
@@ -326,6 +332,12 @@
                             </DataTemplate>
                         </ItemsRepeater.ItemTemplate>
                     </ItemsRepeater>
+                    <TextBlock
+                        x:Uid="CategoryBreakdownEmpty"
+                        Margin="0,8,0,0"
+                        Style="{StaticResource MutedTextBlockStyle}"
+                        TextWrapping="Wrap"
+                        Visibility="{x:Bind ViewModel.HasNoCategories, Mode=OneWay}" />
                 </StackPanel>
 
                 <controls:AcrylicCardGrid Style="{StaticResource CardGridStyle}" RowSpacing="16">
@@ -536,6 +548,13 @@
                                 </DataTemplate>
                             </ItemsRepeater.ItemTemplate>
                         </ItemsRepeater>
+                        <TextBlock
+                            Grid.Row="1"
+                            x:Uid="TopFoldersEmpty"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource MutedTextBlockStyle}"
+                            TextWrapping="Wrap"
+                            Visibility="{x:Bind ViewModel.HasNoTopFolders, Mode=OneWay}" />
                         <HyperlinkButton
                             Grid.Row="2"
                             x:Uid="ExploreStorageButton"
@@ -638,6 +657,13 @@
                                 </DataTemplate>
                             </ItemsRepeater.ItemTemplate>
                         </ItemsRepeater>
+                        <TextBlock
+                            Grid.Row="1"
+                            x:Uid="CleanupSuggestionsEmpty"
+                            VerticalAlignment="Center"
+                            Style="{StaticResource MutedTextBlockStyle}"
+                            TextWrapping="Wrap"
+                            Visibility="{x:Bind ViewModel.HasNoCleanupSuggestions, Mode=OneWay}" />
                         <Button
                             Grid.Row="2"
                             x:Uid="OpenCleanupReviewButton"
@@ -745,6 +771,13 @@
                             </DataTemplate>
                         </ItemsRepeater.ItemTemplate>
                     </ItemsRepeater>
+                    <TextBlock
+                        Grid.Row="1"
+                        x:Uid="LargestFilesEmpty"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource MutedTextBlockStyle}"
+                        TextWrapping="Wrap"
+                        Visibility="{x:Bind ViewModel.HasNoLargestFiles, Mode=OneWay}" />
                 </controls:AcrylicCardGrid>
             </StackPanel>
         </ScrollViewer>

@@ -30,7 +30,7 @@ public sealed class AutomationViewModel : ObservableObject
 
     public AutomationViewModel()
     {
-        _settings = AutomationSettingsService.Load();
+        _settings = AutomationSettingsService.LoadForUi();
         _monitorEnabled = _settings.MonitorEnabled;
         _monitorIntervalIndex = FindIndex(MonitorIntervals, _settings.MonitorIntervalDays);
         _notifyOnLowSpace = _settings.NotifyOnLowSpace;
@@ -71,14 +71,14 @@ public sealed class AutomationViewModel : ObservableObject
 
     public static IReadOnlyList<int> ScheduleIntervals { get; } = [1, 7, 14, 30];
 
-    public IReadOnlyList<string> MonitorIntervalLabels { get; } =
+    public ObservableCollection<string> MonitorIntervalLabels { get; } =
     [
         AppText.Get("ScheduleDaily"),
         AppText.Get("MonitorEveryTwoDays"),
         AppText.Get("ScheduleWeekly"),
     ];
 
-    public IReadOnlyList<string> ScheduleIntervalLabels { get; } =
+    public ObservableCollection<string> ScheduleIntervalLabels { get; } =
     [
         AppText.Get("ScheduleDaily"),
         AppText.Get("ScheduleWeekly"),

@@ -22,7 +22,8 @@ public sealed class ExplorerViewModel : ObservableObject
     ];
     private readonly SemaphoreSlim _loadLock = new(1, 1);
     private readonly Dictionary<StorageFolderNode, Task> _folderLoadTasks = [];
-    private DriveSummary _selectedDrive = null!;
+    private DriveSummary _selectedDrive;
+    private int _selectedDriveIndex;
     private StorageScanRun? _scan;
     private string _searchText = string.Empty;
     private int _selectedCategoryIndex;
@@ -66,19 +67,19 @@ public sealed class ExplorerViewModel : ObservableObject
         ClearFiltersCommand = new AsyncRelayCommand(ClearFiltersAsync);
         NavigateUpCommand = new AsyncRelayCommand(NavigateUpAsync, () => CanNavigateUp);
         RevealSelectedCommand = new RelayCommand(RevealSelectedItem, () => SelectedItem is not null);
-        if (Drives.Count > 0)
-        {
-            _selectedDrive = Drives[0];
-        }
+        _selectedDriveIndex = Drives.Count > 0 ? 0 : -1;
+        _selectedDrive = _selectedDriveIndex >= 0
+            ? Drives[_selectedDriveIndex]
+            : DriveSummary.Unavailable();
     }
 
     public ObservableCollection<DriveSummary> Drives { get; }
 
     public ObservableCollection<StorageFolderNode> FolderTree { get; }
 
-    public IReadOnlyList<string> Categories { get; }
+    public ObservableCollection<string> Categories { get; }
 
-    public IReadOnlyList<string> SortOptions { get; }
+    public ObservableCollection<string> SortOptions { get; }
 
     public ObservableCollection<StorageItem> FilteredItems { get; }
 
@@ -87,12 +88,26 @@ public sealed class ExplorerViewModel : ObservableObject
         get => _selectedDrive;
         set
         {
-            if (value is not null && SetProperty(ref _selectedDrive, value))
+            if (value is not null)
             {
-                _ = LoadSelectedDriveAsync();
+                SelectDrive(value);
             }
         }
     }
+
+    public int SelectedDriveIndex
+    {
+        get => _selectedDriveIndex;
+        set
+        {
+            if (value >= 0 && value < Drives.Count)
+            {
+                SelectDrive(Drives[value]);
+            }
+        }
+    }
+
+    public bool HasAvailableDrive => SelectedDrive.IsAvailable;
 
     public string SearchText
     {
@@ -160,13 +175,15 @@ public sealed class ExplorerViewModel : ObservableObject
 
     public string CurrentPath => _currentPath;
 
-    public string LocationText => _scopeAllDrive
-        ? string.IsNullOrWhiteSpace(SearchText)
-            ? $"{StorageText.IsolatePath(SelectedDrive.Letter + "\\")} / " +
-              Categories[SelectedCategoryIndex]
-            : $"{StorageText.IsolatePath(SelectedDrive.Letter + "\\")} / " +
-              SearchText
-        : StorageText.IsolatePath(_currentPath);
+    public string LocationText => HasAvailableDrive
+        ? _scopeAllDrive
+            ? string.IsNullOrWhiteSpace(SearchText)
+                ? $"{StorageText.IsolatePath(SelectedDrive.Letter + "\\")} / " +
+                  Categories[SelectedCategoryIndex]
+                : $"{StorageText.IsolatePath(SelectedDrive.Letter + "\\")} / " +
+                  SearchText
+            : StorageText.IsolatePath(_currentPath)
+        : SelectedDrive.DisplayName;
 
     public string SelectedItemNameText =>
         SelectedItem?.Name ?? AppText.Get("ExplorerNoItemSelected");
@@ -176,7 +193,8 @@ public sealed class ExplorerViewModel : ObservableObject
             ? AppText.Get("ExplorerSelectItemHint")
             : SelectedItem.DisplayPath;
 
-    public bool CanNavigateUp => !_scopeAllDrive &&
+    public bool CanNavigateUp => HasAvailableDrive &&
+        !_scopeAllDrive &&
         !string.Equals(
             _currentPath,
             $@"{SelectedDrive.Letter}\",
@@ -220,8 +238,7 @@ public sealed class ExplorerViewModel : ObservableObject
     {
         await AppServices.InitializeAsync();
         _isSuspended = false;
-        if (SelectedDrive is not null &&
-            !_driveDataLoaded)
+        if (HasAvailableDrive && !_driveDataLoaded)
         {
             await LoadSelectedDriveAsync();
         }
@@ -254,8 +271,7 @@ public sealed class ExplorerViewModel : ObservableObject
             if (drive is not null &&
                 !string.Equals(drive.Letter, SelectedDrive.Letter, StringComparison.OrdinalIgnoreCase))
             {
-                _selectedDrive = drive;
-                OnPropertyChanged(nameof(SelectedDrive));
+                SelectDrive(drive, load: false);
                 driveChanged = true;
             }
         }
@@ -503,8 +519,15 @@ public sealed class ExplorerViewModel : ObservableObject
 
     private async Task LoadSelectedDriveAsync()
     {
-        if (SelectedDrive is null)
+        if (!HasAvailableDrive)
         {
+            _scan = null;
+            FolderTree.Clear();
+            FilteredItems.Clear();
+            _currentPath = string.Empty;
+            OnPropertyChanged(nameof(HasScanData));
+            NotifyResults();
+            NotifyLocationState();
             return;
         }
 
@@ -621,6 +644,7 @@ public sealed class ExplorerViewModel : ObservableObject
         generation == _driveLoadGeneration &&
         !cancellationToken.IsCancellationRequested &&
         !_isSuspended &&
+        HasAvailableDrive &&
         string.Equals(
             driveLetter,
             SelectedDrive.Letter,
@@ -763,7 +787,10 @@ public sealed class ExplorerViewModel : ObservableObject
         SearchText = string.Empty;
         SelectedCategoryIndex = 0;
         SelectedSortIndex = 0;
-        await SelectFolderPathAsync($@"{SelectedDrive.Letter}\");
+        if (HasAvailableDrive)
+        {
+            await SelectFolderPathAsync($@"{SelectedDrive.Letter}\");
+        }
     }
 
     private async Task NavigateUpAsync()
@@ -836,6 +863,36 @@ public sealed class ExplorerViewModel : ObservableObject
         OnPropertyChanged(nameof(CanNavigateUp));
         OnPropertyChanged(nameof(LocationText));
         ((IAsyncRelayCommand)NavigateUpCommand).NotifyCanExecuteChanged();
+    }
+
+    private void SelectDrive(DriveSummary drive, bool load = true)
+    {
+        var index = Drives.IndexOf(drive);
+        if (index < 0 || !drive.IsAvailable)
+        {
+            return;
+        }
+
+        var changed = !ReferenceEquals(_selectedDrive, drive);
+        _selectedDrive = drive;
+        if (_selectedDriveIndex != index)
+        {
+            _selectedDriveIndex = index;
+            OnPropertyChanged(nameof(SelectedDriveIndex));
+        }
+
+        if (!changed)
+        {
+            return;
+        }
+
+        OnPropertyChanged(nameof(SelectedDrive));
+        OnPropertyChanged(nameof(HasAvailableDrive));
+        NotifyLocationState();
+        if (load)
+        {
+            _ = LoadSelectedDriveAsync();
+        }
     }
 
     private static StorageFolderNode? FindFolderNode(

@@ -7,7 +7,7 @@ using Windows.Foundation;
 
 namespace StorageLens.ViewModels;
 
-public sealed class CleanupCandidateCollection :
+public sealed partial class CleanupCandidateCollection :
     ObservableCollection<CleanupCandidate>,
     ISupportIncrementalLoading,
     IDisposable

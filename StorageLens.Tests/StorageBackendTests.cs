@@ -1901,6 +1901,35 @@ public sealed class StorageBackendTests
     }
 
     [Fact]
+    public async Task DuplicateDiscovery_LimitsMaterializedCandidates()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await using var session = await fixture.Repository.BeginScanAsync(
+            fixture.Drive);
+        var records = Enumerable.Range(0, 20)
+            .Select(index => CreateRecord(
+                session.ScanId,
+                fixture.ScanRoot,
+                Path.Combine(fixture.ScanRoot, $"same-size-{index:D2}.bin"),
+                1_100_000))
+            .ToList();
+        await session.InsertFilesAsync(records, CancellationToken.None);
+        await session.CompleteAsync(
+            records.Count,
+            0,
+            records.Sum(record => record.SizeBytes),
+            0,
+            CancellationToken.None);
+
+        var groups =
+            await fixture.Repository.GetUnsampledDuplicateSizeGroupsAsync(
+                session.ScanId,
+                candidateLimit: 3);
+
+        Assert.Equal(3, groups.Sum(group => group.Paths.Count));
+    }
+
+    [Fact]
     public async Task DuplicateDetection_MarksMissingFilesSoTheGroupDoesNotLoop()
     {
         await using var fixture = await ScanFixture.CreateAsync();
@@ -1968,6 +1997,326 @@ public sealed class StorageBackendTests
     }
 
     [Fact]
+    public async Task Repository_EnqueuesDirectoriesAsAnIdempotentBatch()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await using var session =
+            await fixture.Repository.BeginScanAsync(fixture.Drive);
+        var metadata = new ScanFolderMetadata(
+            (long)FileAttributes.Directory,
+            0,
+            DateTimeOffset.UtcNow,
+            string.Empty,
+            false);
+        await session.EnqueueDirectoryAsync(
+            fixture.ScanRoot,
+            0,
+            metadata,
+            CancellationToken.None);
+        var rootWork = Assert.Single(await session.ClaimDirectoriesAsync(
+            1,
+            CancellationToken.None));
+        var initialTotals =
+            await session.GetScanTotalsAsync(CancellationToken.None);
+        var firstChild = Path.Combine(fixture.ScanRoot, "first");
+        var secondChild = Path.Combine(fixture.ScanRoot, "second");
+        var excludedChild = Path.Combine(fixture.ScanRoot, "excluded");
+
+        var insertedFolders = await session.EnqueueDirectoriesAsync(
+            [
+                new ScanDirectoryEntry(firstChild, 1, metadata, true),
+                new ScanDirectoryEntry(firstChild, 1, metadata, true),
+                new ScanDirectoryEntry(secondChild, 1, metadata, true),
+                new ScanDirectoryEntry(excludedChild, 1, metadata, false),
+            ],
+            CancellationToken.None);
+        Assert.Equal(3, insertedFolders);
+
+        var queued = await session.ClaimDirectoriesAsync(
+            10,
+            CancellationToken.None);
+        Assert.Equal(2, queued.Count);
+        Assert.Contains(queued, item =>
+            string.Equals(
+                item.FullPath,
+                firstChild,
+                StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(queued, item =>
+            string.Equals(
+                item.FullPath,
+                secondChild,
+                StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(queued, item =>
+            string.Equals(
+                item.FullPath,
+                excludedChild,
+                StringComparison.OrdinalIgnoreCase));
+
+        var totals = await session.GetScanTotalsAsync(CancellationToken.None);
+        Assert.Equal(initialTotals.Folders + 3, totals.Folders);
+        await session.CompleteDirectoryAsync(
+            rootWork,
+            CancellationToken.None);
+        foreach (var item in queued)
+        {
+            await session.CompleteDirectoryAsync(
+                item,
+                CancellationToken.None);
+        }
+    }
+
+    [Fact]
+    public async Task Repository_ClaimsQueuedDirectoriesInIndexedFifoOrder()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await using var session =
+            await fixture.Repository.BeginScanAsync(fixture.Drive);
+        var metadata = new ScanFolderMetadata(
+            (long)FileAttributes.Directory,
+            0,
+            DateTimeOffset.UtcNow,
+            string.Empty,
+            false);
+        var firstPath = Path.Combine(fixture.ScanRoot, "deep", "first");
+        var secondPath = Path.Combine(fixture.ScanRoot, "second");
+
+        await session.EnqueueDirectoryAsync(
+            firstPath,
+            2,
+            metadata,
+            CancellationToken.None);
+        await Task.Delay(20);
+        await session.EnqueueDirectoryAsync(
+            secondPath,
+            1,
+            metadata,
+            CancellationToken.None);
+
+        var claimed = await session.ClaimDirectoriesAsync(
+            2,
+            CancellationToken.None);
+
+        Assert.Equal(
+            [firstPath, secondPath],
+            claimed.Select(item => item.FullPath).ToArray());
+    }
+
+    [Fact]
+    public async Task Repository_FinalizesDirectoriesAndIssuesAsABatch()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await using var session =
+            await fixture.Repository.BeginScanAsync(fixture.Drive);
+        await session.EnqueueDirectoryAsync(
+            fixture.ScanRoot,
+            0,
+            new ScanFolderMetadata(
+                (long)FileAttributes.Directory,
+                0,
+                DateTimeOffset.UtcNow,
+                string.Empty,
+                false),
+            CancellationToken.None);
+        var claimed = await session.ClaimDirectoriesAsync(
+            1,
+            CancellationToken.None);
+
+        await session.FinalizeDirectoriesAsync(
+            claimed,
+            [fixture.ScanRoot],
+            [
+                new ScanIssue
+                {
+                    Path = fixture.ScanRoot,
+                    Type = ScanIssueType.AccessDenied,
+                    ErrorCode = 5,
+                    Message = "Access denied.",
+                    DetectedUtc = DateTimeOffset.UtcNow,
+                },
+            ],
+            CancellationToken.None);
+
+        Assert.Empty(await session.ClaimDirectoriesAsync(
+            10,
+            CancellationToken.None));
+        var issue = Assert.Single(
+            await fixture.Repository.GetScanIssuesAsync(session.ScanId));
+        Assert.Equal(fixture.ScanRoot, issue.Path);
+        Assert.Equal(ScanIssueType.AccessDenied, issue.Type);
+        Assert.Equal(5, issue.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Repository_MaterializesPreviousWindowsCandidatesInBulk()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await using var session =
+            await fixture.Repository.BeginScanAsync(fixture.Drive);
+        const string previousWindowsPath = @"C:\Windows.old";
+        await session.EnqueueDirectoryAsync(
+            previousWindowsPath,
+            0,
+            new ScanFolderMetadata(
+                (long)FileAttributes.Directory,
+                0,
+                DateTimeOffset.UtcNow,
+                string.Empty,
+                false),
+            CancellationToken.None);
+        var nestedPath = Path.Combine(
+            previousWindowsPath,
+            "Windows",
+            "System32");
+        await session.EnqueueDirectoryAsync(
+            nestedPath,
+            1,
+            new ScanFolderMetadata(
+                (long)FileAttributes.Directory,
+                0,
+                DateTimeOffset.UtcNow,
+                string.Empty,
+                false),
+            CancellationToken.None);
+        var filePath = Path.Combine(nestedPath, "example.dll");
+        await session.InsertFilesAsync(
+            [
+                CreateRecord(
+                    session.ScanId,
+                    nestedPath,
+                    filePath,
+                    1024),
+            ],
+            CancellationToken.None);
+
+        await session.MaterializePreviousWindowsInstallationCandidatesAsync(
+            CancellationToken.None);
+
+        var candidate = Assert.Single(
+            await fixture.Repository.GetCleanupCandidatesAsync(
+                session.ScanId,
+                CleanupPolicyId.PreviousWindowsInstallation,
+                DateTimeOffset.UtcNow));
+        Assert.Equal(filePath, candidate.FullPath);
+    }
+
+    [Fact]
+    public async Task Repository_DisposingIncompleteScanPreservesSavedProgress()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        var session =
+            await fixture.Repository.BeginScanAsync(fixture.Drive);
+        await session.SaveProgressAsync(
+            24,
+            8,
+            12_345,
+            16_384,
+            2,
+            CancellationToken.None);
+
+        await session.DisposeAsync();
+
+        var scan = await fixture.Repository.GetScanAsync(session.ScanId);
+        Assert.NotNull(scan);
+        Assert.Equal(StorageScanStatus.Failed, scan.Status);
+        Assert.Equal(24, scan.FilesScanned);
+        Assert.Equal(8, scan.FoldersScanned);
+        Assert.Equal(12_345, scan.BytesScanned);
+        Assert.Equal(16_384, scan.AllocatedBytesScanned);
+        Assert.Equal(2, scan.InaccessibleItems);
+        Assert.Equal(
+            "Scan session closed before completion.",
+            scan.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Scanner_CancelledScanPersistsCancelledStatus()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await fixture.WriteFileAsync("cancel.txt", 10);
+        using var cancellation = new CancellationTokenSource();
+        var result = await fixture.Scanner.ScanTestRootAsync(
+            fixture.Drive,
+            fixture.ScanRoot,
+            new CallbackProgress<StorageScanProgress>(
+                _ => cancellation.Cancel()),
+            cancellation.Token);
+
+        var scan = await fixture.Repository.GetScanAsync(result.ScanId);
+        Assert.NotNull(scan);
+        Assert.Equal(StorageScanStatus.Cancelled, result.Status);
+        Assert.Equal(StorageScanStatus.Cancelled, scan.Status);
+        Assert.Null(scan.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Scanner_CancelledFinalizationResumesCompletedEnumeration()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await fixture.WriteFileAsync(@"Nested\resume.txt", 10);
+        using var cancellation = new CancellationTokenSource();
+        string? finalizationStage = null;
+        double finalizationRate = -1;
+        var first = await fixture.Scanner.ScanTestRootAsync(
+            fixture.Drive,
+            fixture.ScanRoot,
+            new CallbackProgress<StorageScanProgress>(
+                update =>
+                {
+                    if (update.Phase == "Finalizing")
+                    {
+                        finalizationStage = update.CurrentPath;
+                        finalizationRate = update.ItemsPerSecond;
+                        cancellation.Cancel();
+                    }
+                }),
+            cancellation.Token);
+
+        var cancelled = await fixture.Repository.GetScanAsync(first.ScanId);
+        Assert.NotNull(cancelled);
+        Assert.Equal(StorageScanStatus.Cancelled, first.Status);
+        Assert.Equal(StorageScanStatus.Cancelled, cancelled.Status);
+        Assert.NotNull(finalizationStage);
+        Assert.Contains("Resolving hard links", finalizationStage);
+        Assert.Equal(0, finalizationRate);
+
+        var resumed = await fixture.Scanner.ScanTestRootAsync(
+            fixture.Drive,
+            fixture.ScanRoot);
+
+        Assert.Equal(first.ScanId, resumed.ScanId);
+        Assert.Equal(StorageScanStatus.Completed, resumed.Status);
+        Assert.Equal(1, resumed.FilesScanned);
+        Assert.Equal(10, resumed.BytesScanned);
+        var scan = await fixture.Repository.GetScanAsync(resumed.ScanId);
+        Assert.NotNull(scan);
+        Assert.Equal(StorageScanStatus.Completed, scan.Status);
+        await using (var connection = new SqliteConnection(
+                         $"Data Source={fixture.Repository.DatabasePath}"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT COUNT(*)
+                FROM FolderNodes child
+                INNER JOIN ScanRuns run ON run.RunKey = child.RunKey
+                LEFT JOIN FolderNodes parent
+                    ON parent.Id = child.ParentId
+                   AND parent.RunKey = child.RunKey
+                WHERE run.Id = $scan
+                  AND child.Depth <> CASE
+                      WHEN parent.Id IS NULL THEN 0
+                      ELSE parent.Depth + 1
+                  END
+                """;
+            command.Parameters.AddWithValue("$scan", scan.Id.ToString("N"));
+            Assert.Equal(
+                0,
+                Convert.ToInt64(
+                    await command.ExecuteScalarAsync()));
+        }
+    }
+
+    [Fact]
     public async Task Repository_ResumesAClaimedDirectoryWithoutDuplicatingRows()
     {
         await using var fixture = await ScanFixture.CreateAsync();
@@ -1999,11 +2348,16 @@ public sealed class StorageBackendTests
             await fixture.Repository.BeginScanAsync(fixture.Drive);
         Assert.True(resumed.IsResumed);
         Assert.Equal(original.ScanId, resumed.ScanId);
+        var repairedProgress =
+            await fixture.Repository.GetScanAsync(resumed.ScanId);
+        Assert.NotNull(repairedProgress);
+        Assert.Equal(1, repairedProgress.FilesScanned);
+        Assert.Equal(10, repairedProgress.BytesScanned);
         var resumedClaim = Assert.Single(await resumed.ClaimDirectoriesAsync(
             1,
             CancellationToken.None));
         Assert.Equal(claimed.PathHash, resumedClaim.PathHash);
-        await resumed.InsertFilesAsync(
+        var inserted = await resumed.InsertFilesAsync(
             [
                 first,
                 CreateRecord(
@@ -2013,6 +2367,8 @@ public sealed class StorageBackendTests
                     20),
             ],
             CancellationToken.None);
+        Assert.Equal(1, inserted.Files);
+        Assert.Equal(20, inserted.LogicalBytes);
         await resumed.CompleteDirectoryAsync(
             resumedClaim,
             CancellationToken.None);
@@ -2135,6 +2491,26 @@ public sealed class StorageBackendTests
         Assert.Equal(10, entry.LogicalSize);
         Assert.True(entry.AllocatedSize >= entry.LogicalSize);
         Assert.NotEqual(0, entry.ChangeTime);
+    }
+
+    [Fact]
+    public async Task NativeReader_EnumeratesMoreThanOneBuffer()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        const int fileCount = 1200;
+        for (var index = 0; index < fileCount; index++)
+        {
+            await File.WriteAllBytesAsync(
+                Path.Combine(fixture.ScanRoot, $"native-{index:D4}.bin"),
+                []);
+        }
+
+        var entries = NativeDirectoryReader.Enumerate(fixture.ScanRoot);
+
+        Assert.Equal(fileCount, entries.Count);
+        Assert.Equal(fileCount, entries.Select(item => item.Name).Distinct().Count());
+        Assert.Contains(entries, item => item.Name == "native-0000.bin");
+        Assert.Contains(entries, item => item.Name == "native-1199.bin");
     }
 
     [Fact]
@@ -2381,6 +2757,11 @@ public sealed class StorageBackendTests
         var identity = FileIdentityService.TryGetIdentity(path);
         Assert.NotNull(identity);
         Assert.Equal(32, identity.FileId128.Length);
+    }
+
+    private sealed class CallbackProgress<T>(Action<T> callback) : IProgress<T>
+    {
+        public void Report(T value) => callback(value);
     }
 
     private sealed class ScanFixture : IAsyncDisposable

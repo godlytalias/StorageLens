@@ -6,6 +6,8 @@ namespace StorageLens.Services;
 public sealed class StorageScanService
 {
     private const int FileBatchSize = 5000;
+    private static readonly TimeSpan HeartbeatInterval =
+        TimeSpan.FromSeconds(5);
     private readonly StorageRepository _repository;
     private readonly DuplicateDetectionService _duplicateDetection;
     private readonly SemaphoreSlim _scanLock = new(1, 1);
@@ -62,8 +64,10 @@ public sealed class StorageScanService
         long bytesScanned = 0;
         long allocatedBytesScanned = 0;
         long inaccessibleItems = 0;
+        long initialItemCount = 0;
         var scanId = Guid.Empty;
         ScanExecutionLock? executionLock = null;
+        StorageScanWriteSession? scanSession = null;
         var indexPublished = false;
 
         try
@@ -71,7 +75,10 @@ public sealed class StorageScanService
             executionLock = await ScanExecutionLock.AcquireAsync(
                 _repository.DatabasePath,
                 cancellationToken);
-            await using var session = await _repository.BeginScanAsync(drive, cancellationToken);
+            scanSession = await _repository.BeginScanAsync(
+                drive,
+                cancellationToken);
+            var session = scanSession;
             scanId = session.ScanId;
             if (session.IsResumed &&
                 await _repository.GetScanAsync(scanId, cancellationToken)
@@ -83,12 +90,14 @@ public sealed class StorageScanService
                 allocatedBytesScanned =
                     resumedScan.AllocatedBytesScanned;
                 inaccessibleItems = resumedScan.InaccessibleItems;
+                initialItemCount = filesScanned + foldersScanned;
             }
             var rootPath = StorageRepository.NormalizeFolderPath(
                 rootPathOverride ?? $@"{drive.Letter}\");
             var journal = rootPathOverride is null
                 ? UsnJournalService.TryGetInfo(rootPath)
                 : null;
+            var volumeSerialNumber = GetVolumeSerial(drive);
             if (journal is not null)
             {
                 await session.SetJournalCheckpointAsync(
@@ -98,11 +107,29 @@ public sealed class StorageScanService
             }
             var pendingFiles = new List<StorageFileRecord>(FileBatchSize);
 
+            async Task FlushPendingFilesAsync()
+            {
+                if (pendingFiles.Count == 0)
+                {
+                    return;
+                }
+
+                var inserted = await session.InsertFilesAsync(
+                    pendingFiles,
+                    cancellationToken);
+                pendingFiles.Clear();
+                filesScanned += inserted.Files;
+                foldersScanned += inserted.Folders;
+                bytesScanned += inserted.LogicalBytes;
+                allocatedBytesScanned += inserted.AllocatedBytes;
+            }
+
             var rootIdentity = FileIdentityService.TryGetIdentity(rootPath);
             var lastProgressUtc = DateTimeOffset.UtcNow;
+            var lastHeartbeatUtc = lastProgressUtc;
             if (!session.IsResumed)
             {
-                await session.EnqueueDirectoryAsync(
+                foldersScanned += await session.EnqueueDirectoryAsync(
                     rootPath,
                     0,
                     new ScanFolderMetadata(
@@ -118,9 +145,9 @@ public sealed class StorageScanService
             {
                 var workBatch = await session.ClaimDirectoriesAsync(
                     Math.Clamp(
-                        Math.Max(2, Environment.ProcessorCount / 2),
-                        2,
-                        8),
+                        Environment.ProcessorCount,
+                        4,
+                        32),
                     cancellationToken);
                 if (workBatch.Count == 0)
                 {
@@ -130,119 +157,32 @@ public sealed class StorageScanService
                 var enumerationTasks = workBatch.ToDictionary(
                     item => item.PathHash,
                     item => Task.Run(() =>
-                        EnumerateDirectory(item.FullPath)));
+                        PrepareDirectory(
+                            item,
+                            scanId,
+                            volumeSerialNumber,
+                            cancellationToken)));
+                var directoriesToEnqueue = new List<ScanDirectoryEntry>();
+                var incompleteDirectories = new List<string>();
+                var scanIssues = new List<ScanIssue>();
                 foreach (var current in workBatch)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var currentNormalized =
                         StorageRepository.NormalizeFolderPath(
                             current.FullPath);
-                    await session.HeartbeatAsync(cancellationToken);
 
                     try
                     {
-                        foreach (var entry in await enumerationTasks[
-                                     current.PathHash])
+                        var prepared = await enumerationTasks[
+                            current.PathHash];
+                        foreach (var record in prepared.Files)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
-                            var filePath = Path.Combine(
-                                currentNormalized,
-                                entry.Name);
-                            if (ShouldSkipPath(filePath))
-                            {
-                                continue;
-                            }
-
-                            var attributes = (FileAttributes)entry.Attributes;
-                            var isDirectory =
-                                (attributes & FileAttributes.Directory) != 0;
-                            var reparseAction = StorageReparsePolicy.GetAction(
-                                isDirectory,
-                                entry.ReparsePointTag);
-                            if (isDirectory)
-                            {
-                                var normalizedChild =
-                                    StorageRepository.NormalizeFolderPath(
-                                        filePath);
-                                foldersScanned++;
-                                await session.EnqueueDirectoryAsync(
-                                    normalizedChild,
-                                    current.Depth + 1,
-                                    new ScanFolderMetadata(
-                                        entry.Attributes,
-                                        entry.ReparsePointTag,
-                                        entry.ModifiedUtc,
-                                        entry.FileId,
-                                        reparseAction !=
-                                        ReparseAction.Traverse),
-                                    cancellationToken,
-                                    queueWork:
-                                        reparseAction ==
-                                        ReparseAction.Traverse);
-                                if (reparseAction != ReparseAction.Traverse)
-                                {
-                                    await _repository.RecordScanIssueAsync(
-                                        scanId,
-                                        new ScanIssue
-                                        {
-                                            Path = normalizedChild,
-                                            Type = entry.ReparsePointTag ==
-                                                   StorageReparseTags.ProjectedFileSystem
-                                                ? ScanIssueType.VirtualizedRoot
-                                                : ScanIssueType.ReparseExcluded,
-                                            ReparseTag = entry.ReparsePointTag,
-                                            Message =
-                                                $"Directory traversal was limited for reparse tag 0x{entry.ReparsePointTag:X8}.",
-                                            DetectedUtc = DateTimeOffset.UtcNow,
-                                        },
-                                        cancellationToken);
-                                    inaccessibleItems++;
-                                }
-
-                                continue;
-                            }
-
-                            var physicalSize = entry.AllocatedSize;
-                            var extension = Path.GetExtension(entry.Name);
-                            var category =
-                                StorageCategoryClassifier.ClassifyPath(
-                                    filePath,
-                                    extension,
-                                    attributes);
-                            var record = new StorageFileRecord
-                            {
-                                ScanId = scanId,
-                                Name = entry.Name,
-                                FullPath = filePath,
-                                ParentPath = currentNormalized,
-                                SizeBytes = entry.LogicalSize,
-                                AllocatedSizeBytes = entry.AllocatedSize,
-                                PhysicalSizeBytes = physicalSize,
-                                CreatedUtc = entry.CreatedUtc,
-                                ModifiedUtc = entry.ModifiedUtc,
-                                AccessedUtc = entry.AccessedUtc,
-                                ChangeTime = entry.ChangeTime,
-                                Attributes = (long)attributes,
-                                Extension = extension,
-                                Category = category,
-                                Tag = StorageCategoryClassifier.TagPath(
-                                    filePath,
-                                    category),
-                                VolumeSerialNumber = GetVolumeSerial(drive),
-                                FileId128 = entry.FileId,
-                                ReparseTag = entry.ReparsePointTag,
-                                IsHardLinkAlias = false,
-                            };
                             pendingFiles.Add(record);
-                            filesScanned++;
-                            bytesScanned += record.SizeBytes;
-                            allocatedBytesScanned += physicalSize;
                             if (pendingFiles.Count >= FileBatchSize)
                             {
-                                await session.InsertFilesAsync(
-                                    pendingFiles,
-                                    cancellationToken);
-                                pendingFiles.Clear();
+                                await FlushPendingFilesAsync();
                             }
 
                             if (DateTimeOffset.UtcNow - lastProgressUtc >=
@@ -257,7 +197,8 @@ public sealed class StorageScanService
                                     allocatedBytesScanned,
                                     inaccessibleItems,
                                     progress,
-                                    started: started);
+                                    started: started,
+                                    itemCountOffset: initialItemCount);
                                 await session.SaveProgressAsync(
                                     filesScanned,
                                     foldersScanned,
@@ -268,16 +209,17 @@ public sealed class StorageScanService
                                 lastProgressUtc = DateTimeOffset.UtcNow;
                             }
                         }
+
+                        directoriesToEnqueue.AddRange(prepared.Directories);
+                        scanIssues.AddRange(prepared.Issues);
+                        inaccessibleItems += prepared.InaccessibleItems;
                     }
                     catch (Exception exception)
                         when (IsInaccessibleException(exception))
                     {
                         inaccessibleItems++;
-                        await session.MarkDirectoryIncompleteAsync(
-                            currentNormalized,
-                            cancellationToken);
-                        await _repository.RecordScanIssueAsync(
-                            scanId,
+                        incompleteDirectories.Add(currentNormalized);
+                        scanIssues.Add(
                             new ScanIssue
                             {
                                 Path = currentNormalized,
@@ -290,20 +232,34 @@ public sealed class StorageScanService
                                         : exception.HResult,
                                 Message = exception.Message,
                                 DetectedUtc = DateTimeOffset.UtcNow,
-                            },
-                            cancellationToken);
+                            });
                     }
+                }
 
-                    await session.CompleteDirectoryAsync(
-                        current,
-                        cancellationToken);
+                if (pendingFiles.Count > 0)
+                {
+                    await FlushPendingFilesAsync();
+                }
+
+                foldersScanned += await session.EnqueueDirectoriesAsync(
+                    directoriesToEnqueue,
+                    cancellationToken);
+                await session.FinalizeDirectoriesAsync(
+                    workBatch,
+                    incompleteDirectories,
+                    scanIssues,
+                    cancellationToken);
+                if (DateTimeOffset.UtcNow - lastHeartbeatUtc >=
+                    HeartbeatInterval)
+                {
+                    await session.HeartbeatAsync(cancellationToken);
+                    lastHeartbeatUtc = DateTimeOffset.UtcNow;
                 }
             }
 
             if (pendingFiles.Count > 0)
             {
-                await session.InsertFilesAsync(pendingFiles, cancellationToken);
-                pendingFiles.Clear();
+                await FlushPendingFilesAsync();
             }
 
             ReportProgress(
@@ -315,9 +271,38 @@ public sealed class StorageScanService
                 allocatedBytesScanned,
                 inaccessibleItems,
                 progress,
-                started: started);
+                started: started,
+                itemCountOffset: initialItemCount);
 
-            await session.RecomputeFolderTotalsAsync(cancellationToken);
+            await session.SetPhaseAsync("Finalizing", cancellationToken);
+            var finalizationProgress = progress is null
+                ? null
+                : new CallbackProgress<StorageScanFinalizationProgress>(
+                    update =>
+                    {
+                        var stage = update.TotalItems > 0
+                            ? $"{update.Stage} ({update.CompletedItems:N0} of {update.TotalItems:N0})"
+                            : update.Stage;
+                        ReportProgress(
+                            drive,
+                            stage,
+                            filesScanned,
+                            foldersScanned,
+                            bytesScanned,
+                            allocatedBytesScanned,
+                            inaccessibleItems,
+                            progress,
+                            0.99,
+                            started,
+                            "Finalizing");
+                    });
+            await session.RecomputeFolderTotalsAsync(
+                cancellationToken,
+                finalizationProgress);
+            await session
+                .MaterializePreviousWindowsInstallationCandidatesAsync(
+                    cancellationToken,
+                    finalizationProgress);
             var scanTotals = await session.GetScanTotalsAsync(cancellationToken);
             filesScanned = scanTotals.Files;
             foldersScanned = scanTotals.Folders;
@@ -333,8 +318,12 @@ public sealed class StorageScanService
                 inaccessibleItems,
                 progress,
                 0.99,
-                started);
-            await session.ClearCompletedWorkItemsAsync(cancellationToken);
+                started,
+                "Finalizing");
+            await session.SetPhaseAsync("Completing", cancellationToken);
+            await session.ClearCompletedWorkItemsAsync(
+                cancellationToken,
+                finalizationProgress);
             await session.CompleteAsync(
                 filesScanned,
                 foldersScanned,
@@ -343,20 +332,6 @@ public sealed class StorageScanService
                 cancellationToken,
                 allocatedBytesScanned);
             indexPublished = true;
-            string? warning = null;
-            try
-            {
-                await _repository.RecordFolderGrowthSamplesAsync(
-                    scanId,
-                    cancellationToken);
-            }
-            catch (Exception exception) when (
-                exception is not OperationCanceledException)
-            {
-                warning =
-                    $"The index is complete, but folder-growth history could not be updated: {exception.Message}";
-            }
-
             ReportProgress(
                 drive,
                 rootPath,
@@ -368,60 +343,11 @@ public sealed class StorageScanService
                 progress,
                 1,
                 started);
-
-            try
-            {
-                await _duplicateDetection.ComputeHashesAsync(
+            var warning = rootPathOverride is null
+                ? null
+                : await RunPostScanMaintenanceAsync(
                     scanId,
-                    progress == null
-                        ? null
-                        : new Progress<DuplicateDetectionProgress>(duplicateProgress =>
-                        {
-                            progress.Report(new StorageScanProgress
-                            {
-                                DriveLetter = drive.Letter,
-                                CurrentPath = $"Fingerprinting {duplicateProgress.CurrentPath}",
-                                FilesScanned = filesScanned,
-                                FoldersScanned = foldersScanned,
-                                BytesScanned = bytesScanned,
-                                AllocatedBytesScanned = allocatedBytesScanned,
-                                InaccessibleItems = inaccessibleItems,
-                                PercentComplete = 1,
-                                Phase = "Fingerprinting",
-                                Elapsed = DateTimeOffset.UtcNow - started,
-                                ItemsPerSecond =
-                                    filesScanned /
-                                    Math.Max(
-                                        0.001,
-                                        (DateTimeOffset.UtcNow - started)
-                                        .TotalSeconds),
-                            });
-                        }),
-                    cancellationToken,
-                    groupBatchSize: 100,
-                    maxFiles: 250,
-                    maxBytes: 2L * 1024 * 1024 * 1024,
-                    maxDuration: TimeSpan.FromSeconds(8),
-                    maximumFileSize: 256L * 1024 * 1024);
-                using var historyBudget =
-                    CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                historyBudget.CancelAfter(TimeSpan.FromSeconds(5));
-                await _repository.PruneHistoryAsync(
-                    completedScansPerDrive: 2,
-                    cancellationToken: historyBudget.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                warning = AppendWarning(
-                    warning,
-                    "The index is complete; the remaining duplicate analysis will resume during idle indexing.");
-            }
-            catch (Exception exception)
-            {
-                warning = AppendWarning(
-                    warning,
-                    $"The index is complete, but duplicate analysis or history pruning did not finish: {exception.Message}");
-            }
+                    cancellationToken);
 
             return new StorageScanResult
             {
@@ -463,11 +389,7 @@ public sealed class StorageScanService
                     scanId,
                     StorageScanStatus.Cancelled,
                     null,
-                    filesScanned,
-                    foldersScanned,
-                    bytesScanned,
-                    inaccessibleItems,
-                    allocatedBytesScanned);
+                    inaccessibleItems);
             }
 
             return new StorageScanResult
@@ -491,11 +413,7 @@ public sealed class StorageScanService
                     scanId,
                     StorageScanStatus.Failed,
                     exception.Message,
-                    filesScanned,
-                    foldersScanned,
-                    bytesScanned,
-                    inaccessibleItems,
-                    allocatedBytesScanned);
+                    inaccessibleItems);
             }
 
             return new StorageScanResult
@@ -514,20 +432,93 @@ public sealed class StorageScanService
         }
         finally
         {
-            executionLock?.Dispose();
-            _scanLock.Release();
+            try
+            {
+                if (scanSession is not null)
+                {
+                    await scanSession.DisposeAsync();
+                }
+            }
+            finally
+            {
+                executionLock?.Dispose();
+                _scanLock.Release();
+            }
         }
+    }
+
+    public async Task<string?> RunPostScanMaintenanceAsync(
+        Guid scanId,
+        CancellationToken cancellationToken = default)
+    {
+        string? warning = null;
+        try
+        {
+            using var growthBudget =
+                CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken);
+            growthBudget.CancelAfter(TimeSpan.FromSeconds(15));
+            await _repository.RecordFolderGrowthSamplesAsync(
+                scanId,
+                growthBudget.Token);
+        }
+        catch (OperationCanceledException) when (
+            !cancellationToken.IsCancellationRequested)
+        {
+            warning = AppendWarning(
+                warning,
+                "The index is complete; folder-growth history will be updated during a later scan.");
+        }
+        catch (Exception exception) when (
+            exception is not OperationCanceledException)
+        {
+            warning = AppendWarning(
+                warning,
+                $"The index is complete, but folder-growth history could not be updated: {exception.Message}");
+        }
+
+        try
+        {
+            await _duplicateDetection.ComputeHashesAsync(
+                scanId,
+                cancellationToken: cancellationToken,
+                groupBatchSize: 100,
+                maxFiles: 250,
+                maxBytes: 2L * 1024 * 1024 * 1024,
+                maxDuration: TimeSpan.FromSeconds(8),
+                maximumFileSize: 256L * 1024 * 1024);
+            using var historyBudget =
+                CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken);
+            historyBudget.CancelAfter(TimeSpan.FromSeconds(5));
+            await _repository.PruneHistoryAsync(
+                completedScansPerDrive: 2,
+                cancellationToken: historyBudget.Token);
+        }
+        catch (OperationCanceledException) when (
+            !cancellationToken.IsCancellationRequested)
+        {
+            warning = AppendWarning(
+                warning,
+                "The index is complete; the remaining duplicate analysis will resume during idle indexing.");
+        }
+        catch (Exception exception) when (
+            exception is not OperationCanceledException)
+        {
+            warning = AppendWarning(
+                warning,
+                $"The index is complete, but duplicate analysis or history pruning did not finish: {exception.Message}");
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        return warning;
     }
 
     private async Task MarkScanFailedAsync(
         Guid scanId,
         StorageScanStatus status,
         string? error,
-        long files,
-        long folders,
-        long bytes,
-        long inaccessible,
-        long allocatedBytes)
+        long inaccessible)
     {
         await using var connection = await _repository.OpenConnectionAsync(CancellationToken.None);
         await using var transaction =
@@ -538,10 +529,22 @@ public sealed class StorageScanService
             UPDATE ScanRuns
             SET Status = $status,
                 CompletedUtc = $completed,
-                FilesScanned = $files,
-                FoldersScanned = $folders,
-                BytesScanned = $bytes,
-                AllocatedBytesScanned = $allocatedBytes,
+                FilesScanned = (
+                    SELECT COUNT(*)
+                    FROM FileNames
+                    WHERE FileNames.RunKey = ScanRuns.RunKey),
+                FoldersScanned = (
+                    SELECT COUNT(*)
+                    FROM FolderNodes
+                    WHERE FolderNodes.RunKey = ScanRuns.RunKey),
+                BytesScanned = COALESCE((
+                    SELECT SUM(LogicalSize)
+                    FROM PhysicalFiles
+                    WHERE PhysicalFiles.RunKey = ScanRuns.RunKey), 0),
+                AllocatedBytesScanned = COALESCE((
+                    SELECT SUM(AllocatedSize)
+                    FROM PhysicalFiles
+                    WHERE PhysicalFiles.RunKey = ScanRuns.RunKey), 0),
                 InaccessibleItems = $inaccessible,
                 ErrorMessage = $error,
                 OwnerProcessId = NULL,
@@ -556,10 +559,6 @@ public sealed class StorageScanService
             """;
         command.Parameters.AddWithValue("$status", (int)status);
         command.Parameters.AddWithValue("$completed", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-        command.Parameters.AddWithValue("$files", files);
-        command.Parameters.AddWithValue("$folders", folders);
-        command.Parameters.AddWithValue("$bytes", bytes);
-        command.Parameters.AddWithValue("$allocatedBytes", allocatedBytes);
         command.Parameters.AddWithValue("$inaccessible", inaccessible);
         command.Parameters.AddWithValue("$error", error ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("$phase", status.ToString());
@@ -589,7 +588,9 @@ public sealed class StorageScanService
         long inaccessible,
         IProgress<StorageScanProgress>? progress,
         double? overridePercentage = null,
-        DateTimeOffset? started = null)
+        DateTimeOffset? started = null,
+        string? phase = null,
+        long itemCountOffset = 0)
     {
         var percent = overridePercentage ??
                       Math.Clamp(
@@ -599,6 +600,12 @@ public sealed class StorageScanService
         var elapsed = started.HasValue
             ? DateTimeOffset.UtcNow - started.Value
             : TimeSpan.Zero;
+        var effectivePhase = phase ?? (overridePercentage.HasValue &&
+                                       overridePercentage.Value >= 1
+            ? "Complete"
+            : overridePercentage.HasValue
+                ? "Finalizing"
+                : "Enumerating");
         progress?.Report(new StorageScanProgress
         {
             DriveLetter = drive.Letter,
@@ -609,15 +616,12 @@ public sealed class StorageScanService
             AllocatedBytesScanned = allocatedBytes,
             InaccessibleItems = inaccessible,
             PercentComplete = percent,
-            Phase = overridePercentage.HasValue &&
-                    overridePercentage.Value >= 1
-                ? "Complete"
-                : overridePercentage.HasValue
-                    ? "Finalizing"
-                    : "Enumerating",
+            Phase = effectivePhase,
             Elapsed = elapsed,
-            ItemsPerSecond = elapsed.TotalSeconds > 0
-                ? (files + folders) / elapsed.TotalSeconds
+            ItemsPerSecond = effectivePhase == "Enumerating" &&
+                             elapsed.TotalSeconds > 0
+                ? Math.Max(0, files + folders - itemCountOffset) /
+                  elapsed.TotalSeconds
                 : 0,
         });
     }
@@ -626,6 +630,108 @@ public sealed class StorageScanService
         exception is IOException or UnauthorizedAccessException
             or DirectoryNotFoundException
             or System.ComponentModel.Win32Exception;
+
+    private PreparedDirectory PrepareDirectory(
+        ScanWorkItem workItem,
+        Guid scanId,
+        long volumeSerialNumber,
+        CancellationToken cancellationToken)
+    {
+        var currentPath = StorageRepository.NormalizeFolderPath(
+            workItem.FullPath);
+        var files = new List<StorageFileRecord>();
+        var directories = new List<ScanDirectoryEntry>();
+        var issues = new List<ScanIssue>();
+        var inaccessibleItems = 0;
+        foreach (var entry in EnumerateDirectory(currentPath))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var filePath = Path.Combine(currentPath, entry.Name);
+            if (ShouldSkipPath(filePath))
+            {
+                continue;
+            }
+
+            var attributes = (FileAttributes)entry.Attributes;
+            var isDirectory =
+                (attributes & FileAttributes.Directory) != 0;
+            var reparseAction = StorageReparsePolicy.GetAction(
+                isDirectory,
+                entry.ReparsePointTag);
+            if (isDirectory)
+            {
+                var normalizedChild =
+                    StorageRepository.NormalizeFolderPath(filePath);
+                directories.Add(
+                    new ScanDirectoryEntry(
+                        normalizedChild,
+                        workItem.Depth + 1,
+                        new ScanFolderMetadata(
+                            entry.Attributes,
+                            entry.ReparsePointTag,
+                            entry.ModifiedUtc,
+                            entry.FileId,
+                            reparseAction != ReparseAction.Traverse),
+                        reparseAction == ReparseAction.Traverse));
+                if (reparseAction != ReparseAction.Traverse)
+                {
+                    issues.Add(
+                        new ScanIssue
+                        {
+                            Path = normalizedChild,
+                            Type = entry.ReparsePointTag ==
+                                   StorageReparseTags.ProjectedFileSystem
+                                ? ScanIssueType.VirtualizedRoot
+                                : ScanIssueType.ReparseExcluded,
+                            ReparseTag = entry.ReparsePointTag,
+                            Message =
+                                $"Directory traversal was limited for reparse tag 0x{entry.ReparsePointTag:X8}.",
+                            DetectedUtc = DateTimeOffset.UtcNow,
+                        });
+                    inaccessibleItems++;
+                }
+
+                continue;
+            }
+
+            var extension = Path.GetExtension(entry.Name);
+            var category = StorageCategoryClassifier.ClassifyPath(
+                filePath,
+                extension,
+                attributes);
+            files.Add(
+                new StorageFileRecord
+                {
+                    ScanId = scanId,
+                    Name = entry.Name,
+                    FullPath = filePath,
+                    ParentPath = currentPath,
+                    SizeBytes = entry.LogicalSize,
+                    AllocatedSizeBytes = entry.AllocatedSize,
+                    PhysicalSizeBytes = entry.AllocatedSize,
+                    CreatedUtc = entry.CreatedUtc,
+                    ModifiedUtc = entry.ModifiedUtc,
+                    AccessedUtc = entry.AccessedUtc,
+                    ChangeTime = entry.ChangeTime,
+                    Attributes = (long)attributes,
+                    Extension = extension,
+                    Category = category,
+                    Tag = StorageCategoryClassifier.TagPath(
+                        filePath,
+                        category),
+                    VolumeSerialNumber = volumeSerialNumber,
+                    FileId128 = entry.FileId,
+                    ReparseTag = entry.ReparsePointTag,
+                    IsHardLinkAlias = false,
+                });
+        }
+
+        return new PreparedDirectory(
+            files,
+            directories,
+            issues,
+            inaccessibleItems);
+    }
 
     private static IReadOnlyList<NativeDirectoryEntry> EnumerateDirectory(
         string directoryPath)
@@ -704,4 +810,16 @@ public sealed class StorageScanService
             : drive.VolumeId;
         return ParseVolumeSerial(volumeId ?? string.Empty);
     }
+
+    private sealed class CallbackProgress<T>(
+        Action<T> callback) : IProgress<T>
+    {
+        public void Report(T value) => callback(value);
+    }
+
+    private sealed record PreparedDirectory(
+        IReadOnlyList<StorageFileRecord> Files,
+        IReadOnlyList<ScanDirectoryEntry> Directories,
+        IReadOnlyList<ScanIssue> Issues,
+        int InaccessibleItems);
 }

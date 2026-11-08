@@ -19,7 +19,7 @@
     <value>סקירה כללית</value>
   </data>
   <data name="NavigationExplorerItem.Content" xml:space="preserve">
-    <value>סייר האחסון</value>
+    <value>דפדפן האחסון</value>
   </data>
   <data name="NavigationCleanupItem.Content" xml:space="preserve">
     <value>סקירת ניקוי</value>
@@ -64,7 +64,7 @@
     <value>יצירת אינדקס האחסון</value>
   </data>
   <data name="NoScanDataInfoBar.Message" xml:space="preserve">
-    <value>בחרו כונן והתחילו סריקה. סריקות שהושלמו נשארות במכשיר זה ומפעילות את הסייר, סקירת הניקוי והשוואות גידול.</value>
+    <value>בחרו כונן והתחילו סריקה. סריקות שהושלמו נשארות במכשיר זה ומפעילות את דפדפן האחסון, סקירת הניקוי והשוואות גידול.</value>
   </data>
   <data name="OverviewErrorInfoBar.Title" xml:space="preserve">
     <value>לא ניתן היה לטעון את נתוני האחסון</value>
@@ -163,7 +163,7 @@
     <value>עודכן לפני 8 דקות</value>
   </data>
   <data name="ExplorerTitle.Text" xml:space="preserve">
-    <value>סייר האחסון</value>
+    <value>דפדפן האחסון</value>
   </data>
   <data name="ExplorerSubtitle.Text" xml:space="preserve">
     <value>עקבו אחר השימוש האמיתי בתיקיות, בדקו פריטים גדולים וסננו לפי קטגוריה או תגית.</value>
@@ -175,7 +175,7 @@
     <value>חזרו לסקירה הכללית וסרקו את הכונן כדי לאכלס תצוגה זו.</value>
   </data>
   <data name="ExplorerErrorInfoBar.Title" xml:space="preserve">
-    <value>לא ניתן היה לרענן את הסייר</value>
+    <value>לא ניתן היה לרענן את דפדפן האחסון</value>
   </data>
   <data name="ExplorerDriveSelector.Header" xml:space="preserve">
     <value>כונן</value>
@@ -304,7 +304,7 @@
     <value>סגירה</value>
   </data>
   <data name="CleanupCandidatesPreviewNote.Text" xml:space="preserve">
-    <value>פריטים שתיבת הסימון שלהם בוטלה לא ייכללו בניקוי. פתח קובץ בסייר האחסון לבדיקה מקרוב.</value>
+    <value>פריטים שתיבת הסימון שלהם בוטלה לא ייכללו בניקוי. פתחו קובץ בדפדפן האחסון לבדיקה מקרוב.</value>
   </data>
   <data name="CleanupCandidateFoldersHeader.Text" xml:space="preserve">
     <value>תיקיות</value>
@@ -649,7 +649,7 @@
     <value>1. התחילו בסקירה הכללית והשוו בין המקום שבשימוש, המקום הפנוי והמקום הניתן לבדיקה.</value>
   </data>
   <data name="HelpQuickStartStepTwo.Text" xml:space="preserve">
-    <value>2. לחצו על קטגוריה, על הפריט הגדול ביותר או על תיקייה גדלה כדי לפתוח אותה בסייר האחסון.</value>
+    <value>2. לחצו על קטגוריה, על הפריט הגדול ביותר או על תיקייה גדלה כדי לפתוח אותה בדפדפן האחסון.</value>
   </data>
   <data name="HelpQuickStartStepThree.Text" xml:space="preserve">
     <value>3. פתח את בדיקת הניקוי, בדוק את כל הקבצים התואמים בכל עץ תיקיות, בטל סימון עבור קבצים שברצונך לשמור, ואשר את הניקוי.</value>
@@ -874,7 +874,7 @@
     <value>קובץ {0}</value>
   </data>
   <data name="AutomationSettingsStored" xml:space="preserve">
-    <value>ההגדרות נשמרות במכשיר זה. לוחות זמנים לתצוגה מקדימה יוצרים התראות סקירה בלבד.</value>
+    <value>ההגדרות נשמרות במכשיר זה. תצוגה מקדימה של התראה שולחת הודעת בדיקה בלבד; קבצים אינם משתנים או נמחקים.</value>
   </data>
   <data name="MonitorEveryTwoDays" xml:space="preserve">
     <value>כל יומיים</value>
@@ -913,7 +913,7 @@
     <value>סורק</value>
   </data>
   <data name="ScanPhaseEnumerating" xml:space="preserve">
-    <value>מאתר פריטים</value>
+    <value>מבצע אינדוקס</value>
   </data>
   <data name="ScanPhaseFinalizing" xml:space="preserve">
     <value>מסיים</value>

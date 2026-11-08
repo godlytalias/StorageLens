@@ -65,7 +65,7 @@ public static class StorageText
                 "Complete" => "ScanPhaseComplete",
                 _ => "ScanPhaseScanning",
             },
-            value);
+            value == "Enumerating" ? "Indexing" : value);
 
     public static string PolicyName(CleanupPolicyId policy, string fallback) =>
         LocalizedOrFallback($"CleanupPolicy{(int)policy}Name", fallback);

@@ -1,5 +1,6 @@
 using StorageLens.Models;
 using StorageLens.Localization;
+using System.Security;
 
 namespace StorageLens.Services;
 
@@ -7,39 +8,148 @@ public static class DriveDiscoveryService
 {
     public static IReadOnlyList<DriveSummary> GetAvailableDrives()
     {
-        var drives = new List<DriveSummary>();
-        foreach (var drive in DriveInfo.GetDrives())
+        var roots = new SortedSet<string>(
+            StringComparer.OrdinalIgnoreCase);
+        try
         {
-            if (!drive.IsReady || drive.DriveType is not (DriveType.Fixed or DriveType.Removable))
+            foreach (var drive in DriveInfo.GetDrives())
             {
-                continue;
+                AddRoot(roots, drive.Name);
             }
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+        catch (SecurityException)
+        {
+        }
 
-            try
+        try
+        {
+            foreach (var root in Environment.GetLogicalDrives())
             {
-                drives.Add(new DriveSummary
-                {
-                    Name = string.IsNullOrWhiteSpace(drive.VolumeLabel)
-                        ? GetDefaultDriveName(drive.DriveType)
-                        : drive.VolumeLabel,
-                    Letter = drive.Name[..2],
-                    FileSystem = drive.DriveFormat,
-                    VolumeId = VolumeIdentityService.TryGetVolumeSerial(
-                                   drive.Name[..2]) ??
-                               drive.Name[..2],
-                    TotalBytes = drive.TotalSize,
-                    UsedBytes = drive.TotalSize - drive.AvailableFreeSpace,
-                });
+                AddRoot(roots, root);
             }
-            catch (IOException)
+        }
+        catch (SecurityException)
+        {
+        }
+
+        var drives = new List<DriveSummary>();
+        foreach (var root in roots)
+        {
+            if (TryCreateSummary(root) is { } summary)
             {
-            }
-            catch (UnauthorizedAccessException)
-            {
+                drives.Add(summary);
             }
         }
 
         return drives;
+    }
+
+    private static DriveSummary? TryCreateSummary(string root)
+    {
+        var drive = new DriveInfo(root);
+        var driveType = TryGetMetadata(() => drive.DriveType);
+        if (driveType is not (DriveType.Fixed or DriveType.Removable))
+        {
+            return null;
+        }
+
+        if (TryGetMetadata(() => drive.IsReady) is false)
+        {
+            return null;
+        }
+
+        var letter = root.Length >= 2 ? root[..2] : string.Empty;
+        if (string.IsNullOrWhiteSpace(letter))
+        {
+            return null;
+        }
+
+        var totalBytes = Math.Max(
+            0,
+            TryGetMetadata(() => drive.TotalSize) ?? 0);
+        var availableBytes = Math.Max(
+            0,
+            TryGetMetadata(() => drive.AvailableFreeSpace) ?? 0);
+        if (totalBytes > 0 && availableBytes > totalBytes)
+        {
+            availableBytes = totalBytes;
+        }
+
+        var name = TryGetMetadata(() => drive.VolumeLabel);
+        return new DriveSummary
+        {
+            Name = string.IsNullOrWhiteSpace(name)
+                ? GetDefaultDriveName(driveType.Value)
+                : name,
+            Letter = letter,
+            FileSystem =
+                TryGetMetadata(() => drive.DriveFormat) ?? string.Empty,
+            VolumeId =
+                TryGetMetadata(() =>
+                    VolumeIdentityService.TryGetVolumeSerial(letter)) ??
+                letter,
+            TotalBytes = totalBytes,
+            UsedBytes = totalBytes - availableBytes,
+        };
+    }
+
+    private static void AddRoot(
+        ISet<string> roots,
+        string root)
+    {
+        if (root.Length >= 2 &&
+            char.IsLetter(root[0]) &&
+            root[1] == ':')
+        {
+            roots.Add(root[..2] + "\\");
+        }
+    }
+
+    private static T? TryGetMetadata<T>(Func<T> accessor)
+        where T : struct
+    {
+        try
+        {
+            return accessor();
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (SecurityException)
+        {
+            return null;
+        }
+    }
+
+    private static string? TryGetMetadata(Func<string?> accessor)
+    {
+        try
+        {
+            return accessor();
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (SecurityException)
+        {
+            return null;
+        }
     }
 
     private static string GetDefaultDriveName(DriveType driveType) =>

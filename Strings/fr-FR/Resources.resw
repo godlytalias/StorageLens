@@ -19,7 +19,7 @@
     <value>Vue d’ensemble</value>
   </data>
   <data name="NavigationExplorerItem.Content" xml:space="preserve">
-    <value>Explorateur de stockage</value>
+    <value>Navigateur de stockage</value>
   </data>
   <data name="NavigationCleanupItem.Content" xml:space="preserve">
     <value>Révision du nettoyage</value>
@@ -64,7 +64,7 @@
     <value>Créer l’index de stockage</value>
   </data>
   <data name="NoScanDataInfoBar.Message" xml:space="preserve">
-    <value>Sélectionnez un lecteur et lancez une analyse. Les analyses terminées restent sur cet appareil et alimentent l’Explorateur de stockage, la révision du nettoyage et les comparaisons d’évolution.</value>
+    <value>Sélectionnez un lecteur et lancez une analyse. Les analyses terminées restent sur cet appareil et alimentent le Navigateur de stockage, la révision du nettoyage et les comparaisons d’évolution.</value>
   </data>
   <data name="OverviewErrorInfoBar.Title" xml:space="preserve">
     <value>Impossible de charger les données de stockage</value>
@@ -163,7 +163,7 @@
     <value>Mis à jour il y a 8 minutes</value>
   </data>
   <data name="ExplorerTitle.Text" xml:space="preserve">
-    <value>Explorateur de stockage</value>
+    <value>Navigateur de stockage</value>
   </data>
   <data name="ExplorerSubtitle.Text" xml:space="preserve">
     <value>Suivez l’utilisation réelle des dossiers, inspectez les éléments volumineux et filtrez par catégorie ou étiquette.</value>
@@ -175,7 +175,7 @@
     <value>Retournez à la Vue d’ensemble et analysez le lecteur pour remplir cette vue.</value>
   </data>
   <data name="ExplorerErrorInfoBar.Title" xml:space="preserve">
-    <value>Impossible d’actualiser l’Explorateur</value>
+    <value>Impossible d’actualiser le Navigateur de stockage</value>
   </data>
   <data name="ExplorerDriveSelector.Header" xml:space="preserve">
     <value>Lecteur</value>
@@ -304,7 +304,7 @@
     <value>Fermer</value>
   </data>
   <data name="CleanupCandidatesPreviewNote.Text" xml:space="preserve">
-    <value>Les cases décochées sont exclues du nettoyage. Ouvrez un fichier dans l’Explorateur de stockage pour un examen plus détaillé.</value>
+    <value>Les cases décochées sont exclues du nettoyage. Ouvrez un fichier dans le Navigateur de stockage pour un examen plus détaillé.</value>
   </data>
   <data name="CleanupCandidateFoldersHeader.Text" xml:space="preserve">
     <value>Dossiers</value>
@@ -649,7 +649,7 @@
     <value>1. Commencez par la Vue d’ensemble et comparez l’espace utilisé, libre et à examiner.</value>
   </data>
   <data name="HelpQuickStartStepTwo.Text" xml:space="preserve">
-    <value>2. Cliquez sur une catégorie, un élément volumineux ou un dossier en croissance pour l’ouvrir dans l’Explorateur de stockage.</value>
+    <value>2. Cliquez sur une catégorie, un élément volumineux ou un dossier en croissance pour l’ouvrir dans le Navigateur de stockage.</value>
   </data>
   <data name="HelpQuickStartStepThree.Text" xml:space="preserve">
     <value>3. Ouvrez la vérification du nettoyage, examinez tous les fichiers correspondants de chaque arborescence, décochez ceux à conserver, puis confirmez le nettoyage.</value>
@@ -874,7 +874,7 @@
     <value>Fichier {0}</value>
   </data>
   <data name="AutomationSettingsStored" xml:space="preserve">
-    <value>Les paramètres sont stockés sur cet appareil. Les planifications d’aperçu ne créent que des notifications de révision.</value>
+    <value>Les paramètres sont stockés sur cet appareil. La prévisualisation d’une alerte envoie uniquement une notification de test ; aucun fichier n’est modifié ni supprimé.</value>
   </data>
   <data name="MonitorEveryTwoDays" xml:space="preserve">
     <value>Tous les 2 jours</value>
@@ -913,7 +913,7 @@
     <value>Analyse en cours</value>
   </data>
   <data name="ScanPhaseEnumerating" xml:space="preserve">
-    <value>Énumération</value>
+    <value>Indexation</value>
   </data>
   <data name="ScanPhaseFinalizing" xml:space="preserve">
     <value>Finalisation</value>

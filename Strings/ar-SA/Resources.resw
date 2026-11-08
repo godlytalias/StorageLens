@@ -19,7 +19,7 @@
     <value>نظرة عامة</value>
   </data>
   <data name="NavigationExplorerItem.Content" xml:space="preserve">
-    <value>مستكشف التخزين</value>
+    <value>متصفح التخزين</value>
   </data>
   <data name="NavigationCleanupItem.Content" xml:space="preserve">
     <value>مراجعة التنظيف</value>
@@ -64,7 +64,7 @@
     <value>إنشاء فهرس التخزين</value>
   </data>
   <data name="NoScanDataInfoBar.Message" xml:space="preserve">
-    <value>حدد محرك أقراص وابدأ الفحص. تظل عمليات الفحص المكتملة على هذا الجهاز وتُستخدم لتشغيل المستكشف ومراجعة التنظيف ومقارنات النمو.</value>
+    <value>حدد محرك أقراص وابدأ الفحص. تظل عمليات الفحص المكتملة على هذا الجهاز وتُستخدم لتشغيل متصفح التخزين ومراجعة التنظيف ومقارنات النمو.</value>
   </data>
   <data name="OverviewErrorInfoBar.Title" xml:space="preserve">
     <value>تعذّر تحميل بيانات التخزين</value>
@@ -163,7 +163,7 @@
     <value>تم التحديث منذ 8 دقائق</value>
   </data>
   <data name="ExplorerTitle.Text" xml:space="preserve">
-    <value>مستكشف التخزين</value>
+    <value>متصفح التخزين</value>
   </data>
   <data name="ExplorerSubtitle.Text" xml:space="preserve">
     <value>تتبّع الاستخدام الفعلي للمجلدات، وافحص العناصر الكبيرة، وصفِّ حسب الفئة أو العلامة.</value>
@@ -175,7 +175,7 @@
     <value>ارجع إلى النظرة العامة وافحص محرك الأقراص لملء طريقة العرض هذه.</value>
   </data>
   <data name="ExplorerErrorInfoBar.Title" xml:space="preserve">
-    <value>تعذّر تحديث المستكشف</value>
+    <value>تعذّر تحديث متصفح التخزين</value>
   </data>
   <data name="ExplorerDriveSelector.Header" xml:space="preserve">
     <value>محرك الأقراص</value>
@@ -304,7 +304,7 @@
     <value>إغلاق</value>
   </data>
   <data name="CleanupCandidatesPreviewNote.Text" xml:space="preserve">
-    <value>يتم استبعاد العناصر غير المحددة من التنظيف. افتح ملفاً في مستكشف التخزين لفحصه عن قرب.</value>
+    <value>يتم استبعاد العناصر غير المحددة من التنظيف. افتح ملفاً في متصفح التخزين لفحصه عن قرب.</value>
   </data>
   <data name="CleanupCandidateFoldersHeader.Text" xml:space="preserve">
     <value>المجلدات</value>
@@ -649,7 +649,7 @@
     <value>1. ابدأ من النظرة العامة وقارن المساحة المستخدمة والمتاحة والقابلة للمراجعة.</value>
   </data>
   <data name="HelpQuickStartStepTwo.Text" xml:space="preserve">
-    <value>2. انقر فوق أي فئة أو أكبر عنصر أو مجلد متزايد لفتحه في مستكشف التخزين.</value>
+    <value>2. انقر فوق أي فئة أو أكبر عنصر أو مجلد متزايد لفتحه في متصفح التخزين.</value>
   </data>
   <data name="HelpQuickStartStepThree.Text" xml:space="preserve">
     <value>3. افتح مراجعة التنظيف وافحص كل الملفات المطابقة في كل شجرة مجلد، وألغِ تحديد ما تريد الاحتفاظ به، ثم أكد التنظيف.</value>
@@ -874,7 +874,7 @@
     <value>ملف {0}</value>
   </data>
   <data name="AutomationSettingsStored" xml:space="preserve">
-    <value>تُحفظ الإعدادات على هذا الجهاز. تنشئ جداول المعاينة إشعارات مراجعة فقط.</value>
+    <value>تُحفظ الإعدادات على هذا الجهاز. تُرسل معاينة التنبيه إشعارًا تجريبيًا فقط؛ ولا يتم تغيير الملفات أو حذفها.</value>
   </data>
   <data name="MonitorEveryTwoDays" xml:space="preserve">
     <value>كل يومين</value>
@@ -913,7 +913,7 @@
     <value>جارٍ الفحص</value>
   </data>
   <data name="ScanPhaseEnumerating" xml:space="preserve">
-    <value>جارٍ تعداد العناصر</value>
+    <value>جارٍ الفهرسة</value>
   </data>
   <data name="ScanPhaseFinalizing" xml:space="preserve">
     <value>جارٍ الإنهاء</value>

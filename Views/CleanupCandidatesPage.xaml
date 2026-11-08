@@ -259,9 +259,7 @@
                                         VerticalAlignment="Center"
                                         AutomationProperties.Name="{x:Bind AccessibleSummary}"
                                         IsEnabled="{x:Bind IsSelectionEnabled}"
-                                        IsChecked="{x:Bind IsSelected, Mode=OneWay}"
-                                        Command="{x:Bind SetSelectionCommand}"
-                                        CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}"
+                                        IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
                                         Visibility="{x:Bind IsSelectionEnabled}" />
                                     <FontIcon
                                         Glyph="&#xE946;"

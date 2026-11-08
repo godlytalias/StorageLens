@@ -1,4 +1,5 @@
 using System.Text.Json;
+using StorageLens.Models;
 using Windows.Storage;
 
 namespace StorageLens.Services;
@@ -20,7 +21,9 @@ public static class StorageMonitorStateService
         try
         {
             return Task.FromResult(
-                JsonSerializer.Deserialize<Dictionary<string, long>>(json) ?? []);
+                JsonSerializer.Deserialize(
+                    json,
+                    StorageLensJsonContext.Default.DictionaryStringInt64) ?? []);
         }
         catch (JsonException)
         {
@@ -38,7 +41,11 @@ public static class StorageMonitorStateService
             var temporaryPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
-                File.WriteAllText(temporaryPath, JsonSerializer.Serialize(snapshot));
+                File.WriteAllText(
+                    temporaryPath,
+                    JsonSerializer.Serialize(
+                        snapshot,
+                        StorageLensJsonContext.Default.DictionaryStringInt64));
                 if (File.Exists(path))
                 {
                     File.Replace(temporaryPath, path, null);

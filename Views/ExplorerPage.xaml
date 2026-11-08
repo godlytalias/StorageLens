@@ -82,9 +82,15 @@
                 x:Uid="ExplorerDriveSelector"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Bottom"
-                DisplayMemberPath="DisplayName"
                 ItemsSource="{x:Bind ViewModel.Drives}"
-                SelectedItem="{x:Bind ViewModel.SelectedDrive, Mode=TwoWay}" />
+                SelectedIndex="{x:Bind ViewModel.SelectedDriveIndex, Mode=TwoWay}"
+                IsEnabled="{x:Bind ViewModel.HasAvailableDrive}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:DriveSummary">
+                        <TextBlock Text="{x:Bind DisplayName}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
             <AutoSuggestBox
                 x:Name="ExplorerSearchFilter"
                 Grid.Column="1"

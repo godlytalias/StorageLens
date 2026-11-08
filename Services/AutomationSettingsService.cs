@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Runtime.InteropServices;
 using StorageLens.Models;
 using Windows.Storage;
 
@@ -15,6 +16,22 @@ public static class AutomationSettingsService
     public static AutomationSettings Load()
     {
         return RunExclusive(LoadUnlocked);
+    }
+
+    public static AutomationSettings LoadForUi()
+    {
+        try
+        {
+            return Load();
+        }
+        catch (Exception exception) when (
+            exception is TimeoutException or IOException or
+                UnauthorizedAccessException or COMException)
+        {
+            LastLoadWarning =
+                "Automation settings are temporarily unavailable. Safe defaults are being used.";
+            return CreateDefault();
+        }
     }
 
     public static void Save(AutomationSettings settings)
@@ -164,7 +181,10 @@ public static class AutomationSettingsService
                 var hadVersion = document.RootElement.TryGetProperty(
                     nameof(AutomationSettings.Version),
                     out _);
-                var settings = JsonSerializer.Deserialize<AutomationSettings>(json) ?? CreateDefault();
+                var settings = JsonSerializer.Deserialize(
+                                   json,
+                                   StorageLensJsonContext.Default.AutomationSettings) ??
+                               CreateDefault();
                 Normalize(settings);
                 if (migratedLegacySettings || !hadVersion || settings.Version < 3)
                 {
@@ -226,7 +246,9 @@ public static class AutomationSettingsService
         Normalize(settings);
         settings.Version = 3;
         ApplicationData.Current.LocalSettings.Values[SettingsKey] =
-            JsonSerializer.Serialize(settings);
+            JsonSerializer.Serialize(
+                settings,
+                StorageLensJsonContext.Default.AutomationSettings);
     }
 
     private static void Normalize(AutomationSettings settings)

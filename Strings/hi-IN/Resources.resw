@@ -19,7 +19,7 @@
     <value>अवलोकन</value>
   </data>
   <data name="NavigationExplorerItem.Content" xml:space="preserve">
-    <value>स्टोरेज एक्सप्लोरर</value>
+    <value>स्टोरेज ब्राउज़र</value>
   </data>
   <data name="NavigationCleanupItem.Content" xml:space="preserve">
     <value>साफ़-सफ़ाई की समीक्षा</value>
@@ -64,7 +64,7 @@
     <value>स्टोरेज इंडेक्स बनाएँ</value>
   </data>
   <data name="NoScanDataInfoBar.Message" xml:space="preserve">
-    <value>ड्राइव चुनें और स्कैन शुरू करें। पूरे किए गए स्कैन इस डिवाइस पर रहते हैं और एक्सप्लोरर, साफ़-सफ़ाई समीक्षा तथा वृद्धि की तुलना को सक्षम करते हैं।</value>
+    <value>ड्राइव चुनें और स्कैन शुरू करें। पूरे किए गए स्कैन इस डिवाइस पर रहते हैं और स्टोरेज ब्राउज़र, साफ़-सफ़ाई समीक्षा तथा वृद्धि की तुलना को सक्षम करते हैं।</value>
   </data>
   <data name="OverviewErrorInfoBar.Title" xml:space="preserve">
     <value>स्टोरेज डेटा लोड नहीं हो सका</value>
@@ -163,7 +163,7 @@
     <value>8 मिनट पहले अपडेट किया गया</value>
   </data>
   <data name="ExplorerTitle.Text" xml:space="preserve">
-    <value>स्टोरेज एक्सप्लोरर</value>
+    <value>स्टोरेज ब्राउज़र</value>
   </data>
   <data name="ExplorerSubtitle.Text" xml:space="preserve">
     <value>फ़ोल्डरों के वास्तविक उपयोग का पता लगाएँ, बड़ी चीज़ों की जाँच करें और श्रेणी या टैग के अनुसार फ़िल्टर करें।</value>
@@ -175,7 +175,7 @@
     <value>इस दृश्य को भरने के लिए अवलोकन पर लौटें और ड्राइव स्कैन करें।</value>
   </data>
   <data name="ExplorerErrorInfoBar.Title" xml:space="preserve">
-    <value>एक्सप्लोरर रीफ़्रेश नहीं हो सका</value>
+    <value>स्टोरेज ब्राउज़र रीफ़्रेश नहीं हो सका</value>
   </data>
   <data name="ExplorerDriveSelector.Header" xml:space="preserve">
     <value>ड्राइव</value>
@@ -304,7 +304,7 @@
     <value>बंद करें</value>
   </data>
   <data name="CleanupCandidatesPreviewNote.Text" xml:space="preserve">
-    <value>चेक हटाई गई फ़ाइलें साफ़-सफ़ाई से बाहर रहेंगी। नज़दीक से जाँचने के लिए फ़ाइल को स्टोरेज एक्सप्लोरर में खोलें।</value>
+    <value>चेक हटाई गई फ़ाइलें साफ़-सफ़ाई से बाहर रहेंगी। नज़दीक से जाँचने के लिए फ़ाइल को स्टोरेज ब्राउज़र में खोलें।</value>
   </data>
   <data name="CleanupCandidateFoldersHeader.Text" xml:space="preserve">
     <value>फ़ोल्डर</value>
@@ -649,7 +649,7 @@
     <value>1. अवलोकन से शुरू करें और उपयोग की गई, खाली तथा समीक्षा योग्य जगह की तुलना करें।</value>
   </data>
   <data name="HelpQuickStartStepTwo.Text" xml:space="preserve">
-    <value>2. किसी भी श्रेणी, सबसे बड़े आइटम या बढ़ते फ़ोल्डर पर क्लिक करके उसे स्टोरेज एक्सप्लोरर में खोलें।</value>
+    <value>2. किसी भी श्रेणी, सबसे बड़े आइटम या बढ़ते फ़ोल्डर पर क्लिक करके उसे स्टोरेज ब्राउज़र में खोलें।</value>
   </data>
   <data name="HelpQuickStartStepThree.Text" xml:space="preserve">
     <value>3. साफ़-सफ़ाई समीक्षा खोलें, हर फ़ोल्डर ट्री की मिलती फ़ाइलें जाँचें, जो रखना है उसका चेक हटाएँ और साफ़-सफ़ाई की पुष्टि करें।</value>
@@ -874,7 +874,7 @@
     <value>{0} फ़ाइल</value>
   </data>
   <data name="AutomationSettingsStored" xml:space="preserve">
-    <value>सेटिंग इस डिवाइस पर सहेजी जाती हैं। पूर्वावलोकन शेड्यूल केवल समीक्षा सूचनाएँ बनाते हैं।</value>
+    <value>सेटिंग इस डिवाइस पर सहेजी जाती हैं। अलर्ट का पूर्वावलोकन केवल परीक्षण सूचना भेजता है; कोई फ़ाइल बदली या हटाई नहीं जाती।</value>
   </data>
   <data name="MonitorEveryTwoDays" xml:space="preserve">
     <value>हर 2 दिन</value>
@@ -913,7 +913,7 @@
     <value>स्कैन हो रहा है</value>
   </data>
   <data name="ScanPhaseEnumerating" xml:space="preserve">
-    <value>आइटम सूचीबद्ध किए जा रहे हैं</value>
+    <value>इंडेक्स किया जा रहा है</value>
   </data>
   <data name="ScanPhaseFinalizing" xml:space="preserve">
     <value>अंतिम रूप दिया जा रहा है</value>

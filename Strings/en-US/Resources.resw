@@ -19,7 +19,7 @@
     <value>Overview</value>
   </data>
   <data name="NavigationExplorerItem.Content" xml:space="preserve">
-    <value>Storage explorer</value>
+    <value>Storage Browser</value>
   </data>
   <data name="NavigationCleanupItem.Content" xml:space="preserve">
     <value>Cleanup review</value>
@@ -51,6 +51,9 @@
   <data name="DriveSelector.Header" xml:space="preserve">
     <value>Drive</value>
   </data>
+  <data name="DriveSelector.PlaceholderText" xml:space="preserve">
+    <value>No drives found</value>
+  </data>
   <data name="ScanStorageButtonLabel.Text" xml:space="preserve">
     <value>Scan drive</value>
   </data>
@@ -64,7 +67,7 @@
     <value>Build the storage index</value>
   </data>
   <data name="NoScanDataInfoBar.Message" xml:space="preserve">
-    <value>Select a drive and start a scan. Completed scans stay on this device and power Explorer, cleanup review, and growth comparisons.</value>
+    <value>Select a drive and start a scan. Completed scans stay on this device and power Storage Browser, cleanup review, and growth comparisons.</value>
   </data>
   <data name="OverviewErrorInfoBar.Title" xml:space="preserve">
     <value>Storage data could not be loaded</value>
@@ -117,8 +120,14 @@
   <data name="CategoryBreakdownTitle.Text" xml:space="preserve">
     <value>Storage by category</value>
   </data>
+  <data name="CategoryBreakdownEmpty.Text" xml:space="preserve">
+    <value>Your category breakdown will appear after the first completed scan.</value>
+  </data>
   <data name="TopFoldersTitle.Text" xml:space="preserve">
     <value>Largest folders</value>
+  </data>
+  <data name="TopFoldersEmpty.Text" xml:space="preserve">
+    <value>Your largest folders will appear here after the first completed scan.</value>
   </data>
   <data name="TopFoldersDescription.Text" xml:space="preserve">
     <value>Space-heavy subfolders, with broad parent folders drilled down automatically.</value>
@@ -129,11 +138,17 @@
   <data name="CleanupSuggestionsTitle.Text" xml:space="preserve">
     <value>Recommended next</value>
   </data>
+  <data name="CleanupSuggestionsEmpty.Text" xml:space="preserve">
+    <value>Storage Lens will suggest a safe next step after the first completed scan.</value>
+  </data>
   <data name="OpenCleanupReviewButton.Content" xml:space="preserve">
     <value>Open cleanup review</value>
   </data>
   <data name="LargestFilesTitle.Text" xml:space="preserve">
     <value>Largest files</value>
+  </data>
+  <data name="LargestFilesEmpty.Text" xml:space="preserve">
+    <value>Your largest individual files will appear here after the first completed scan.</value>
   </data>
   <data name="LargestFilesDescription.Text" xml:space="preserve">
     <value>Individual files ranked by size. Folder totals are shown separately.</value>
@@ -163,7 +178,7 @@
     <value>Updated 8 minutes ago</value>
   </data>
   <data name="ExplorerTitle.Text" xml:space="preserve">
-    <value>Storage explorer</value>
+    <value>Storage Browser</value>
   </data>
   <data name="ExplorerSubtitle.Text" xml:space="preserve">
     <value>Trace real folder usage, inspect large items, and filter by category or tag.</value>
@@ -175,10 +190,13 @@
     <value>Return to Overview and scan the drive to populate this view.</value>
   </data>
   <data name="ExplorerErrorInfoBar.Title" xml:space="preserve">
-    <value>Explorer could not refresh</value>
+    <value>Storage Browser could not refresh</value>
   </data>
   <data name="ExplorerDriveSelector.Header" xml:space="preserve">
     <value>Drive</value>
+  </data>
+  <data name="ExplorerDriveSelector.PlaceholderText" xml:space="preserve">
+    <value>No drives found</value>
   </data>
   <data name="ExplorerSearchBox.PlaceholderText" xml:space="preserve">
     <value>Filter files and folders</value>
@@ -304,7 +322,7 @@
     <value>Close</value>
   </data>
   <data name="CleanupCandidatesPreviewNote.Text" xml:space="preserve">
-    <value>Cleared checkboxes are excluded from cleanup. Open a file in Storage Explorer for closer inspection.</value>
+    <value>Cleared checkboxes are excluded from cleanup. Open a file in Storage Browser for closer inspection.</value>
   </data>
   <data name="CleanupCandidateFoldersHeader.Text" xml:space="preserve">
     <value>Folders</value>
@@ -649,7 +667,7 @@
     <value>1. Start on Overview and compare used, free, and reviewable space.</value>
   </data>
   <data name="HelpQuickStartStepTwo.Text" xml:space="preserve">
-    <value>2. Click any category, largest item, or growing folder to open it in Storage Explorer.</value>
+    <value>2. Click any category, largest item, or growing folder to open it in Storage Browser.</value>
   </data>
   <data name="HelpQuickStartStepThree.Text" xml:space="preserve">
     <value>3. Open Cleanup Review, inspect every matching file in each folder tree, uncheck anything you want to keep, and confirm the cleanup.</value>
@@ -698,6 +716,9 @@
   </data>
   <data name="OverviewNotScanned" xml:space="preserve">
     <value>No completed scan yet</value>
+  </data>
+  <data name="OverviewNoDrives" xml:space="preserve">
+    <value>No fixed or removable drives were detected.</value>
   </data>
   <data name="OverviewScanSummaryFormat" xml:space="preserve">
     <value>Last scanned {0} · {1} files indexed</value>
@@ -874,7 +895,7 @@
     <value>{0} file</value>
   </data>
   <data name="AutomationSettingsStored" xml:space="preserve">
-    <value>Settings are stored on this device. Preview schedules create review notifications only.</value>
+    <value>Settings are stored on this device. Previewing an alert sends a test notification only; no files are changed or deleted.</value>
   </data>
   <data name="MonitorEveryTwoDays" xml:space="preserve">
     <value>Every 2 days</value>
@@ -913,7 +934,7 @@
     <value>Scanning</value>
   </data>
   <data name="ScanPhaseEnumerating" xml:space="preserve">
-    <value>Enumerating</value>
+    <value>Indexing</value>
   </data>
   <data name="ScanPhaseFinalizing" xml:space="preserve">
     <value>Finalizing</value>
@@ -968,6 +989,9 @@
   </data>
   <data name="DriveNameLocal" xml:space="preserve">
     <value>Local disk</value>
+  </data>
+  <data name="DriveNoneAvailable" xml:space="preserve">
+    <value>No drive available</value>
   </data>
   <data name="DriveNameRemovable" xml:space="preserve">
     <value>Removable drive</value>

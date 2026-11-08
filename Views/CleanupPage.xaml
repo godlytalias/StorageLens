@@ -221,9 +221,7 @@
                                 MinWidth="0"
                                 AutomationProperties.Name="{x:Bind AccessibleSummary, Mode=OneWay}"
                                 AutomationProperties.AutomationId="{x:Bind SelectionAutomationId}"
-                                IsChecked="{x:Bind IsSelected, Mode=OneWay}"
-                                Command="{x:Bind SetSelectionCommand}"
-                                CommandParameter="{Binding IsChecked, RelativeSource={RelativeSource Self}}"
+                                IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
                                 Visibility="{x:Bind IsActionable}" />
                             <FontIcon
                                 HorizontalAlignment="Right"

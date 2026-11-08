@@ -14,7 +14,7 @@ internal static partial class NativeDirectoryReader
     private const int FileIdExtdDirectoryRestartInfoClass = 0x14;
     private const int ErrorMoreData = 234;
     private const int ErrorNoMoreFiles = 18;
-    private const int BufferSize = 1024 * 1024;
+    private const int BufferSize = 64 * 1024;
 
     public static IReadOnlyList<NativeDirectoryEntry> Enumerate(string directoryPath)
     {

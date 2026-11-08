@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using StorageLens.Localization;
@@ -11,6 +12,7 @@ public sealed partial class OverviewViewModel : ObservableObject
 {
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private DriveSummary _selectedDrive;
+    private int _selectedDriveIndex;
     private bool _isScanning;
     private bool _hasScanData;
     private double _scanProgress;
@@ -20,6 +22,7 @@ public sealed partial class OverviewViewModel : ObservableObject
     private int _minimumTrackedFolderSizeGb = 1;
     private string _coverageStatus = string.Empty;
     private CancellationTokenSource? _scanCancellation;
+    private Task? _postScanMaintenanceTask;
     private bool _initialized;
 
     public OverviewViewModel()
@@ -33,9 +36,21 @@ public sealed partial class OverviewViewModel : ObservableObject
         GrowingFolders.CollectionChanged += (_, _) =>
             OnPropertyChanged(nameof(HasNoGrowingFolders));
         ScanIssues = [];
-        _selectedDrive = Drives.FirstOrDefault() ?? throw new InvalidOperationException(
-            "No fixed or removable drives are available.");
-        ScanCommand = new AsyncRelayCommand(ScanAsync, () => !IsScanning);
+        Categories.CollectionChanged += (_, _) =>
+            OnPropertyChanged(nameof(HasNoCategories));
+        TopFolders.CollectionChanged += (_, _) =>
+            OnPropertyChanged(nameof(HasNoTopFolders));
+        LargestFiles.CollectionChanged += (_, _) =>
+            OnPropertyChanged(nameof(HasNoLargestFiles));
+        CleanupSuggestions.CollectionChanged += (_, _) =>
+            OnPropertyChanged(nameof(HasNoCleanupSuggestions));
+        _selectedDriveIndex = Drives.Count > 0 ? 0 : -1;
+        _selectedDrive = _selectedDriveIndex >= 0
+            ? Drives[_selectedDriveIndex]
+            : DriveSummary.Unavailable();
+        ScanCommand = new AsyncRelayCommand(
+            ScanAsync,
+            () => HasAvailableDrive && !IsScanning);
         CancelScanCommand = new RelayCommand(CancelScan, () => IsScanning);
     }
 
@@ -53,6 +68,14 @@ public sealed partial class OverviewViewModel : ObservableObject
 
     public bool HasNoGrowingFolders => GrowingFolders.Count == 0;
 
+    public bool HasNoCategories => Categories.Count == 0;
+
+    public bool HasNoTopFolders => TopFolders.Count == 0;
+
+    public bool HasNoLargestFiles => LargestFiles.Count == 0;
+
+    public bool HasNoCleanupSuggestions => CleanupSuggestions.Count == 0;
+
     public ObservableCollection<ScanIssue> ScanIssues { get; }
 
     public string CoverageStatus
@@ -68,16 +91,28 @@ public sealed partial class OverviewViewModel : ObservableObject
         get => _selectedDrive;
         set
         {
-            if (value is not null && SetProperty(ref _selectedDrive, value))
+            if (value is null)
             {
-                OnPropertyChanged(nameof(UsedStorageText));
-                OnPropertyChanged(nameof(FreeStorageText));
-                OnPropertyChanged(nameof(TotalStorageText));
-                OnPropertyChanged(nameof(CleanupPotentialText));
-                _ = RefreshDataAsync();
+                return;
+            }
+
+            SelectDrive(value);
+        }
+    }
+
+    public int SelectedDriveIndex
+    {
+        get => _selectedDriveIndex;
+        set
+        {
+            if (value >= 0 && value < Drives.Count)
+            {
+                SelectDrive(Drives[value]);
             }
         }
     }
+
+    public bool HasAvailableDrive => SelectedDrive.IsAvailable;
 
     public bool IsScanning
     {
@@ -159,7 +194,8 @@ public sealed partial class OverviewViewModel : ObservableObject
         _initialized = true;
         await AppServices.InitializeAsync();
         await RefreshDataAsync();
-        if (AppPreferencesService.Load().ScanOnLaunch)
+        if (HasAvailableDrive &&
+            AppPreferencesService.Load().ScanOnLaunch)
         {
             await ScanAsync();
         }
@@ -167,6 +203,14 @@ public sealed partial class OverviewViewModel : ObservableObject
 
     public async Task RefreshDataAsync()
     {
+        if (!HasAvailableDrive)
+        {
+            ClearIndexedData();
+            HasScanData = false;
+            ScanStatus = AppText.Get("OverviewNoDrives");
+            return;
+        }
+
         if (AppServices.Repository is null)
         {
             return;
@@ -220,10 +264,7 @@ public sealed partial class OverviewViewModel : ObservableObject
             await Task.WhenAll(
                 categoriesTask,
                 topFoldersTask,
-                largestFilesTask,
-                recommendationsTask,
-                growthTask,
-                issuesTask);
+                largestFilesTask);
 
             Categories.Clear();
             foreach (var category in await categoriesTask)
@@ -242,6 +283,11 @@ public sealed partial class OverviewViewModel : ObservableObject
             {
                 LargestFiles.Add(item);
             }
+
+            await Task.WhenAll(
+                recommendationsTask,
+                growthTask,
+                issuesTask);
 
             var recommendations = await recommendationsTask;
             _cleanupPotentialBytes = recommendations
@@ -309,7 +355,7 @@ public sealed partial class OverviewViewModel : ObservableObject
         {
             _minimumTrackedFolderSizeGb = Math.Max(
                 1,
-                AutomationSettingsService.Load().MinimumTrackedFolderSizeGb);
+                AutomationSettingsService.LoadForUi().MinimumTrackedFolderSizeGb);
             var minimumTrackedBytes = _minimumTrackedFolderSizeGb * 1024L * 1024 * 1024;
             GrowingFolders.Clear();
             ScanIssues.Clear();
@@ -333,7 +379,7 @@ public sealed partial class OverviewViewModel : ObservableObject
 
     private async Task ScanAsync()
     {
-        if (IsScanning)
+        if (IsScanning || !HasAvailableDrive)
         {
             return;
         }
@@ -378,6 +424,7 @@ public sealed partial class OverviewViewModel : ObservableObject
             switch (result.Status)
             {
                 case StorageScanStatus.Completed:
+                    IsScanning = false;
                     await RefreshDataAsync();
                     ScanStatus = string.IsNullOrWhiteSpace(result.WarningMessage)
                         ? AppText.Get("ScanCompletedFormat")
@@ -387,6 +434,7 @@ public sealed partial class OverviewViewModel : ObservableObject
                                 result.InaccessibleItems.ToString("N0"),
                                 StringComparison.Ordinal)
                         : result.WarningMessage;
+                    StartPostScanMaintenance(result.ScanId);
                     break;
                 case StorageScanStatus.Cancelled:
                     ScanStatus = AppText.Get("ScanCancelled");
@@ -411,6 +459,33 @@ public sealed partial class OverviewViewModel : ObservableObject
         ScanStatus = AppText.Get("CancellingScan");
     }
 
+    private void StartPostScanMaintenance(Guid scanId)
+    {
+        if (_postScanMaintenanceTask is { IsCompleted: false })
+        {
+            return;
+        }
+
+        _postScanMaintenanceTask = Task.Run(async () =>
+        {
+            try
+            {
+                var warning =
+                    await AppServices.Scanner.RunPostScanMaintenanceAsync(
+                        scanId);
+                if (!string.IsNullOrWhiteSpace(warning))
+                {
+                    Trace.TraceWarning(warning);
+                }
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceError(
+                    $"Post-scan maintenance failed for {scanId:N}: {exception}");
+            }
+        });
+    }
+
     private void ClearIndexedData()
     {
         Categories.Clear();
@@ -427,5 +502,36 @@ public sealed partial class OverviewViewModel : ObservableObject
         var refreshed = DriveDiscoveryService.GetAvailableDrives()
             .FirstOrDefault(item => string.Equals(item.Letter, drive.Letter, StringComparison.OrdinalIgnoreCase));
         return refreshed ?? drive;
+    }
+
+    private void SelectDrive(DriveSummary drive)
+    {
+        var index = Drives.IndexOf(drive);
+        if (index < 0 || !drive.IsAvailable)
+        {
+            return;
+        }
+
+        var changed = !ReferenceEquals(_selectedDrive, drive);
+        _selectedDrive = drive;
+        if (_selectedDriveIndex != index)
+        {
+            _selectedDriveIndex = index;
+            OnPropertyChanged(nameof(SelectedDriveIndex));
+        }
+
+        if (!changed)
+        {
+            return;
+        }
+
+        OnPropertyChanged(nameof(SelectedDrive));
+        OnPropertyChanged(nameof(HasAvailableDrive));
+        OnPropertyChanged(nameof(UsedStorageText));
+        OnPropertyChanged(nameof(FreeStorageText));
+        OnPropertyChanged(nameof(TotalStorageText));
+        OnPropertyChanged(nameof(CleanupPotentialText));
+        ScanCommand.NotifyCanExecuteChanged();
+        _ = RefreshDataAsync();
     }
 }

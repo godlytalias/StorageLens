@@ -19,7 +19,7 @@
     <value>概览</value>
   </data>
   <data name="NavigationExplorerItem.Content" xml:space="preserve">
-    <value>存储资源管理器</value>
+    <value>存储浏览器</value>
   </data>
   <data name="NavigationCleanupItem.Content" xml:space="preserve">
     <value>清理审查</value>
@@ -64,7 +64,7 @@
     <value>创建存储索引</value>
   </data>
   <data name="NoScanDataInfoBar.Message" xml:space="preserve">
-    <value>选择驱动器并开始扫描。已完成的扫描保存在此设备上，为“存储资源管理器”、清理审查和增长对比提供数据。</value>
+    <value>选择驱动器并开始扫描。已完成的扫描保存在此设备上，为“存储浏览器”、清理审查和增长对比提供数据。</value>
   </data>
   <data name="OverviewErrorInfoBar.Title" xml:space="preserve">
     <value>无法加载存储数据</value>
@@ -163,7 +163,7 @@
     <value>8 分钟前更新</value>
   </data>
   <data name="ExplorerTitle.Text" xml:space="preserve">
-    <value>存储资源管理器</value>
+    <value>存储浏览器</value>
   </data>
   <data name="ExplorerSubtitle.Text" xml:space="preserve">
     <value>跟踪实际文件夹用量，检查大文件，并按类别或标记筛选。</value>
@@ -175,7 +175,7 @@
     <value>返回“概览”并扫描驱动器以填充此视图。</value>
   </data>
   <data name="ExplorerErrorInfoBar.Title" xml:space="preserve">
-    <value>无法刷新存储资源管理器</value>
+    <value>无法刷新存储浏览器</value>
   </data>
   <data name="ExplorerDriveSelector.Header" xml:space="preserve">
     <value>驱动器</value>
@@ -304,7 +304,7 @@
     <value>关闭</value>
   </data>
   <data name="CleanupCandidatesPreviewNote.Text" xml:space="preserve">
-    <value>取消勾选的项目将从清理中排除。可在存储资源管理器中打开文件进行仔细检查。</value>
+    <value>取消勾选的项目将从清理中排除。可在存储浏览器中打开文件进行仔细检查。</value>
   </data>
   <data name="CleanupCandidateFoldersHeader.Text" xml:space="preserve">
     <value>文件夹</value>
@@ -649,7 +649,7 @@
     <value>1. 从“概览”开始，比较已用空间、可用空间和可审查空间。</value>
   </data>
   <data name="HelpQuickStartStepTwo.Text" xml:space="preserve">
-    <value>2. 单击任意类别、最大项目或快速增长的文件夹，在存储资源管理器中打开它。</value>
+    <value>2. 单击任意类别、最大项目或快速增长的文件夹，在存储浏览器中打开它。</value>
   </data>
   <data name="HelpQuickStartStepThree.Text" xml:space="preserve">
     <value>3. 打开清理检查，检查每个文件夹树中的所有匹配文件，取消勾选要保留的项目，然后确认清理。</value>
@@ -867,7 +867,7 @@
   <data name="GrowthSummaryFormat" xml:space="preserve">
     <value>+{0:0}%（{1} 天内）</value>
   </data>
-<data name="KindFile" xml:space="preserve"><value>文件</value></data><data name="KindExtensionFileFormat" xml:space="preserve"><value>{0} 文件</value></data><data name="AutomationSettingsStored" xml:space="preserve"><value>设置存储在此设备上。预览计划仅创建审查通知。</value></data><data name="MonitorEveryTwoDays" xml:space="preserve"><value>每 2 天</value></data><data name="ScheduleEveryTwoWeeks" xml:space="preserve"><value>每 2 周</value></data><data name="BackgroundMonitoringOff" xml:space="preserve"><value>后台监视已关闭</value></data><data name="NextCheckOneDay" xml:space="preserve"><value>下次检查约在 1 天后</value></data><data name="NextCheckManyDaysFormat" xml:space="preserve"><value>下次检查约在 {0} 天后</value></data><data name="IdleIndexNotRun" xml:space="preserve"><value>空闲索引尚未完成。</value></data><data name="LastIdleIndexStatusFormat" xml:space="preserve"><value>上次空闲索引：{0:g} — {1}</value></data><data name="LastIdleIndexFormat" xml:space="preserve"><value>上次空闲索引：{0:g}</value></data><data name="PreviewAlertTitle" xml:space="preserve"><value>Storage Lens 预览警报</value></data><data name="PreviewAlertMessageFormat" xml:space="preserve"><value>可用空间即将低于所设定的 {0:0} GB 阈值。请先审查增长最快的文件夹，防止它们占用更多空间。</value></data><data name="PreviewAlertSent" xml:space="preserve"><value>已发送预览通知。</value></data><data name="ScanPhaseScanning" xml:space="preserve"><value>正在扫描</value></data><data name="ScanPhaseEnumerating" xml:space="preserve"><value>正在枚举</value></data><data name="ScanPhaseFinalizing" xml:space="preserve"><value>正在完成</value></data><data name="ScanPhaseFingerprinting" xml:space="preserve"><value>正在生成指纹</value></data><data name="ScanPhaseComplete" xml:space="preserve"><value>已完成</value></data><data name="ScanRateFormat" xml:space="preserve"><value>{0:N0} 个项目/秒</value></data><data name="LocalIndexChecking" xml:space="preserve"><value>正在检查本地索引…</value></data><data name="LocalIndexDetailFormat" xml:space="preserve"><value>数据库 {0} · WAL {1}</value></data><data name="LocalIndexStoredOnDevice" xml:space="preserve"><value>索引仅存储在此设备上。</value></data><data name="LocalIndexNotCreated" xml:space="preserve"><value>尚未创建驱动器索引。</value></data><data name="LocalIndexCompacting" xml:space="preserve"><value>正在压缩本地索引。请保持 Storage Lens 打开状态。</value></data><data name="LocalIndexCompacted" xml:space="preserve"><value>已成功压缩本地索引。</value></data><data name="LocalIndexCompactFailedFormat" xml:space="preserve"><value>无法压缩索引：{0}</value></data><data name="LocalIndexCheckingHealth" xml:space="preserve"><value>正在检查数据库完整性。请保持 Storage Lens 打开状态。</value></data><data name="LocalIndexHealthy" xml:space="preserve"><value>本地索引已通过 SQLite 完整性和外键检查。</value></data><data name="LocalIndexHealthFailedFormat" xml:space="preserve"><value>索引运行状况检查发现问题：{0}；存在 {1} 个外键冲突。</value></data><data name="LocalIndexHealthExceptionFormat" xml:space="preserve"><value>无法完成索引运行状况检查：{0}</value></data>  <data name="LoadingCleanupCandidates" xml:space="preserve">
+<data name="KindFile" xml:space="preserve"><value>文件</value></data><data name="KindExtensionFileFormat" xml:space="preserve"><value>{0} 文件</value></data><data name="AutomationSettingsStored" xml:space="preserve"><value>设置仅存储在此设备上。预览警报只发送测试通知，不会更改或删除文件。</value></data><data name="MonitorEveryTwoDays" xml:space="preserve"><value>每 2 天</value></data><data name="ScheduleEveryTwoWeeks" xml:space="preserve"><value>每 2 周</value></data><data name="BackgroundMonitoringOff" xml:space="preserve"><value>后台监视已关闭</value></data><data name="NextCheckOneDay" xml:space="preserve"><value>下次检查约在 1 天后</value></data><data name="NextCheckManyDaysFormat" xml:space="preserve"><value>下次检查约在 {0} 天后</value></data><data name="IdleIndexNotRun" xml:space="preserve"><value>空闲索引尚未完成。</value></data><data name="LastIdleIndexStatusFormat" xml:space="preserve"><value>上次空闲索引：{0:g} — {1}</value></data><data name="LastIdleIndexFormat" xml:space="preserve"><value>上次空闲索引：{0:g}</value></data><data name="PreviewAlertTitle" xml:space="preserve"><value>Storage Lens 预览警报</value></data><data name="PreviewAlertMessageFormat" xml:space="preserve"><value>可用空间即将低于所设定的 {0:0} GB 阈值。请先审查增长最快的文件夹，防止它们占用更多空间。</value></data><data name="PreviewAlertSent" xml:space="preserve"><value>已发送预览通知。</value></data><data name="ScanPhaseScanning" xml:space="preserve"><value>正在扫描</value></data><data name="ScanPhaseEnumerating" xml:space="preserve"><value>正在索引</value></data><data name="ScanPhaseFinalizing" xml:space="preserve"><value>正在完成</value></data><data name="ScanPhaseFingerprinting" xml:space="preserve"><value>正在生成指纹</value></data><data name="ScanPhaseComplete" xml:space="preserve"><value>已完成</value></data><data name="ScanRateFormat" xml:space="preserve"><value>{0:N0} 个项目/秒</value></data><data name="LocalIndexChecking" xml:space="preserve"><value>正在检查本地索引…</value></data><data name="LocalIndexDetailFormat" xml:space="preserve"><value>数据库 {0} · WAL {1}</value></data><data name="LocalIndexStoredOnDevice" xml:space="preserve"><value>索引仅存储在此设备上。</value></data><data name="LocalIndexNotCreated" xml:space="preserve"><value>尚未创建驱动器索引。</value></data><data name="LocalIndexCompacting" xml:space="preserve"><value>正在压缩本地索引。请保持 Storage Lens 打开状态。</value></data><data name="LocalIndexCompacted" xml:space="preserve"><value>已成功压缩本地索引。</value></data><data name="LocalIndexCompactFailedFormat" xml:space="preserve"><value>无法压缩索引：{0}</value></data><data name="LocalIndexCheckingHealth" xml:space="preserve"><value>正在检查数据库完整性。请保持 Storage Lens 打开状态。</value></data><data name="LocalIndexHealthy" xml:space="preserve"><value>本地索引已通过 SQLite 完整性和外键检查。</value></data><data name="LocalIndexHealthFailedFormat" xml:space="preserve"><value>索引运行状况检查发现问题：{0}；存在 {1} 个外键冲突。</value></data><data name="LocalIndexHealthExceptionFormat" xml:space="preserve"><value>无法完成索引运行状况检查：{0}</value></data>  <data name="LoadingCleanupCandidates" xml:space="preserve">
     <value>正在加载文件…</value>
   </data>
   <data name="LoadingCleanupCandidatesText.Text" xml:space="preserve">

@@ -1379,11 +1379,13 @@ public sealed class StorageRepository
                   AND r.ScanFormat >= 4
                   AND r.Status IN ($failed, $cancelled)
                   AND r.RunKey IS NOT NULL
-                  AND EXISTS (
-                      SELECT 1
-                      FROM ScanWorkItems w
-                      WHERE w.RunKey = r.RunKey
-                        AND w.State IN (0, 1)
+                  AND (
+                      EXISTS (
+                          SELECT 1
+                          FROM ScanWorkItems w
+                          WHERE w.RunKey = r.RunKey
+                      )
+                      OR r.ScanPhase IN ('Finalizing', 'Completing')
                   )
                   AND NOT EXISTS (
                       SELECT 1
@@ -1505,10 +1507,27 @@ public sealed class StorageRepository
                 SET Status = $running,
                     CompletedUtc = NULL,
                     ErrorMessage = NULL,
+                    FilesScanned = (
+                        SELECT COUNT(*)
+                        FROM FileNames
+                        WHERE RunKey = $run),
+                    FoldersScanned = (
+                        SELECT COUNT(*)
+                        FROM FolderNodes
+                        WHERE RunKey = $run),
+                    BytesScanned = COALESCE((
+                        SELECT SUM(LogicalSize)
+                        FROM PhysicalFiles
+                        WHERE RunKey = $run), 0),
+                    AllocatedBytesScanned = COALESCE((
+                        SELECT SUM(AllocatedSize)
+                        FROM PhysicalFiles
+                        WHERE RunKey = $run), 0),
                     OwnerProcessId = $pid,
                     OwnerProcessStartedUtc = $started,
                     LeaseHeartbeatUtc = $heartbeat,
-                    ScanPhase = 'Resuming'
+                    ScanPhase = 'Resuming',
+                    PhaseStartedUtc = $heartbeat
                 WHERE Id = $id
                   AND RunKey = $run
                   AND Status IN ($failed, $cancelled)
@@ -4713,8 +4732,14 @@ public sealed class StorageRepository
         long minimumFileSize = 1024 * 1024,
         long maximumFileSize = 4L * 1024 * 1024 * 1024,
         int limit = 250,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int? candidateLimit = null)
     {
+        if (candidateLimit <= 0)
+        {
+            return [];
+        }
+
         var format = await GetScanFormatAsync(scanId, cancellationToken);
         if (format.Format < 4)
         {
@@ -4755,6 +4780,7 @@ public sealed class StorageRepository
                    AND n.IsHardLinkAlias = 0
                 WHERE p.RunKey = $run AND p.HashState = 0
                 ORDER BY p.LogicalSize, n.Name
+                LIMIT $candidateLimit
                 """;
             command.Parameters.AddWithValue("$run", format.RunKey);
             command.Parameters.AddWithValue("$minimum", minimumFileSize);
@@ -4763,6 +4789,9 @@ public sealed class StorageRepository
                 "$reparse",
                 (long)FileAttributes.ReparsePoint);
             command.Parameters.AddWithValue("$limit", limit);
+            command.Parameters.AddWithValue(
+                "$candidateLimit",
+                candidateLimit ?? int.MaxValue);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
@@ -4783,8 +4812,14 @@ public sealed class StorageRepository
     public async Task<IReadOnlyList<DuplicateSizeGroup>> GetSampleHashCollisionGroupsAsync(
         Guid scanId,
         int limit = 250,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int? candidateLimit = null)
     {
+        if (candidateLimit <= 0)
+        {
+            return [];
+        }
+
         var format = await GetScanFormatAsync(scanId, cancellationToken);
         if (format.Format < 4)
         {
@@ -4819,9 +4854,13 @@ public sealed class StorageRepository
                    AND n.IsHardLinkAlias = 0
                 WHERE p.RunKey = $run AND p.HashState = 1
                 ORDER BY p.LogicalSize, n.Name
+                LIMIT $candidateLimit
                 """;
             command.Parameters.AddWithValue("$run", format.RunKey);
             command.Parameters.AddWithValue("$limit", limit);
+            command.Parameters.AddWithValue(
+                "$candidateLimit",
+                candidateLimit ?? int.MaxValue);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
@@ -6820,6 +6859,7 @@ public sealed class StorageRepository
 
 public sealed class StorageScanWriteSession : IAsyncDisposable
 {
+    private const int FinalizationBatchSize = 10_000;
     private const int MaximumFolderCacheEntries = 50_000;
     private readonly SqliteConnection _connection;
     private readonly ScanOwner _owner;
@@ -6875,6 +6915,50 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         }
     }
 
+    public async Task SetPhaseAsync(
+        string phase,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(phase))
+        {
+            throw new ArgumentException(
+                "The scan phase cannot be empty.",
+                nameof(phase));
+        }
+
+        await using var command = _connection.CreateCommand();
+        command.CommandText = """
+            UPDATE ScanRuns
+            SET LeaseHeartbeatUtc = $heartbeat,
+                ScanPhase = $phase,
+                PhaseStartedUtc = CASE
+                    WHEN ScanPhase = $phase THEN PhaseStartedUtc
+                    ELSE $heartbeat
+                    END
+            WHERE Id = $id
+              AND Status = $running
+              AND OwnerProcessId = $pid
+              AND OwnerProcessStartedUtc = $started
+            """;
+        command.Parameters.AddWithValue(
+            "$heartbeat",
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        command.Parameters.AddWithValue("$phase", phase);
+        command.Parameters.AddWithValue("$id", ScanId.ToString("N"));
+        command.Parameters.AddWithValue(
+            "$running",
+            (int)StorageScanStatus.Running);
+        command.Parameters.AddWithValue("$pid", _owner.ProcessId);
+        command.Parameters.AddWithValue(
+            "$started",
+            _owner.ProcessStartedUtc);
+        if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+        {
+            throw new InvalidOperationException(
+                "The scan lease was lost while changing the scan phase.");
+        }
+    }
+
     public async Task SetJournalCheckpointAsync(
         long journalId,
         long nextUsn,
@@ -6923,9 +7007,11 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 InaccessibleItems = $inaccessible,
                 LeaseHeartbeatUtc = $heartbeat,
                 ScanPhase = 'Enumerating',
-                PhaseStartedUtc = COALESCE(
-                    PhaseStartedUtc,
-                    $heartbeat)
+                PhaseStartedUtc = CASE
+                    WHEN ScanPhase = 'Enumerating'
+                    THEN COALESCE(PhaseStartedUtc, $heartbeat)
+                    ELSE $heartbeat
+                    END
             WHERE Id = $id
               AND Status = $running
               AND OwnerProcessId = $pid
@@ -6950,79 +7036,120 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         }
     }
 
-    internal async Task EnqueueDirectoryAsync(
+    internal Task<long> EnqueueDirectoryAsync(
         string path,
         int depth,
         ScanFolderMetadata metadata,
         CancellationToken cancellationToken,
-        bool queueWork = true)
+        bool queueWork = true) =>
+        EnqueueDirectoriesAsync(
+            [
+                new ScanDirectoryEntry(
+                    path,
+                    depth,
+                    metadata,
+                    queueWork),
+            ],
+            cancellationToken);
+
+    internal async Task<long> EnqueueDirectoriesAsync(
+        IReadOnlyList<ScanDirectoryEntry> directories,
+        CancellationToken cancellationToken)
     {
+        if (directories.Count == 0)
+        {
+            return 0;
+        }
+
         await using var transaction =
             (SqliteTransaction)await _connection.BeginTransactionAsync(
                 cancellationToken);
         await EnsureLeaseInTransactionAsync(transaction, cancellationToken);
-        var folderId = await EnsureFolderIdAsync(
-            path,
-            transaction,
-            cancellationToken);
-        await using (var folder = _connection.CreateCommand())
+        await using var folderUpdate = _connection.CreateCommand();
+        folderUpdate.Transaction = transaction;
+        folderUpdate.CommandText = """
+            UPDATE FolderNodes
+            SET Attributes = $attributes,
+                ReparseTag = $reparse,
+                ModifiedUtc = $modified,
+                FileId128 = $fileId,
+                FileId64 = CASE
+                    WHEN LENGTH($fileId) >= 16
+                    THEN SUBSTR($fileId, 1, 16)
+                    ELSE '' END,
+                IsIncomplete = $incomplete
+            WHERE RunKey = $run AND Id = $id
+            """;
+        folderUpdate.Parameters.AddWithValue("$attributes", 0L);
+        folderUpdate.Parameters.AddWithValue("$reparse", 0L);
+        folderUpdate.Parameters.AddWithValue("$modified", 0L);
+        folderUpdate.Parameters.AddWithValue("$fileId", string.Empty);
+        folderUpdate.Parameters.AddWithValue("$incomplete", 0);
+        folderUpdate.Parameters.AddWithValue("$run", _runKey);
+        folderUpdate.Parameters.AddWithValue("$id", 0L);
+        folderUpdate.Prepare();
+
+        await using var work = _connection.CreateCommand();
+        work.Transaction = transaction;
+        work.CommandText = """
+            INSERT OR IGNORE INTO ScanWorkItems (
+                RunKey, PathHash, FullPath, Depth, State, AttemptCount,
+                UpdatedUtc
+            )
+            VALUES ($run, $hash, $path, $depth, 0, 0, $updated)
+            """;
+        work.Parameters.AddWithValue("$run", _runKey);
+        work.Parameters.AddWithValue("$hash", string.Empty);
+        work.Parameters.AddWithValue("$path", string.Empty);
+        work.Parameters.AddWithValue("$depth", 0);
+        work.Parameters.AddWithValue("$updated", 0L);
+        work.Prepare();
+
+        var updatedUtc = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        long createdFolders = 0;
+        for (var index = 0; index < directories.Count; index++)
         {
-            folder.Transaction = transaction;
-            folder.CommandText = """
-                UPDATE FolderNodes
-                SET Attributes = $attributes,
-                    ReparseTag = $reparse,
-                    ModifiedUtc = $modified,
-                    FileId128 = $fileId,
-                    FileId64 = CASE
-                        WHEN LENGTH($fileId) >= 16
-                        THEN SUBSTR($fileId, 1, 16)
-                        ELSE '' END,
-                    IsIncomplete = $incomplete
-                WHERE RunKey = $run AND Id = $id
-                """;
-            folder.Parameters.AddWithValue("$attributes", metadata.Attributes);
-            folder.Parameters.AddWithValue(
-                "$reparse",
-                unchecked((long)metadata.ReparseTag));
-            folder.Parameters.AddWithValue(
-                "$modified",
-                metadata.ModifiedUtc.ToUnixTimeMilliseconds());
-            folder.Parameters.AddWithValue("$fileId", metadata.FileId128);
-            folder.Parameters.AddWithValue(
-                "$incomplete",
-                metadata.IsIncomplete ? 1 : 0);
-            folder.Parameters.AddWithValue("$run", _runKey);
-            folder.Parameters.AddWithValue("$id", folderId);
-            if (await folder.ExecuteNonQueryAsync(cancellationToken) != 1)
+            if ((index & 255) == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            var directory = directories[index];
+            var folder = await EnsureFolderIdAsync(
+                directory.Path,
+                transaction,
+                cancellationToken);
+            createdFolders += folder.CreatedCount;
+            folderUpdate.Parameters["$attributes"].Value =
+                directory.Metadata.Attributes;
+            folderUpdate.Parameters["$reparse"].Value =
+                unchecked((long)directory.Metadata.ReparseTag);
+            folderUpdate.Parameters["$modified"].Value =
+                directory.Metadata.ModifiedUtc.ToUnixTimeMilliseconds();
+            folderUpdate.Parameters["$fileId"].Value =
+                directory.Metadata.FileId128;
+            folderUpdate.Parameters["$incomplete"].Value =
+                directory.Metadata.IsIncomplete ? 1 : 0;
+            folderUpdate.Parameters["$id"].Value = folder.Id;
+            if (folderUpdate.ExecuteNonQuery() != 1)
             {
                 throw new InvalidOperationException(
-                    $"The directory '{path}' could not be persisted.");
+                    $"The directory '{directory.Path}' could not be persisted.");
+            }
+
+            if (directory.QueueWork)
+            {
+                work.Parameters["$hash"].Value =
+                    GetPathHash(directory.Path);
+                work.Parameters["$path"].Value = directory.Path;
+                work.Parameters["$depth"].Value = directory.Depth;
+                work.Parameters["$updated"].Value = updatedUtc;
+                work.ExecuteNonQuery();
             }
         }
 
-        if (queueWork)
-        {
-            await using var command = _connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = """
-                INSERT OR IGNORE INTO ScanWorkItems (
-                    RunKey, PathHash, FullPath, Depth, State, AttemptCount,
-                    UpdatedUtc
-                )
-                VALUES ($run, $hash, $path, $depth, 0, 0, $updated)
-                """;
-            command.Parameters.AddWithValue("$run", _runKey);
-            command.Parameters.AddWithValue("$hash", GetPathHash(path));
-            command.Parameters.AddWithValue("$path", path);
-            command.Parameters.AddWithValue("$depth", depth);
-            command.Parameters.AddWithValue(
-                "$updated",
-                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-            await command.ExecuteNonQueryAsync(cancellationToken);
-        }
-
         await transaction.CommitAsync(cancellationToken);
+        return createdFolders;
     }
 
     public async Task<IReadOnlyList<ScanWorkItem>> ClaimDirectoriesAsync(
@@ -7041,7 +7168,7 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 SELECT PathHash, FullPath, Depth
                 FROM ScanWorkItems
                 WHERE RunKey = $run AND State = 0
-                ORDER BY Depth, UpdatedUtc
+                ORDER BY UpdatedUtc
                 LIMIT $limit
                 """;
             select.Parameters.AddWithValue("$run", _runKey);
@@ -7089,45 +7216,132 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         return items;
     }
 
-    public async Task CompleteDirectoryAsync(
+    public Task CompleteDirectoryAsync(
         ScanWorkItem item,
+        CancellationToken cancellationToken) =>
+        FinalizeDirectoriesAsync(
+            [item],
+            [],
+            [],
+            cancellationToken);
+
+    internal async Task FinalizeDirectoriesAsync(
+        IReadOnlyList<ScanWorkItem> directories,
+        IReadOnlyList<string> incompletePaths,
+        IReadOnlyList<ScanIssue> issues,
         CancellationToken cancellationToken)
     {
-        await using var command = _connection.CreateCommand();
-        command.CommandText = """
-            UPDATE ScanWorkItems
-            SET State = 2,
-                LastError = NULL,
-                UpdatedUtc = $updated
-            WHERE RunKey = $run
-              AND PathHash = $hash
-              AND State = 1
-              AND EXISTS (
-                  SELECT 1 FROM ScanRuns
-                  WHERE Id = $scan
-                    AND Status = $running
-                    AND OwnerProcessId = $pid
-                    AND OwnerProcessStartedUtc = $started
-              )
-            """;
-        command.Parameters.AddWithValue("$run", _runKey);
-        command.Parameters.AddWithValue("$hash", item.PathHash);
-        command.Parameters.AddWithValue(
-            "$updated",
-            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-        command.Parameters.AddWithValue("$scan", ScanId.ToString("N"));
-        command.Parameters.AddWithValue(
-            "$running",
-            (int)StorageScanStatus.Running);
-        command.Parameters.AddWithValue("$pid", _owner.ProcessId);
-        command.Parameters.AddWithValue(
-            "$started",
-            _owner.ProcessStartedUtc);
-        if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+        if (directories.Count == 0 &&
+            incompletePaths.Count == 0 &&
+            issues.Count == 0)
         {
-            throw new InvalidOperationException(
-                $"The scan work item '{item.FullPath}' was no longer owned.");
+            return;
         }
+
+        await using var transaction =
+            (SqliteTransaction)await _connection.BeginTransactionAsync(
+                cancellationToken);
+        await EnsureLeaseInTransactionAsync(transaction, cancellationToken);
+
+        if (incompletePaths.Count > 0)
+        {
+            await using var incomplete = _connection.CreateCommand();
+            incomplete.Transaction = transaction;
+            incomplete.CommandText = """
+                UPDATE FolderNodes
+                SET IsIncomplete = 1
+                WHERE RunKey = $run AND PathHash = $hash
+                """;
+            incomplete.Parameters.AddWithValue("$run", _runKey);
+            incomplete.Parameters.AddWithValue("$hash", string.Empty);
+            incomplete.Prepare();
+            foreach (var path in incompletePaths)
+            {
+                incomplete.Parameters["$hash"].Value = GetPathHash(path);
+                if (incomplete.ExecuteNonQuery() != 1)
+                {
+                    throw new InvalidOperationException(
+                        $"The incomplete directory '{path}' could not be recorded.");
+                }
+            }
+        }
+
+        if (issues.Count > 0)
+        {
+            await using var issueCommand = _connection.CreateCommand();
+            issueCommand.Transaction = transaction;
+            issueCommand.CommandText = """
+                INSERT INTO ScanIssues (
+                    ScanId, Path, IssueType, ReparseTag, ErrorCode,
+                    Message, DetectedUtc
+                )
+                VALUES (
+                    $scanId, $path, $type, $tag, $error, $message,
+                    $detected
+                )
+                """;
+            issueCommand.Parameters.AddWithValue(
+                "$scanId",
+                ScanId.ToString("N"));
+            issueCommand.Parameters.AddWithValue("$path", string.Empty);
+            issueCommand.Parameters.AddWithValue("$type", 0);
+            issueCommand.Parameters.AddWithValue("$tag", 0L);
+            issueCommand.Parameters.AddWithValue("$error", DBNull.Value);
+            issueCommand.Parameters.AddWithValue("$message", string.Empty);
+            issueCommand.Parameters.AddWithValue("$detected", 0L);
+            issueCommand.Prepare();
+            foreach (var issue in issues)
+            {
+                issueCommand.Parameters["$path"].Value = issue.Path;
+                issueCommand.Parameters["$type"].Value = (int)issue.Type;
+                issueCommand.Parameters["$tag"].Value =
+                    unchecked((long)issue.ReparseTag);
+                issueCommand.Parameters["$error"].Value =
+                    issue.ErrorCode.HasValue
+                        ? issue.ErrorCode.Value
+                        : DBNull.Value;
+                issueCommand.Parameters["$message"].Value = issue.Message;
+                issueCommand.Parameters["$detected"].Value =
+                    issue.DetectedUtc.ToUnixTimeMilliseconds();
+                if (issueCommand.ExecuteNonQuery() != 1)
+                {
+                    throw new InvalidOperationException(
+                        $"The scan issue for '{issue.Path}' could not be recorded.");
+                }
+            }
+        }
+
+        if (directories.Count > 0)
+        {
+            await using var complete = _connection.CreateCommand();
+            complete.Transaction = transaction;
+            complete.CommandText = """
+                UPDATE ScanWorkItems
+                SET State = 2,
+                    LastError = NULL,
+                    UpdatedUtc = $updated
+                WHERE RunKey = $run
+                  AND PathHash = $hash
+                  AND State = 1
+                """;
+            complete.Parameters.AddWithValue("$run", _runKey);
+            complete.Parameters.AddWithValue("$hash", string.Empty);
+            complete.Parameters.AddWithValue(
+                "$updated",
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            complete.Prepare();
+            foreach (var directory in directories)
+            {
+                complete.Parameters["$hash"].Value = directory.PathHash;
+                if (complete.ExecuteNonQuery() != 1)
+                {
+                    throw new InvalidOperationException(
+                        $"The scan work item '{directory.FullPath}' was no longer owned.");
+                }
+            }
+        }
+
+        await transaction.CommitAsync(cancellationToken);
     }
 
     internal async Task MarkDirectoryIncompleteAsync(
@@ -7206,8 +7420,28 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
     }
 
     public async Task ClearCompletedWorkItemsAsync(
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IProgress<StorageScanFinalizationProgress>? progress = null)
     {
+        long totalItems;
+        await using (var count = _connection.CreateCommand())
+        {
+            count.CommandText = """
+                SELECT COUNT(*)
+                FROM ScanWorkItems
+                WHERE RunKey = $run AND State = 2
+                """;
+            count.Parameters.AddWithValue("$run", _runKey);
+            totalItems = Convert.ToInt64(
+                await count.ExecuteScalarAsync(cancellationToken));
+        }
+
+        long processedItems = 0;
+        ReportFinalizationProgress(
+            progress,
+            "Clearing completed scan queue",
+            0,
+            totalItems);
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -7237,20 +7471,30 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 command.Parameters.AddWithValue(
                     "$started",
                     _owner.ProcessStartedUtc);
-            if (await command.ExecuteNonQueryAsync(cancellationToken) == 0)
+            var deleted =
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            if (deleted == 0)
             {
                 return;
             }
+
+            await HeartbeatAsync(cancellationToken);
+            processedItems += deleted;
+            ReportFinalizationProgress(
+                progress,
+                "Clearing completed scan queue",
+                Math.Min(processedItems, totalItems),
+                totalItems);
         }
     }
 
-    public async Task InsertFilesAsync(
+    public async Task<ScanTotals> InsertFilesAsync(
         IReadOnlyList<StorageFileRecord> records,
         CancellationToken cancellationToken)
     {
         if (records.Count == 0)
         {
-            return;
+            return new ScanTotals(0, 0, 0, 0);
         }
 
         await using var transaction =
@@ -7259,12 +7503,22 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         await using var physical = CreatePhysicalFileInsert(
             transaction,
             cancellationToken);
+        await using var physicalUpdate = CreatePhysicalFileUpdate(
+            transaction,
+            cancellationToken);
         await using var fileName = CreateFileNameInsert(
+            transaction,
+            cancellationToken);
+        await using var fileNameUpdate = CreateFileNameUpdate(
             transaction,
             cancellationToken);
         await using var candidate = CreateCandidateInsert(
             transaction,
             cancellationToken);
+        long insertedFiles = 0;
+        long insertedFolders = 0;
+        long insertedLogicalBytes = 0;
+        long insertedAllocatedBytes = 0;
         for (var index = 0; index < records.Count; index++)
         {
             if ((index & 255) == 0)
@@ -7273,37 +7527,47 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             }
 
             var record = records[index];
-            var parentId = await EnsureFolderIdAsync(
+            var parent = await EnsureFolderIdAsync(
                 record.ParentPath,
                 transaction,
                 cancellationToken);
+            insertedFolders += parent.CreatedCount;
             var identityKey = string.IsNullOrWhiteSpace(record.FileId128)
                 ? GetPathHash(record.FullPath)
                 : $"{record.VolumeSerialNumber:X16}:{record.FileId128}";
-            physical.Parameters["$identity"].Value = identityKey;
-            physical.Parameters["$fileId"].Value = record.FileId128;
-            physical.Parameters["$volume"].Value =
-                record.VolumeSerialNumber;
-            physical.Parameters["$logical"].Value = record.SizeBytes;
-            physical.Parameters["$allocated"].Value =
-                record.AllocatedSizeBytes == 0
-                    ? record.SizeBytes
-                    : record.AllocatedSizeBytes;
-            physical.Parameters["$created"].Value =
-                record.CreatedUtc.ToUnixTimeMilliseconds();
-            physical.Parameters["$modified"].Value =
-                record.ModifiedUtc.ToUnixTimeMilliseconds();
-            physical.Parameters["$accessed"].Value =
-                record.AccessedUtc.ToUnixTimeMilliseconds();
-            physical.Parameters["$attributes"].Value =
-                record.Attributes;
-            physical.Parameters["$reparse"].Value =
-                unchecked((long)record.ReparseTag);
-            physical.Parameters["$links"].Value = record.LinkCount;
-            physical.Parameters["$change"].Value = record.ChangeTime;
-            var physicalId = Convert.ToInt64(physical.ExecuteScalar());
+            SetPhysicalFileParameters(physical, identityKey, record);
+            var physicalResult = physical.ExecuteScalar();
+            var physicalInserted =
+                physicalResult is not null &&
+                physicalResult != DBNull.Value;
+            long physicalId;
+            if (physicalInserted)
+            {
+                physicalId = Convert.ToInt64(physicalResult);
+                insertedLogicalBytes += record.SizeBytes;
+                insertedAllocatedBytes +=
+                    record.AllocatedSizeBytes == 0
+                        ? record.SizeBytes
+                        : record.AllocatedSizeBytes;
+            }
+            else
+            {
+                SetPhysicalFileParameters(
+                    physicalUpdate,
+                    identityKey,
+                    record);
+                var updatedPhysicalId = physicalUpdate.ExecuteScalar();
+                if (updatedPhysicalId is null ||
+                    updatedPhysicalId == DBNull.Value)
+                {
+                    throw new InvalidOperationException(
+                        $"The file identity '{record.FullPath}' could not be persisted.");
+                }
 
-            fileName.Parameters["$parent"].Value = parentId;
+                physicalId = Convert.ToInt64(updatedPhysicalId);
+            }
+
+            fileName.Parameters["$parent"].Value = parent.Id;
             fileName.Parameters["$physical"].Value = physicalId;
             fileName.Parameters["$name"].Value = record.Name;
             fileName.Parameters["$extension"].Value = record.Extension;
@@ -7313,7 +7577,38 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 StorageCategoryClassifier.TagId(record.Tag);
             fileName.Parameters["$hardAlias"].Value =
                 record.IsHardLinkAlias ? 1 : 0;
-            var fileNameId = Convert.ToInt64(fileName.ExecuteScalar());
+            var fileNameResult = fileName.ExecuteScalar();
+            long fileNameId;
+            if (fileNameResult is not null &&
+                fileNameResult != DBNull.Value)
+            {
+                fileNameId = Convert.ToInt64(fileNameResult);
+                insertedFiles++;
+            }
+            else
+            {
+                fileNameUpdate.Parameters["$parent"].Value = parent.Id;
+                fileNameUpdate.Parameters["$physical"].Value = physicalId;
+                fileNameUpdate.Parameters["$name"].Value = record.Name;
+                fileNameUpdate.Parameters["$extension"].Value =
+                    record.Extension;
+                fileNameUpdate.Parameters["$category"].Value =
+                    StorageCategoryClassifier.CategoryId(record.Category);
+                fileNameUpdate.Parameters["$tag"].Value =
+                    StorageCategoryClassifier.TagId(record.Tag);
+                fileNameUpdate.Parameters["$hardAlias"].Value =
+                    record.IsHardLinkAlias ? 1 : 0;
+                var updatedFileNameId = fileNameUpdate.ExecuteScalar();
+                if (updatedFileNameId is null ||
+                    updatedFileNameId == DBNull.Value)
+                {
+                    throw new InvalidOperationException(
+                        $"The file name '{record.FullPath}' could not be persisted.");
+                }
+
+                fileNameId = Convert.ToInt64(updatedFileNameId);
+            }
+
             foreach (var policy in GetMaterializedPolicies(record))
             {
                 candidate.Parameters["$policy"].Value = (int)policy;
@@ -7323,6 +7618,11 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         }
 
         await transaction.CommitAsync(cancellationToken);
+        return new ScanTotals(
+            insertedFiles,
+            insertedFolders,
+            insertedLogicalBytes,
+            insertedAllocatedBytes);
     }
 
     public async Task InsertFoldersAsync(
@@ -7383,11 +7683,11 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             }
 
             var record = records[index];
-            var folderId = await EnsureFolderIdAsync(
+            var folder = await EnsureFolderIdAsync(
                 record.FullPath,
                 transaction,
                 cancellationToken);
-            command.Parameters["$id"].Value = folderId;
+            command.Parameters["$id"].Value = folder.Id;
             command.Parameters["$size"].Value = record.SizeBytes;
             command.Parameters["$directSize"].Value = record.DirectSizeBytes;
             command.Parameters["$directAllocated"].Value =
@@ -7420,137 +7720,996 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
     }
 
     public async Task RecomputeFolderTotalsAsync(
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IProgress<StorageScanFinalizationProgress>? progress = null)
     {
-        await HeartbeatAsync(cancellationToken);
-        var connection = _connection;
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            DELETE FROM PhysicalFiles
-            WHERE RunKey = $run
-              AND NOT EXISTS (
-                  SELECT 1
-                  FROM FileNames
-                  WHERE FileNames.PhysicalFileId = PhysicalFiles.Id
-              );
-
-            WITH Ranked AS (
-                SELECT Id,
-                       ROW_NUMBER() OVER (
-                           PARTITION BY PhysicalFileId
-                           ORDER BY IsHardLinkAlias, Id
-                       ) AS LinkRank
-                FROM FileNames
-                WHERE RunKey = $run
-            )
-            UPDATE FileNames
-            SET IsHardLinkAlias = CASE
-                WHEN (SELECT LinkRank FROM Ranked
-                      WHERE Ranked.Id = FileNames.Id) > 1
-                THEN 1 ELSE 0 END
-            WHERE RunKey = $run;
-
-            DELETE FROM NormalizedCleanupCandidates
-            WHERE RunKey = $run
-              AND FileNameId IN (
-                  SELECT Id
-                  FROM FileNames
-                  WHERE RunKey = $run AND IsHardLinkAlias = 1
-              );
-
-            UPDATE FolderNodes AS f
-            SET DirectLogicalSize = COALESCE((
-                    SELECT SUM(p.LogicalSize)
-                    FROM FileNames n
-                    INNER JOIN PhysicalFiles p ON p.Id = n.PhysicalFileId
-                    WHERE n.RunKey = f.RunKey AND n.ParentId = f.Id
-                ), 0),
-                DirectAllocatedSize = COALESCE((
-                    SELECT SUM(CASE WHEN n.IsHardLinkAlias = 0
-                                    THEN p.AllocatedSize ELSE 0 END)
-                    FROM FileNames n
-                    INNER JOIN PhysicalFiles p ON p.Id = n.PhysicalFileId
-                    WHERE n.RunKey = f.RunKey AND n.ParentId = f.Id
-                ), 0),
-                DirectFileCount = (
-                    SELECT COUNT(*)
-                    FROM FileNames n
-                    WHERE n.RunKey = f.RunKey AND n.ParentId = f.Id
-                )
-            WHERE f.RunKey = $run;
-            UPDATE FolderNodes
-            SET LogicalSize = DirectLogicalSize,
-                AllocatedSize = DirectAllocatedSize,
-                FileCount = DirectFileCount
-            WHERE RunKey = $run;
-            """;
-        command.Parameters.AddWithValue("$run", _runKey);
-        await command.ExecuteNonQueryAsync(cancellationToken);
-
-        await using var depthCommand = connection.CreateCommand();
-        depthCommand.CommandText =
-            "SELECT COALESCE(MAX(Depth), 0) FROM FolderNodes WHERE RunKey = $run";
-        depthCommand.Parameters.AddWithValue("$run", _runKey);
-        var maxDepth = Convert.ToInt32(
-            await depthCommand.ExecuteScalarAsync(cancellationToken));
-        for (var depth = maxDepth; depth > 0; depth--)
+        await SetPhaseAsync("Finalizing", cancellationToken);
+        var counts = await GetFinalizationCountsAsync(cancellationToken);
+        HashSet<long>? referencedPhysicalFiles = [];
+        var categorySizes = new long[7];
+        var categoryCounts = new long[7];
+        long lastFileNameId = 0;
+        long processedFileNames = 0;
+        ReportFinalizationProgress(
+            progress,
+            "Resolving hard links",
+            0,
+            counts.FileNames);
+        cancellationToken.ThrowIfCancellationRequested();
+        while (true)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            await using var rollup = connection.CreateCommand();
-            rollup.CommandText = """
-                UPDATE FolderNodes AS f
-                SET LogicalSize = DirectLogicalSize + COALESCE((
-                        SELECT SUM(child.LogicalSize)
-                        FROM FolderNodes child
-                        WHERE child.RunKey = f.RunKey
-                          AND child.ParentId = f.Id
-                    ), 0),
-                    AllocatedSize = DirectAllocatedSize + COALESCE((
-                        SELECT SUM(child.AllocatedSize)
-                        FROM FolderNodes child
-                        WHERE child.RunKey = f.RunKey
-                          AND child.ParentId = f.Id
-                    ), 0),
-                    FileCount = DirectFileCount + COALESCE((
-                        SELECT SUM(child.FileCount)
-                        FROM FolderNodes child
-                        WHERE child.RunKey = f.RunKey
-                          AND child.ParentId = f.Id
-                    ), 0)
-                WHERE f.RunKey = $run AND f.Depth = $depth - 1
-                """;
-            rollup.Parameters.AddWithValue("$run", _runKey);
-            rollup.Parameters.AddWithValue("$depth", depth);
-            await rollup.ExecuteNonQueryAsync(cancellationToken);
+            var rows = await ReadAliasBatchAsync(
+                lastFileNameId,
+                cancellationToken);
+            if (rows.Count == 0)
+            {
+                break;
+            }
+
+            var aliasUpdates = new List<FinalizationAliasUpdate>();
+            foreach (var row in rows)
+            {
+                var category = row.Category >= 0 &&
+                               row.Category < categorySizes.Length
+                    ? row.Category
+                    : categorySizes.Length - 1;
+                var isAlias = !referencedPhysicalFiles.Add(
+                    row.PhysicalFileId);
+                categoryCounts[category]++;
+                if (!isAlias)
+                {
+                    categorySizes[category] += row.AllocatedSize;
+                }
+
+                if (row.IsHardLinkAlias != isAlias)
+                {
+                    aliasUpdates.Add(new FinalizationAliasUpdate(
+                        row.Id,
+                        isAlias));
+                }
+            }
+            await ApplyAliasBatchAsync(
+                aliasUpdates,
+                cancellationToken);
+            lastFileNameId = rows[^1].Id;
+            processedFileNames += rows.Count;
+            ReportFinalizationProgress(
+                progress,
+                "Resolving hard links",
+                processedFileNames,
+                counts.FileNames);
+            await HeartbeatAsync(cancellationToken);
         }
 
-        await using var categories = connection.CreateCommand();
-        categories.CommandText = """
-            DELETE FROM ScanCategorySummaries WHERE ScanId = $scan;
+        await RemoveHardLinkAliasCandidatesAsync(
+            progress,
+            cancellationToken);
+        await RemoveOrphanedPhysicalFilesAsync(
+            referencedPhysicalFiles,
+            counts.PhysicalFiles,
+            progress,
+            cancellationToken);
+        referencedPhysicalFiles = null;
+
+        await ResetFolderTotalsAsync(
+            counts.Folders,
+            progress,
+            cancellationToken);
+        await RecomputeDirectFolderTotalsAsync(
+            counts.FileNames,
+            progress,
+            cancellationToken);
+        await RollupFolderTotalsAsync(
+            counts.Folders,
+            progress,
+            cancellationToken);
+        await ReplaceCategorySummariesAsync(
+            categorySizes,
+            categoryCounts,
+            cancellationToken);
+        ReportFinalizationProgress(
+            progress,
+            "Folder totals complete",
+            counts.Folders,
+            counts.Folders);
+    }
+
+    private async Task<FinalizationCounts> GetFinalizationCountsAsync(
+        CancellationToken cancellationToken)
+    {
+        await using var command = _connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+                (SELECT COUNT(*) FROM FileNames WHERE RunKey = $run),
+                (SELECT COUNT(*) FROM PhysicalFiles WHERE RunKey = $run),
+                (SELECT COUNT(*) FROM FolderNodes WHERE RunKey = $run)
+            """;
+        command.Parameters.AddWithValue("$run", _runKey);
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return new FinalizationCounts(0, 0, 0);
+        }
+
+        return new FinalizationCounts(
+            reader.GetInt64(0),
+            reader.GetInt64(1),
+            reader.GetInt64(2));
+    }
+
+    private async Task<List<FinalizationAliasRow>> ReadAliasBatchAsync(
+        long afterId,
+        CancellationToken cancellationToken)
+    {
+        var rows = new List<FinalizationAliasRow>();
+        await using var command = _connection.CreateCommand();
+        command.CommandText = """
+            SELECT n.Id, n.PhysicalFileId, n.IsHardLinkAlias,
+                   p.AllocatedSize, n.Category
+            FROM FileNames AS n NOT INDEXED
+            INNER JOIN PhysicalFiles p ON p.Id = n.PhysicalFileId
+            WHERE n.RunKey = $run AND n.Id > $after
+            ORDER BY n.Id
+            LIMIT $limit
+            """;
+        command.Parameters.AddWithValue("$run", _runKey);
+        command.Parameters.AddWithValue("$after", afterId);
+        command.Parameters.AddWithValue("$limit", FinalizationBatchSize);
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new FinalizationAliasRow(
+                reader.GetInt64(0),
+                reader.GetInt64(1),
+                reader.GetInt32(2) != 0,
+                reader.GetInt64(3),
+                reader.GetInt32(4)));
+        }
+
+        return rows;
+    }
+
+    private async Task ApplyAliasBatchAsync(
+        IReadOnlyList<FinalizationAliasUpdate> updates,
+        CancellationToken cancellationToken)
+    {
+        if (updates.Count == 0)
+        {
+            return;
+        }
+
+        await using var transaction =
+            (SqliteTransaction)await _connection.BeginTransactionAsync(
+                cancellationToken);
+        await HeartbeatInTransactionAsync(transaction, cancellationToken);
+        await SetAliasFlagsAsync(
+            transaction,
+            updates.Where(update => update.IsAlias).Select(update => update.Id).ToList(),
+            true,
+            cancellationToken);
+        await SetAliasFlagsAsync(
+            transaction,
+            updates.Where(update => !update.IsAlias).Select(update => update.Id).ToList(),
+            false,
+            cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private async Task SetAliasFlagsAsync(
+        SqliteTransaction transaction,
+        IReadOnlyList<long> ids,
+        bool isAlias,
+        CancellationToken cancellationToken)
+    {
+        const int parameterBatchSize = 500;
+        for (var offset = 0; offset < ids.Count; offset += parameterBatchSize)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var count = Math.Min(parameterBatchSize, ids.Count - offset);
+            await using var command = _connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = $"""
+                UPDATE FileNames
+                SET IsHardLinkAlias = {(isAlias ? 1 : 0)}
+                WHERE RunKey = $run
+                  AND Id IN ({
+                      string.Join(
+                          ", ",
+                          Enumerable.Range(0, count).Select(index => $"$id{index}"))
+                  })
+                """;
+            command.Parameters.AddWithValue("$run", _runKey);
+            for (var index = 0; index < count; index++)
+            {
+                command.Parameters.AddWithValue(
+                    $"$id{index}",
+                    ids[offset + index]);
+            }
+
+            var updated =
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            if (updated != count)
+            {
+                throw new InvalidOperationException(
+                    "One or more file names could not be updated during hard-link finalization.");
+            }
+        }
+    }
+
+    private async Task RemoveHardLinkAliasCandidatesAsync(
+        IProgress<StorageScanFinalizationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        long totalAliases;
+        await using (var count = _connection.CreateCommand())
+        {
+            count.CommandText = """
+                SELECT COUNT(*)
+                FROM NormalizedCleanupCandidates c
+                INNER JOIN FileNames n
+                    ON n.Id = c.FileNameId AND n.RunKey = c.RunKey
+                WHERE c.RunKey = $run AND n.IsHardLinkAlias = 1
+                """;
+            count.Parameters.AddWithValue("$run", _runKey);
+            totalAliases = Convert.ToInt64(
+                await count.ExecuteScalarAsync(cancellationToken));
+        }
+
+        long processedAliases = 0;
+        ReportFinalizationProgress(
+            progress,
+            "Removing hard-link cleanup duplicates",
+            0,
+            totalAliases);
+        while (totalAliases > processedAliases)
+        {
+            await using var command = _connection.CreateCommand();
+            command.CommandText = """
+                DELETE FROM NormalizedCleanupCandidates
+                WHERE (RunKey, PolicyId, FileNameId) IN (
+                    SELECT c.RunKey, c.PolicyId, c.FileNameId
+                    FROM NormalizedCleanupCandidates c
+                    INNER JOIN FileNames n
+                        ON n.Id = c.FileNameId AND n.RunKey = c.RunKey
+                    WHERE c.RunKey = $run AND n.IsHardLinkAlias = 1
+                    LIMIT $limit
+                )
+                """;
+            command.Parameters.AddWithValue("$run", _runKey);
+            command.Parameters.AddWithValue("$limit", FinalizationBatchSize);
+            var deleted =
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            if (deleted == 0)
+            {
+                break;
+            }
+
+            processedAliases += deleted;
+            ReportFinalizationProgress(
+                progress,
+                "Removing hard-link cleanup duplicates",
+                processedAliases,
+                totalAliases);
+            await HeartbeatAsync(cancellationToken);
+        }
+    }
+
+    private async Task RemoveOrphanedPhysicalFilesAsync(
+        HashSet<long> referencedPhysicalFiles,
+        long totalPhysicalFiles,
+        IProgress<StorageScanFinalizationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        long lastPhysicalFileId = 0;
+        long processedPhysicalFiles = 0;
+        ReportFinalizationProgress(
+            progress,
+            "Removing orphaned index records",
+            0,
+            totalPhysicalFiles);
+        while (true)
+        {
+            var physicalIds = await ReadPhysicalIdBatchAsync(
+                lastPhysicalFileId,
+                cancellationToken);
+            if (physicalIds.Count == 0)
+            {
+                break;
+            }
+
+            var orphaned = physicalIds
+                .Where(id => !referencedPhysicalFiles.Contains(id))
+                .ToList();
+            await DeletePhysicalFilesAsync(orphaned, cancellationToken);
+            lastPhysicalFileId = physicalIds[^1];
+            processedPhysicalFiles += physicalIds.Count;
+            ReportFinalizationProgress(
+                progress,
+                "Removing orphaned index records",
+                processedPhysicalFiles,
+                totalPhysicalFiles);
+            await HeartbeatAsync(cancellationToken);
+        }
+    }
+
+    private async Task<List<long>> ReadPhysicalIdBatchAsync(
+        long afterId,
+        CancellationToken cancellationToken)
+    {
+        var ids = new List<long>();
+        await using var command = _connection.CreateCommand();
+        command.CommandText = """
+            SELECT Id
+            FROM PhysicalFiles NOT INDEXED
+            WHERE RunKey = $run AND Id > $after
+            ORDER BY Id
+            LIMIT $limit
+            """;
+        command.Parameters.AddWithValue("$run", _runKey);
+        command.Parameters.AddWithValue("$after", afterId);
+        command.Parameters.AddWithValue("$limit", FinalizationBatchSize);
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            ids.Add(reader.GetInt64(0));
+        }
+
+        return ids;
+    }
+
+    private async Task DeletePhysicalFilesAsync(
+        IReadOnlyList<long> ids,
+        CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        await using var transaction =
+            (SqliteTransaction)await _connection.BeginTransactionAsync(
+                cancellationToken);
+        await HeartbeatInTransactionAsync(transaction, cancellationToken);
+        await using var command = _connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DELETE FROM PhysicalFiles
+            WHERE Id = $id AND RunKey = $run
+            """;
+        command.Parameters.AddWithValue("$id", 0L);
+        command.Parameters.AddWithValue("$run", _runKey);
+        command.Prepare();
+        for (var index = 0; index < ids.Count; index++)
+        {
+            if ((index & 255) == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            command.Parameters["$id"].Value = ids[index];
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private async Task ResetFolderTotalsAsync(
+        long totalFolders,
+        IProgress<StorageScanFinalizationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        long lastFolderId = 0;
+        long processedFolders = 0;
+        ReportFinalizationProgress(
+            progress,
+            "Resetting folder totals",
+            0,
+            totalFolders);
+        while (true)
+        {
+            var rows = await ReadFolderIdBatchAsync(
+                lastFolderId,
+                cancellationToken);
+            if (rows.Count == 0)
+            {
+                break;
+            }
+
+            var batchStart = lastFolderId;
+            lastFolderId = rows[^1];
+            await using var transaction =
+                (SqliteTransaction)await _connection.BeginTransactionAsync(
+                    cancellationToken);
+            await HeartbeatInTransactionAsync(transaction, cancellationToken);
+            await using var command = _connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                UPDATE FolderNodes
+                SET LogicalSize = 0,
+                    AllocatedSize = 0,
+                    DirectLogicalSize = 0,
+                    DirectAllocatedSize = 0,
+                    FileCount = 0,
+                    DirectFileCount = 0
+                WHERE RunKey = $run
+                  AND Id > $after
+                  AND Id <= $through
+                """;
+            command.Parameters.AddWithValue("$run", _runKey);
+            command.Parameters.AddWithValue("$after", batchStart);
+            command.Parameters.AddWithValue("$through", lastFolderId);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            processedFolders += rows.Count;
+            ReportFinalizationProgress(
+                progress,
+                "Resetting folder totals",
+                processedFolders,
+                totalFolders);
+        }
+    }
+
+    private async Task<List<long>> ReadFolderIdBatchAsync(
+        long afterId,
+        CancellationToken cancellationToken)
+    {
+        var ids = new List<long>();
+        await using var command = _connection.CreateCommand();
+        command.CommandText = """
+            SELECT Id
+            FROM FolderNodes NOT INDEXED
+            WHERE RunKey = $run AND Id > $after
+            ORDER BY Id
+            LIMIT $limit
+            """;
+        command.Parameters.AddWithValue("$run", _runKey);
+        command.Parameters.AddWithValue("$after", afterId);
+        command.Parameters.AddWithValue("$limit", FinalizationBatchSize);
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            ids.Add(reader.GetInt64(0));
+        }
+
+        return ids;
+    }
+
+    private async Task RecomputeDirectFolderTotalsAsync(
+        long totalFileNames,
+        IProgress<StorageScanFinalizationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        long lastParentId = 0;
+        long lastFileNameId = 0;
+        long processedFileNames = 0;
+        long? currentParentId = null;
+        long directLogical = 0;
+        long directAllocated = 0;
+        long directFiles = 0;
+        var pending = new List<FinalizationFolderTotal>();
+        ReportFinalizationProgress(
+            progress,
+            "Calculating direct folder totals",
+            0,
+            totalFileNames);
+
+        while (true)
+        {
+            var rows = await ReadDirectFileBatchAsync(
+                lastParentId,
+                lastFileNameId,
+                cancellationToken);
+            if (rows.Count == 0)
+            {
+                break;
+            }
+
+            foreach (var row in rows)
+            {
+                if (currentParentId.HasValue &&
+                    currentParentId.Value != row.ParentId)
+                {
+                    pending.Add(new FinalizationFolderTotal(
+                        currentParentId.Value,
+                        directLogical,
+                        directAllocated,
+                        directFiles));
+                    directLogical = 0;
+                    directAllocated = 0;
+                    directFiles = 0;
+                }
+
+                currentParentId = row.ParentId;
+                directLogical += row.LogicalSize;
+                if (!row.IsAlias)
+                {
+                    directAllocated += row.AllocatedSize;
+                }
+
+                directFiles++;
+            }
+
+            lastParentId = rows[^1].ParentId;
+            lastFileNameId = rows[^1].Id;
+            processedFileNames += rows.Count;
+            await WriteDirectFolderTotalsAsync(pending, cancellationToken);
+            pending.Clear();
+            ReportFinalizationProgress(
+                progress,
+                "Calculating direct folder totals",
+                processedFileNames,
+                totalFileNames);
+            await HeartbeatAsync(cancellationToken);
+        }
+
+        if (currentParentId.HasValue)
+        {
+            pending.Add(new FinalizationFolderTotal(
+                currentParentId.Value,
+                directLogical,
+                directAllocated,
+                directFiles));
+        }
+
+        await WriteDirectFolderTotalsAsync(pending, cancellationToken);
+    }
+
+    private async Task<List<FinalizationDirectRow>> ReadDirectFileBatchAsync(
+        long afterParentId,
+        long afterFileNameId,
+        CancellationToken cancellationToken)
+    {
+        var rows = new List<FinalizationDirectRow>();
+        await using var command = _connection.CreateCommand();
+        command.CommandText = """
+            SELECT n.Id, n.ParentId, p.LogicalSize, p.AllocatedSize,
+                   n.IsHardLinkAlias
+            FROM FileNames AS n INDEXED BY IX_FileNames_ParentSize
+            INNER JOIN PhysicalFiles p ON p.Id = n.PhysicalFileId
+            WHERE n.RunKey = $run
+              AND (
+                  n.ParentId > $parent
+                  OR (n.ParentId = $parent AND n.Id > $file)
+              )
+            ORDER BY n.ParentId, n.Id
+            LIMIT $limit
+            """;
+        command.Parameters.AddWithValue("$run", _runKey);
+        command.Parameters.AddWithValue("$parent", afterParentId);
+        command.Parameters.AddWithValue("$file", afterFileNameId);
+        command.Parameters.AddWithValue("$limit", FinalizationBatchSize);
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new FinalizationDirectRow(
+                reader.GetInt64(0),
+                reader.GetInt64(1),
+                reader.GetInt64(2),
+                reader.GetInt64(3),
+                reader.GetInt32(4) != 0));
+        }
+
+        return rows;
+    }
+
+    private async Task WriteDirectFolderTotalsAsync(
+        IReadOnlyList<FinalizationFolderTotal> rows,
+        CancellationToken cancellationToken)
+    {
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        await using var transaction =
+            (SqliteTransaction)await _connection.BeginTransactionAsync(
+                cancellationToken);
+        await HeartbeatInTransactionAsync(transaction, cancellationToken);
+        await using var command = _connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            UPDATE FolderNodes
+            SET DirectLogicalSize = $logical,
+                DirectAllocatedSize = $allocated,
+                DirectFileCount = $files,
+                LogicalSize = $logical,
+                AllocatedSize = $allocated,
+                FileCount = $files
+            WHERE Id = $id AND RunKey = $run
+            """;
+        command.Parameters.AddWithValue("$run", _runKey);
+        command.Parameters.AddWithValue("$id", 0L);
+        command.Parameters.AddWithValue("$logical", 0L);
+        command.Parameters.AddWithValue("$allocated", 0L);
+        command.Parameters.AddWithValue("$files", 0L);
+        command.Prepare();
+        for (var index = 0; index < rows.Count; index++)
+        {
+            if ((index & 255) == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            var row = rows[index];
+            command.Parameters["$id"].Value = row.Id;
+            command.Parameters["$logical"].Value = row.LogicalSize;
+            command.Parameters["$allocated"].Value = row.AllocatedSize;
+            command.Parameters["$files"].Value = row.FileCount;
+            if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+            {
+                throw new InvalidOperationException(
+                    "A folder total could not be finalized.");
+            }
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private async Task RollupFolderTotalsAsync(
+        long totalFolders,
+        IProgress<StorageScanFinalizationProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var folders =
+            new Dictionary<long, FinalizationFolderRollupState>();
+        long lastFolderId = 0;
+        while (true)
+        {
+            var rows = await ReadFolderRollupBatchAsync(
+                lastFolderId,
+                cancellationToken);
+            if (rows.Count == 0)
+            {
+                break;
+            }
+
+            foreach (var row in rows)
+            {
+                folders.Add(row.Id, row);
+            }
+
+            lastFolderId = rows[^1].Id;
+            await HeartbeatAsync(cancellationToken);
+        }
+
+        foreach (var folder in folders.Values)
+        {
+            if (!folder.ParentId.HasValue)
+            {
+                continue;
+            }
+
+            if (!folders.TryGetValue(folder.ParentId.Value, out var parent))
+            {
+                throw new InvalidOperationException(
+                    "The folder tree contains a missing parent.");
+            }
+
+            parent.RemainingChildren++;
+        }
+
+        foreach (var folder in folders.Values)
+        {
+            AssignFolderDepth(folder, folders);
+        }
+
+        var ready = new Queue<FinalizationFolderRollupState>();
+        foreach (var folder in folders.Values)
+        {
+            if (folder.RemainingChildren == 0)
+            {
+                ready.Enqueue(folder);
+            }
+        }
+
+        var updates =
+            new List<FinalizationFolderRollupUpdate>(FinalizationBatchSize);
+        long processedFolders = 0;
+        ReportFinalizationProgress(
+            progress,
+            "Rolling up folder trees",
+            0,
+            totalFolders);
+        while (ready.TryDequeue(out var folder))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            updates.Add(new FinalizationFolderRollupUpdate(
+                folder.Id,
+                folder.LogicalSize,
+                folder.AllocatedSize,
+                folder.FileCount,
+                folder.Depth));
+            if (folder.ParentId.HasValue)
+            {
+                var parent = folders[folder.ParentId.Value];
+                parent.LogicalSize += folder.LogicalSize;
+                parent.AllocatedSize += folder.AllocatedSize;
+                parent.FileCount += folder.FileCount;
+                parent.RemainingChildren--;
+                if (parent.RemainingChildren == 0)
+                {
+                    ready.Enqueue(parent);
+                }
+            }
+
+            processedFolders++;
+            if (updates.Count >= FinalizationBatchSize)
+            {
+                await WriteRolledUpFolderTotalsAsync(
+                    updates,
+                    cancellationToken);
+                updates.Clear();
+                ReportFinalizationProgress(
+                    progress,
+                    "Rolling up folder trees",
+                    processedFolders,
+                    totalFolders);
+            }
+        }
+
+        await WriteRolledUpFolderTotalsAsync(updates, cancellationToken);
+        if (processedFolders != folders.Count)
+        {
+            throw new InvalidOperationException(
+                "The folder tree could not be rolled up because it is cyclic.");
+        }
+
+        ReportFinalizationProgress(
+            progress,
+            "Rolling up folder trees",
+            processedFolders,
+            totalFolders);
+    }
+
+    private static void AssignFolderDepth(
+        FinalizationFolderRollupState folder,
+        IReadOnlyDictionary<long, FinalizationFolderRollupState> folders)
+    {
+        if (folder.Depth >= 0)
+        {
+            return;
+        }
+
+        var path = new List<FinalizationFolderRollupState>();
+        var visiting = new HashSet<long>();
+        var current = folder;
+        while (current.Depth < 0)
+        {
+            if (!visiting.Add(current.Id))
+            {
+                throw new InvalidOperationException(
+                    "The folder tree is cyclic and cannot assign folder depths.");
+            }
+
+            path.Add(current);
+            if (!current.ParentId.HasValue)
+            {
+                break;
+            }
+
+            current = folders[current.ParentId.Value];
+        }
+
+        var last = path[^1];
+        if (last.Depth < 0)
+        {
+            last.Depth = last.ParentId is long parentId
+                ? folders[parentId].Depth + 1
+                : 0;
+        }
+
+        for (var index = path.Count - 2; index >= 0; index--)
+        {
+            var parentId = path[index].ParentId ??
+                throw new InvalidOperationException(
+                    "The folder tree contains an invalid parent.");
+            var parent = folders[parentId];
+            path[index].Depth = parent.Depth + 1;
+        }
+    }
+
+    private async Task<List<FinalizationFolderRollupState>> ReadFolderRollupBatchAsync(
+        long afterId,
+        CancellationToken cancellationToken)
+    {
+        var rows = new List<FinalizationFolderRollupState>();
+        await using var command = _connection.CreateCommand();
+        command.CommandText = """
+            SELECT Id, ParentId, DirectLogicalSize,
+                   DirectAllocatedSize, DirectFileCount
+            FROM FolderNodes NOT INDEXED
+            WHERE RunKey = $run
+              AND Id > $after
+            ORDER BY Id
+            LIMIT $limit
+            """;
+        command.Parameters.AddWithValue("$run", _runKey);
+        command.Parameters.AddWithValue("$after", afterId);
+        command.Parameters.AddWithValue("$limit", FinalizationBatchSize);
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new FinalizationFolderRollupState(
+                reader.GetInt64(0),
+                reader.IsDBNull(1) ? null : reader.GetInt64(1),
+                reader.GetInt64(2),
+                reader.GetInt64(3),
+                reader.GetInt64(4)));
+        }
+
+        return rows;
+    }
+
+    private async Task WriteRolledUpFolderTotalsAsync(
+        IReadOnlyList<FinalizationFolderRollupUpdate> rows,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction =
+            (SqliteTransaction)await _connection.BeginTransactionAsync(
+                cancellationToken);
+        await HeartbeatInTransactionAsync(transaction, cancellationToken);
+        await using var command = _connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            UPDATE FolderNodes
+            SET LogicalSize = $logical,
+                AllocatedSize = $allocated,
+                FileCount = $files,
+                Depth = $depth
+            WHERE Id = $id AND RunKey = $run
+            """;
+        command.Parameters.AddWithValue("$run", _runKey);
+        command.Parameters.AddWithValue("$id", 0L);
+        command.Parameters.AddWithValue("$logical", 0L);
+        command.Parameters.AddWithValue("$allocated", 0L);
+        command.Parameters.AddWithValue("$files", 0L);
+        command.Parameters.AddWithValue("$depth", 0);
+        command.Prepare();
+        for (var index = 0; index < rows.Count; index++)
+        {
+            if ((index & 255) == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            var row = rows[index];
+            command.Parameters["$id"].Value = row.Id;
+            command.Parameters["$logical"].Value = row.LogicalSize;
+            command.Parameters["$allocated"].Value = row.AllocatedSize;
+            command.Parameters["$files"].Value = row.FileCount;
+            command.Parameters["$depth"].Value = row.Depth;
+            if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+            {
+                throw new InvalidOperationException(
+                    "A rolled-up folder total could not be finalized.");
+            }
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private async Task ReplaceCategorySummariesAsync(
+        IReadOnlyList<long> categorySizes,
+        IReadOnlyList<long> categoryCounts,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction =
+            (SqliteTransaction)await _connection.BeginTransactionAsync(
+                cancellationToken);
+        await HeartbeatInTransactionAsync(transaction, cancellationToken);
+        await using var delete = _connection.CreateCommand();
+        delete.Transaction = transaction;
+        delete.CommandText =
+            "DELETE FROM ScanCategorySummaries WHERE ScanId = $scan";
+        delete.Parameters.AddWithValue("$scan", ScanId.ToString("N"));
+        await delete.ExecuteNonQueryAsync(cancellationToken);
+        await using var insert = _connection.CreateCommand();
+        insert.Transaction = transaction;
+        insert.CommandText = """
             INSERT INTO ScanCategorySummaries (
                 ScanId, Category, SizeBytes, ItemCount
             )
-            SELECT $scan,
-                   CASE n.Category
-                       WHEN 0 THEN 'Apps & games'
-                       WHEN 1 THEN 'Videos'
-                       WHEN 2 THEN 'Photos'
-                       WHEN 3 THEN 'System'
-                       WHEN 4 THEN 'Documents'
-                       WHEN 5 THEN 'Cache & temporary'
-                       ELSE 'Other'
-                   END,
-                   SUM(CASE WHEN n.IsHardLinkAlias = 0
-                            THEN p.AllocatedSize ELSE 0 END),
-                   COUNT(*)
-            FROM FileNames n
-            INNER JOIN PhysicalFiles p ON p.Id = n.PhysicalFileId
-            WHERE n.RunKey = $run
-            GROUP BY n.Category;
+            VALUES ($scan, $category, $size, $count)
             """;
-        categories.Parameters.AddWithValue("$run", _runKey);
-        categories.Parameters.AddWithValue("$scan", ScanId.ToString("N"));
-        await categories.ExecuteNonQueryAsync(cancellationToken);
+        insert.Parameters.AddWithValue("$scan", ScanId.ToString("N"));
+        insert.Parameters.AddWithValue("$category", string.Empty);
+        insert.Parameters.AddWithValue("$size", 0L);
+        insert.Parameters.AddWithValue("$count", 0L);
+        insert.Prepare();
+        for (var category = 0; category < categoryCounts.Count; category++)
+        {
+            if (categoryCounts[category] == 0)
+            {
+                continue;
+            }
+
+            insert.Parameters["$category"].Value =
+                StorageCategoryClassifier.CategoryName(category);
+            insert.Parameters["$size"].Value = categorySizes[category];
+            insert.Parameters["$count"].Value = categoryCounts[category];
+            await insert.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static void ReportFinalizationProgress(
+        IProgress<StorageScanFinalizationProgress>? progress,
+        string stage,
+        long completedItems,
+        long totalItems)
+    {
+        progress?.Report(new StorageScanFinalizationProgress
+        {
+            Stage = stage,
+            CompletedItems = completedItems,
+            TotalItems = totalItems,
+        });
+    }
+
+    private sealed record FinalizationCounts(
+        long FileNames,
+        long PhysicalFiles,
+        long Folders);
+
+    private sealed record FinalizationAliasRow(
+        long Id,
+        long PhysicalFileId,
+        bool IsHardLinkAlias,
+        long AllocatedSize,
+        int Category);
+
+    private sealed record FinalizationAliasUpdate(
+        long Id,
+        bool IsAlias);
+
+    private sealed record FinalizationDirectRow(
+        long Id,
+        long ParentId,
+        long LogicalSize,
+        long AllocatedSize,
+        bool IsAlias);
+
+    private sealed record FinalizationFolderTotal(
+        long Id,
+        long LogicalSize,
+        long AllocatedSize,
+        long FileCount);
+
+    private sealed record FinalizationFolderRollupUpdate(
+        long Id,
+        long LogicalSize,
+        long AllocatedSize,
+        long FileCount,
+        int Depth);
+
+    private sealed class FinalizationFolderRollupState(
+        long id,
+        long? parentId,
+        long logicalSize,
+        long allocatedSize,
+        long fileCount)
+    {
+        public long Id { get; } = id;
+
+        public long? ParentId { get; } = parentId;
+
+        public long LogicalSize { get; set; } = logicalSize;
+
+        public long AllocatedSize { get; set; } = allocatedSize;
+
+        public long FileCount { get; set; } = fileCount;
+
+        public int RemainingChildren { get; set; }
+
+        public int Depth { get; set; } = -1;
     }
 
     public async Task<ScanTotals> GetScanTotalsAsync(
@@ -7580,7 +8739,7 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             reader.GetInt64(3));
     }
 
-    private async Task<long> EnsureFolderIdAsync(
+    private async Task<(long Id, long CreatedCount)> EnsureFolderIdAsync(
         string path,
         SqliteTransaction transaction,
         CancellationToken cancellationToken)
@@ -7588,7 +8747,7 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         var normalized = StorageRepository.NormalizeFolderPath(path);
         if (_folderIds.TryGetValue(normalized, out var existing))
         {
-            return existing;
+            return (existing, 0);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -7599,6 +8758,7 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             root?.TrimEnd('\\'),
             StringComparison.OrdinalIgnoreCase);
         long? parentId = null;
+        long createdAncestors = 0;
         var depth = 0;
         if (!isRoot)
         {
@@ -7609,11 +8769,13 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                     $"Folder '{path}' has no resolvable parent.");
             }
 
-            parentId = await EnsureFolderIdAsync(
+            var parent = await EnsureFolderIdAsync(
                 parentPath,
                 transaction,
                 cancellationToken);
-            depth = normalized.Count(character => character == '\\') - 1;
+            parentId = parent.Id;
+            createdAncestors = parent.CreatedCount;
+            depth = normalized.Count(character => character == '\\');
         }
 
         var name = isRoot
@@ -7642,7 +8804,7 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             {
                 var persistedRootId = Convert.ToInt64(existingRootId);
                 CacheFolderId(normalized, persistedRootId);
-                return persistedRootId;
+                return (persistedRootId, 0);
             }
         }
 
@@ -7657,8 +8819,7 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 $run, $parent, $name, $hash, $depth, 0, 0, 0,
                 $category, $tag, 1
             )
-            ON CONFLICT(RunKey, ParentId, Name) DO UPDATE SET
-                PathHash = excluded.PathHash
+            ON CONFLICT(RunKey, ParentId, Name) DO NOTHING
             RETURNING Id
             """;
         command.Parameters.AddWithValue("$run", _runKey);
@@ -7674,9 +8835,42 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         command.Parameters.AddWithValue(
             "$tag",
             StorageCategoryClassifier.TagId(tag));
-        var id = Convert.ToInt64(command.ExecuteScalar());
+        var insertedId = command.ExecuteScalar();
+        long id;
+        var inserted = insertedId is not null && insertedId != DBNull.Value;
+        if (inserted)
+        {
+            id = Convert.ToInt64(insertedId);
+        }
+        else
+        {
+            await using var existingFolder = _connection.CreateCommand();
+            existingFolder.Transaction = transaction;
+            existingFolder.CommandText = """
+                SELECT Id
+                FROM FolderNodes
+                WHERE RunKey = $run
+                  AND ParentId IS $parent
+                  AND Name = $name
+                """;
+            existingFolder.Parameters.AddWithValue("$run", _runKey);
+            existingFolder.Parameters.AddWithValue(
+                "$parent",
+                parentId.HasValue ? parentId.Value : DBNull.Value);
+            existingFolder.Parameters.AddWithValue("$name", name);
+            var existingId =
+                await existingFolder.ExecuteScalarAsync(cancellationToken);
+            if (existingId is null || existingId == DBNull.Value)
+            {
+                throw new InvalidOperationException(
+                    $"The directory '{path}' could not be resolved after insertion.");
+            }
+
+            id = Convert.ToInt64(existingId);
+        }
+
         CacheFolderId(normalized, id);
-        return id;
+        return (id, createdAncestors + (inserted ? 1 : 0));
     }
 
     private void CacheFolderId(string path, long folderId)
@@ -7707,35 +8901,60 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 $created, $modified, $accessed, $attributes, $reparse,
                 $links, $change, 1
             )
-            ON CONFLICT(RunKey, FileIdentityKey) DO UPDATE SET
-                FileId128 = excluded.FileId128,
-                VolumeSerialNumber = excluded.VolumeSerialNumber,
-                LogicalSize = excluded.LogicalSize,
-                AllocatedSize = excluded.AllocatedSize,
-                CreatedUtc = excluded.CreatedUtc,
-                ModifiedUtc = excluded.ModifiedUtc,
-                AccessedUtc = excluded.AccessedUtc,
-                Attributes = excluded.Attributes,
-                ReparseTag = excluded.ReparseTag,
-                LinkCount = excluded.LinkCount,
-                ChangeTime = excluded.ChangeTime,
-                HashState = CASE
-                    WHEN PhysicalFiles.LogicalSize <> excluded.LogicalSize
-                      OR PhysicalFiles.ModifiedUtc <> excluded.ModifiedUtc
-                      OR PhysicalFiles.ChangeTime <> excluded.ChangeTime
-                    THEN 0 ELSE PhysicalFiles.HashState END,
-                ContentHash = CASE
-                    WHEN PhysicalFiles.LogicalSize <> excluded.LogicalSize
-                      OR PhysicalFiles.ModifiedUtc <> excluded.ModifiedUtc
-                      OR PhysicalFiles.ChangeTime <> excluded.ChangeTime
-                    THEN NULL ELSE PhysicalFiles.ContentHash END,
-                SampleHash = CASE
-                    WHEN PhysicalFiles.LogicalSize <> excluded.LogicalSize
-                      OR PhysicalFiles.ModifiedUtc <> excluded.ModifiedUtc
-                      OR PhysicalFiles.ChangeTime <> excluded.ChangeTime
-                    THEN NULL ELSE PhysicalFiles.SampleHash END
+            ON CONFLICT(RunKey, FileIdentityKey) DO NOTHING
             RETURNING Id
             """;
+        AddPhysicalFileParameters(command);
+        command.Prepare();
+        return command;
+    }
+
+    private SqliteCommand CreatePhysicalFileUpdate(
+        SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var command = _connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            UPDATE PhysicalFiles
+            SET
+                FileId128 = $fileId,
+                VolumeSerialNumber = $volume,
+                LogicalSize = $logical,
+                AllocatedSize = $allocated,
+                CreatedUtc = $created,
+                ModifiedUtc = $modified,
+                AccessedUtc = $accessed,
+                Attributes = $attributes,
+                ReparseTag = $reparse,
+                LinkCount = $links,
+                ChangeTime = $change,
+                HashState = CASE
+                    WHEN PhysicalFiles.LogicalSize <> $logical
+                      OR PhysicalFiles.ModifiedUtc <> $modified
+                      OR PhysicalFiles.ChangeTime <> $change
+                    THEN 0 ELSE PhysicalFiles.HashState END,
+                ContentHash = CASE
+                    WHEN PhysicalFiles.LogicalSize <> $logical
+                      OR PhysicalFiles.ModifiedUtc <> $modified
+                      OR PhysicalFiles.ChangeTime <> $change
+                    THEN NULL ELSE PhysicalFiles.ContentHash END,
+                SampleHash = CASE
+                    WHEN PhysicalFiles.LogicalSize <> $logical
+                      OR PhysicalFiles.ModifiedUtc <> $modified
+                      OR PhysicalFiles.ChangeTime <> $change
+                    THEN NULL ELSE PhysicalFiles.SampleHash END
+            WHERE RunKey = $run
+              AND FileIdentityKey = $identity
+            RETURNING Id
+            """;
+        AddPhysicalFileParameters(command);
+        command.Prepare();
+        return command;
+    }
+
+    private void AddPhysicalFileParameters(SqliteCommand command)
+    {
         command.Parameters.AddWithValue("$run", _runKey);
         command.Parameters.AddWithValue("$identity", string.Empty);
         command.Parameters.AddWithValue("$fileId", string.Empty);
@@ -7749,8 +8968,33 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         command.Parameters.AddWithValue("$reparse", 0L);
         command.Parameters.AddWithValue("$links", 1L);
         command.Parameters.AddWithValue("$change", 0L);
-        command.Prepare();
-        return command;
+    }
+
+    private static void SetPhysicalFileParameters(
+        SqliteCommand command,
+        string identityKey,
+        StorageFileRecord record)
+    {
+        command.Parameters["$identity"].Value = identityKey;
+        command.Parameters["$fileId"].Value = record.FileId128;
+        command.Parameters["$volume"].Value =
+            record.VolumeSerialNumber;
+        command.Parameters["$logical"].Value = record.SizeBytes;
+        command.Parameters["$allocated"].Value =
+            record.AllocatedSizeBytes == 0
+                ? record.SizeBytes
+                : record.AllocatedSizeBytes;
+        command.Parameters["$created"].Value =
+            record.CreatedUtc.ToUnixTimeMilliseconds();
+        command.Parameters["$modified"].Value =
+            record.ModifiedUtc.ToUnixTimeMilliseconds();
+        command.Parameters["$accessed"].Value =
+            record.AccessedUtc.ToUnixTimeMilliseconds();
+        command.Parameters["$attributes"].Value = record.Attributes;
+        command.Parameters["$reparse"].Value =
+            unchecked((long)record.ReparseTag);
+        command.Parameters["$links"].Value = record.LinkCount;
+        command.Parameters["$change"].Value = record.ChangeTime;
     }
 
     private SqliteCommand CreateFileNameInsert(
@@ -7768,19 +9012,44 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 $run, $parent, $physical, $name, $extension, $category,
                 $tag, $hardAlias, 1
             )
-            ON CONFLICT(RunKey, ParentId, Name) DO UPDATE SET
-                PhysicalFileId = excluded.PhysicalFileId,
-                Extension = excluded.Extension,
-                Category = excluded.Category,
-                Tag = excluded.Tag,
-                IsHardLinkAlias = CASE
-                    WHEN FileNames.PhysicalFileId = excluded.PhysicalFileId
-                    THEN FileNames.IsHardLinkAlias
-                    ELSE excluded.IsHardLinkAlias
-                    END,
-                LastSeenGeneration = excluded.LastSeenGeneration
+            ON CONFLICT(RunKey, ParentId, Name) DO NOTHING
             RETURNING Id
             """;
+        AddFileNameParameters(command);
+        command.Prepare();
+        return command;
+    }
+
+    private SqliteCommand CreateFileNameUpdate(
+        SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var command = _connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            UPDATE FileNames
+            SET PhysicalFileId = $physical,
+                Extension = $extension,
+                Category = $category,
+                Tag = $tag,
+                IsHardLinkAlias = CASE
+                    WHEN FileNames.PhysicalFileId = $physical
+                    THEN FileNames.IsHardLinkAlias
+                    ELSE $hardAlias
+                    END,
+                LastSeenGeneration = 1
+            WHERE RunKey = $run
+              AND ParentId = $parent
+              AND Name = $name
+            RETURNING Id
+            """;
+        AddFileNameParameters(command);
+        command.Prepare();
+        return command;
+    }
+
+    private void AddFileNameParameters(SqliteCommand command)
+    {
         command.Parameters.AddWithValue("$run", _runKey);
         command.Parameters.AddWithValue("$parent", 0L);
         command.Parameters.AddWithValue("$physical", 0L);
@@ -7789,8 +9058,6 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         command.Parameters.AddWithValue("$category", 0);
         command.Parameters.AddWithValue("$tag", 0);
         command.Parameters.AddWithValue("$hardAlias", 0);
-        command.Prepare();
-        return command;
     }
 
     private SqliteCommand CreateCandidateInsert(
@@ -7839,12 +9106,6 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             yield return CleanupPolicyId.PackageCaches;
         }
 
-        if (StorageCategoryClassifier.IsInside(
-                record.FullPath,
-                @"C:\Windows.old"))
-        {
-            yield return CleanupPolicyId.PreviousWindowsInstallation;
-        }
     }
 
     private static string GetPathHash(string path) =>
@@ -7875,6 +9136,230 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             allocatedBytesScanned: allocatedBytesScanned);
         _closed = true;
     }
+
+    internal async Task MaterializePreviousWindowsInstallationCandidatesAsync(
+        CancellationToken cancellationToken,
+        IProgress<StorageScanFinalizationProgress>? progress = null)
+    {
+        const int candidateBatchSize = 10_000;
+        var policyId =
+            (int)CleanupPolicyId.PreviousWindowsInstallation;
+        ReportFinalizationProgress(
+            progress,
+            "Finding Previous Windows files",
+            0,
+            0);
+        cancellationToken.ThrowIfCancellationRequested();
+        while (true)
+        {
+            await using var delete = _connection.CreateCommand();
+            delete.CommandText = """
+                DELETE FROM NormalizedCleanupCandidates
+                WHERE (RunKey, PolicyId, FileNameId) IN (
+                    SELECT RunKey, PolicyId, FileNameId
+                    FROM NormalizedCleanupCandidates
+                    WHERE RunKey = $run AND PolicyId = $policy
+                    LIMIT $limit
+                )
+                """;
+            delete.Parameters.AddWithValue("$run", _runKey);
+            delete.Parameters.AddWithValue("$policy", policyId);
+            delete.Parameters.AddWithValue("$limit", candidateBatchSize);
+            if (await delete.ExecuteNonQueryAsync(cancellationToken) == 0)
+            {
+                break;
+            }
+
+            await HeartbeatAsync(cancellationToken);
+        }
+
+        long? previousWindowsRoot = null;
+        await using (var root = _connection.CreateCommand())
+        {
+            root.CommandText = """
+                SELECT Id
+                FROM FolderNodes
+                WHERE RunKey = $run AND PathHash = $hash
+                """;
+            root.Parameters.AddWithValue("$run", _runKey);
+            root.Parameters.AddWithValue(
+                "$hash",
+                GetPathHash(
+                    StorageRepository.NormalizeFolderPath(
+                        @"C:\Windows.old")));
+            var value =
+                await root.ExecuteScalarAsync(cancellationToken);
+            if (value is not null && value != DBNull.Value)
+            {
+                previousWindowsRoot = Convert.ToInt64(value);
+            }
+        }
+
+        if (!previousWindowsRoot.HasValue)
+        {
+            await HeartbeatAsync(cancellationToken);
+            return;
+        }
+
+        var folderIds =
+            await ReadPreviousWindowsFolderIdsAsync(
+                previousWindowsRoot.Value,
+                cancellationToken);
+        var previousWindowsFolders = folderIds.ToHashSet();
+        long lastParentId = 0;
+        long lastFileNameId = 0;
+        long processedFileNames = 0;
+        while (true)
+        {
+            var rows = await ReadPreviousWindowsFileBatchAsync(
+                lastParentId,
+                lastFileNameId,
+                cancellationToken);
+            if (rows.Count == 0)
+            {
+                break;
+            }
+
+            var candidateIds = rows
+                .Where(row =>
+                    !row.IsAlias &&
+                    previousWindowsFolders.Contains(row.ParentId))
+                .Select(row => row.Id)
+                .ToList();
+            await InsertPreviousWindowsCandidatesAsync(
+                policyId,
+                candidateIds,
+                cancellationToken);
+            lastParentId = rows[^1].ParentId;
+            lastFileNameId = rows[^1].Id;
+            processedFileNames += rows.Count;
+            ReportFinalizationProgress(
+                progress,
+                "Finding Previous Windows files",
+                processedFileNames,
+                0);
+            await HeartbeatAsync(cancellationToken);
+        }
+    }
+
+    private async Task<HashSet<long>> ReadPreviousWindowsFolderIdsAsync(
+        long rootId,
+        CancellationToken cancellationToken)
+    {
+        var ids = new HashSet<long>();
+        await using var command = _connection.CreateCommand();
+        command.CommandText = """
+            WITH RECURSIVE PreviousWindowsTree(Id) AS (
+                SELECT Id
+                FROM FolderNodes
+                WHERE RunKey = $run AND Id = $root
+                UNION ALL
+                SELECT child.Id
+                FROM FolderNodes child
+                INNER JOIN PreviousWindowsTree parent
+                    ON child.ParentId = parent.Id
+                WHERE child.RunKey = $run
+            )
+            SELECT Id
+            FROM PreviousWindowsTree
+            """;
+        command.Parameters.AddWithValue("$run", _runKey);
+        command.Parameters.AddWithValue("$root", rootId);
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+        var index = 0;
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if ((index++ & 1023) == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            ids.Add(reader.GetInt64(0));
+        }
+
+        return ids;
+    }
+
+    private async Task<List<PreviousWindowsFileRow>> ReadPreviousWindowsFileBatchAsync(
+        long afterParentId,
+        long afterFileNameId,
+        CancellationToken cancellationToken)
+    {
+        var rows = new List<PreviousWindowsFileRow>();
+        await using var command = _connection.CreateCommand();
+        command.CommandText = """
+            SELECT Id, ParentId, IsHardLinkAlias
+            FROM FileNames INDEXED BY IX_FileNames_ParentSize
+            WHERE RunKey = $run
+              AND (
+                  ParentId > $parent
+                  OR (ParentId = $parent AND Id > $file)
+              )
+            ORDER BY ParentId, Id
+            LIMIT $limit
+            """;
+        command.Parameters.AddWithValue("$run", _runKey);
+        command.Parameters.AddWithValue("$parent", afterParentId);
+        command.Parameters.AddWithValue("$file", afterFileNameId);
+        command.Parameters.AddWithValue("$limit", FinalizationBatchSize);
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new PreviousWindowsFileRow(
+                reader.GetInt64(0),
+                reader.GetInt64(1),
+                reader.GetInt32(2) != 0));
+        }
+
+        return rows;
+    }
+
+    private async Task InsertPreviousWindowsCandidatesAsync(
+        int policyId,
+        IReadOnlyList<long> fileNameIds,
+        CancellationToken cancellationToken)
+    {
+        if (fileNameIds.Count == 0)
+        {
+            return;
+        }
+
+        await using var transaction =
+            (SqliteTransaction)await _connection.BeginTransactionAsync(
+                cancellationToken);
+        await HeartbeatInTransactionAsync(transaction, cancellationToken);
+        await using var command = _connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT OR IGNORE INTO NormalizedCleanupCandidates (
+                RunKey, PolicyId, FileNameId
+            )
+            VALUES ($run, $policy, $file)
+            """;
+        command.Parameters.AddWithValue("$run", _runKey);
+        command.Parameters.AddWithValue("$policy", policyId);
+        command.Parameters.AddWithValue("$file", 0L);
+        command.Prepare();
+        for (var index = 0; index < fileNameIds.Count; index++)
+        {
+            if ((index & 255) == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            command.Parameters["$file"].Value = fileNameIds[index];
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private sealed record PreviousWindowsFileRow(
+        long Id,
+        long ParentId,
+        bool IsAlias);
 
     public async Task FailAsync(
         StorageScanStatus status,
@@ -8027,13 +9512,9 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         {
             try
             {
-                await FailAsync(
+                await FailWithoutResettingProgressAsync(
                     StorageScanStatus.Failed,
                     "Scan session closed before completion.",
-                    0,
-                    0,
-                    0,
-                    0,
                     CancellationToken.None);
             }
             catch (InvalidOperationException)
@@ -8043,6 +9524,49 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         }
 
         await _connection.DisposeAsync();
+    }
+
+    private async Task FailWithoutResettingProgressAsync(
+        StorageScanStatus status,
+        string? error,
+        CancellationToken cancellationToken)
+    {
+        var completedUtc = DateTimeOffset.UtcNow;
+        await using var command = _connection.CreateCommand();
+        command.CommandText = """
+            UPDATE ScanRuns
+            SET Status = $status,
+                CompletedUtc = $completed,
+                ErrorMessage = $error,
+                OwnerProcessId = NULL,
+                OwnerProcessStartedUtc = NULL,
+                LeaseHeartbeatUtc = NULL,
+                ScanPhase = $phase,
+                PhaseStartedUtc = $completed
+            WHERE Id = $id
+              AND Status = $running
+              AND OwnerProcessId = $pid
+              AND OwnerProcessStartedUtc = $started
+            """;
+        command.Parameters.AddWithValue("$status", (int)status);
+        command.Parameters.AddWithValue(
+            "$completed",
+            completedUtc.ToUnixTimeMilliseconds());
+        command.Parameters.AddWithValue("$error", error ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("$phase", status.ToString());
+        command.Parameters.AddWithValue("$id", ScanId.ToString("N"));
+        command.Parameters.AddWithValue(
+            "$running",
+            (int)StorageScanStatus.Running);
+        command.Parameters.AddWithValue("$pid", _owner.ProcessId);
+        command.Parameters.AddWithValue("$started", _owner.ProcessStartedUtc);
+        if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+        {
+            throw new InvalidOperationException(
+                "The scan cannot be closed because its lease is no longer valid.");
+        }
+
+        _closed = true;
     }
 }
 
@@ -8091,6 +9615,12 @@ internal sealed record ScanFolderMetadata(
     DateTimeOffset ModifiedUtc,
     string FileId128,
     bool IsIncomplete);
+
+internal sealed record ScanDirectoryEntry(
+    string Path,
+    int Depth,
+    ScanFolderMetadata Metadata,
+    bool QueueWork);
 
 public sealed record ScanTotals(
     long Files,

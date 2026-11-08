@@ -9,7 +9,7 @@ namespace StorageLens.BackgroundTasks;
 [ClassInterface(ClassInterfaceType.None)]
 [Guid("7A8BBBE6-8C7A-4CDA-9DF8-D0A6A9F68B4E")]
 [ComSourceInterfaces(typeof(IBackgroundTask))]
-public sealed class StorageMonitorBackgroundTask : IBackgroundTask
+public sealed partial class StorageMonitorBackgroundTask : IBackgroundTask
 {
     private CancellationTokenSource? _cancellation;
 
