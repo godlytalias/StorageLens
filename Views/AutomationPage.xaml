@@ -386,16 +386,21 @@
                     <TextBlock x:Uid="ScheduleCategoriesLabel" Style="{StaticResource BodyStrongTextBlockStyle}" />
                     <ItemsRepeater ItemsSource="{x:Bind ViewModel.DraftCategories}">
                         <ItemsRepeater.Layout>
-                            <UniformGridLayout
-                                MinColumnSpacing="12"
-                                MinItemWidth="180"
-                                MinRowSpacing="4" />
+                            <StackLayout
+                                Orientation="Vertical"
+                                Spacing="4" />
                         </ItemsRepeater.Layout>
                         <ItemsRepeater.ItemTemplate>
                             <DataTemplate x:DataType="models:CleanupCategorySelection">
                                 <CheckBox
-                                    Content="{x:Bind DisplayName}"
-                                    IsChecked="{x:Bind IsSelected, Mode=TwoWay}" />
+                                    MinWidth="0"
+                                    HorizontalAlignment="Stretch"
+                                    HorizontalContentAlignment="Stretch"
+                                    IsChecked="{x:Bind IsSelected, Mode=TwoWay}">
+                                    <TextBlock
+                                        Text="{x:Bind DisplayName}"
+                                        TextWrapping="Wrap" />
+                                </CheckBox>
                             </DataTemplate>
                         </ItemsRepeater.ItemTemplate>
                     </ItemsRepeater>
