@@ -283,6 +283,7 @@
             x:Name="CleanupReviewDialog"
             x:Uid="CleanupReviewDialog"
             Grid.RowSpan="4"
+            IsPrimaryButtonEnabled="{x:Bind ViewModel.CanReview, Mode=OneWay}"
             PrimaryButtonClick="CleanupReviewDialog_PrimaryButtonClick"
             Closing="CleanupReviewDialog_Closing"
             DefaultButton="Close">
@@ -356,16 +357,27 @@
                 <ProgressBar
                     x:Uid="CleanupProgressBar"
                     Maximum="1"
+                    IsIndeterminate="{x:Bind ViewModel.IsCleanupProgressIndeterminate, Mode=OneWay}"
                     Value="{x:Bind ViewModel.CleanupProgress, Mode=OneWay}"
                     Visibility="{x:Bind ViewModel.IsCleaning, Mode=OneWay}" />
                 <TextBlock
                     Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
                     Style="{StaticResource CaptionTextBlockStyle}"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    AutomationProperties.LiveSetting="Polite" />
+                <TextBlock
+                    Text="{x:Bind ViewModel.CleanupCurrentPath, Mode=OneWay}"
+                    FlowDirection="LeftToRight"
+                    IsTextSelectionEnabled="True"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind ViewModel.HasCleanupCurrentPath, Mode=OneWay}" />
                 <Button
                     x:Uid="CancelCleanupButton"
                     HorizontalAlignment="Left"
                     Command="{x:Bind ViewModel.CancelCleanupCommand}"
+                    IsEnabled="{x:Bind ViewModel.CanCancelCleanup, Mode=OneWay}"
                     Visibility="{x:Bind ViewModel.IsCleaning, Mode=OneWay}" />
             </StackPanel>
         </ContentDialog>

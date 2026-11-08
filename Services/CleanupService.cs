@@ -15,8 +15,38 @@ public sealed class CleanupService
         _recycle = recycle ?? RecycleBinService.Recycle;
     }
 
-    public async Task<CleanupResult> RecycleAsync(
+    public Task<CleanupResult> RecycleAsync(
         CleanupRequest request,
+        IProgress<CleanupProgress>? progress = null,
+        CancellationToken cancellationToken = default) =>
+        Task.Run(
+            async () =>
+            {
+                await using var worker = new CleanupExecutionWorker();
+                return await RecycleCoreAsync(
+                    request,
+                    worker,
+                    progress,
+                    cancellationToken);
+            },
+            cancellationToken);
+
+    internal Task<CleanupResult> RecycleAsync(
+        CleanupRequest request,
+        IProgress<CleanupProgress>? progress,
+        CancellationToken cancellationToken,
+        CleanupExecutionWorker worker) =>
+        Task.Run(
+            () => RecycleCoreAsync(
+                request,
+                worker,
+                progress,
+                cancellationToken),
+            cancellationToken);
+
+    private async Task<CleanupResult> RecycleCoreAsync(
+        CleanupRequest request,
+        CleanupExecutionWorker worker,
         IProgress<CleanupProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -121,7 +151,7 @@ public sealed class CleanupService
                     candidate.Item.SizeBytes,
                     request.IsAutomatic,
                     cancellationToken);
-                _recycle(candidate.Item.Path);
+                await worker.RunAsync(() => _recycle(candidate.Item.Path));
                 recycled = true;
                 succeeded++;
                 bytesRecycled += candidate.Item.DisplaySizeBytes;

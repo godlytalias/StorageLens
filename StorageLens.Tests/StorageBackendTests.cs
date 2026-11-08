@@ -1113,7 +1113,8 @@ public sealed class StorageBackendTests
         await File.WriteAllTextAsync(path, "Storage Lens recycle test");
         try
         {
-            RecycleBinService.Recycle(path);
+            await using var worker = new CleanupExecutionWorker();
+            await worker.RunAsync(() => RecycleBinService.Recycle(path));
             Assert.False(File.Exists(path));
             RestoreFromRecycleBin(Path.GetFileName(path));
             Assert.True(File.Exists(path));
@@ -1295,6 +1296,66 @@ public sealed class StorageBackendTests
         Assert.Single(history);
         Assert.Equal("Failed", history[0].Result);
         Assert.Contains("interop", history[0].Error);
+    }
+
+    [Fact]
+    public async Task CleanupBatch_UsesOneBackgroundStaThreadAndReportsProgress()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        var paths = new[]
+        {
+            await fixture.WriteFileAsync(
+                "first.tmp",
+                10,
+                setOldTimestamp: true),
+            await fixture.WriteFileAsync(
+                "second.tmp",
+                20,
+                setOldTimestamp: true),
+        };
+        var scan = await fixture.Scanner.ScanTestRootAsync(
+            fixture.Drive,
+            fixture.ScanRoot);
+        var callerThreadId = Environment.CurrentManagedThreadId;
+        var workerThreadIds = new List<int>();
+        var apartments = new List<ApartmentState>();
+        var progressUpdates = new List<CleanupProgress>();
+        var batch = new CleanupBatchService(
+            fixture.Candidates,
+            new CleanupService(fixture.Repository, path =>
+            {
+                workerThreadIds.Add(Environment.CurrentManagedThreadId);
+                apartments.Add(Thread.CurrentThread.GetApartmentState());
+                File.Delete(path);
+            }));
+
+        var result = await batch.RecycleAsync(
+            [new CleanupBatchScope(
+                new CleanupScanSource(
+                    scan.ScanId,
+                    fixture.Drive.Letter,
+                    DateTimeOffset.UtcNow,
+                    2,
+                    30),
+                CleanupPolicyId.TemporaryFiles)],
+            new CleanupCandidateSelectionState(),
+            new CallbackProgress<CleanupProgress>(progressUpdates.Add));
+
+        Assert.Equal(2, result.SucceededCount);
+        Assert.Equal(2, workerThreadIds.Count);
+        Assert.Single(workerThreadIds.Distinct());
+        Assert.DoesNotContain(callerThreadId, workerThreadIds);
+        Assert.All(apartments, apartment =>
+            Assert.Equal(ApartmentState.STA, apartment));
+        Assert.NotEmpty(progressUpdates);
+        Assert.Equal(0, progressUpdates[0].Processed);
+        Assert.Equal(2, progressUpdates[0].Total);
+        Assert.Contains(
+            progressUpdates,
+            update => paths.Contains(
+                update.CurrentPath,
+                StringComparer.OrdinalIgnoreCase));
+        Assert.Equal(2, progressUpdates[^1].Processed);
     }
 
     [Fact]

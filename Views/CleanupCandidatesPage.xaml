@@ -440,15 +440,26 @@
                     TextWrapping="Wrap" />
                 <ProgressBar
                     Maximum="1"
+                    IsIndeterminate="{x:Bind ViewModel.IsCleanupProgressIndeterminate, Mode=OneWay}"
                     Value="{x:Bind ViewModel.CleanupProgress, Mode=OneWay}"
                     Visibility="{x:Bind ViewModel.IsCleaning, Mode=OneWay}" />
                 <TextBlock
                     Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
                     Style="{StaticResource CaptionTextBlockStyle}"
+                    AutomationProperties.LiveSetting="Polite"
                     TextWrapping="Wrap" />
+                <TextBlock
+                    Text="{x:Bind ViewModel.CleanupCurrentPath, Mode=OneWay}"
+                    FlowDirection="LeftToRight"
+                    IsTextSelectionEnabled="True"
+                    Style="{StaticResource CaptionTextBlockStyle}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    TextWrapping="Wrap"
+                    Visibility="{x:Bind ViewModel.HasCleanupCurrentPath, Mode=OneWay}" />
                 <Button
                     x:Uid="CancelCleanupButton"
                     Command="{x:Bind ViewModel.CancelCleanupCommand}"
+                    IsEnabled="{x:Bind ViewModel.CanCancelCleanup, Mode=OneWay}"
                     Visibility="{x:Bind ViewModel.IsCleaning, Mode=OneWay}" />
             </StackPanel>
         </ContentDialog>

@@ -91,6 +91,7 @@ public sealed partial class CleanupCandidatesPage : Page
 
         var deferral = args.GetDeferral();
         CleanupResult? result = null;
+        var wasCancelled = false;
         _hasCompletedCleanup = true;
         try
         {
@@ -98,6 +99,7 @@ public sealed partial class CleanupCandidatesPage : Page
         }
         catch (OperationCanceledException)
         {
+            wasCancelled = true;
         }
         catch (Exception exception)
         {
@@ -144,6 +146,16 @@ public sealed partial class CleanupCandidatesPage : Page
                     : InfoBarSeverity.Warning;
             FolderCleanupResultInfoBar.IsOpen = true;
         }
+        else if (wasCancelled)
+        {
+            FolderCleanupResultInfoBar.Title = string.Empty;
+            FolderCleanupResultInfoBar.Message = AppText.Get(
+                "CleanupCancelled");
+            FolderCleanupResultInfoBar.Severity = InfoBarSeverity.Informational;
+            FolderCleanupResultInfoBar.IsOpen = true;
+        }
+
+        await ViewModel.RefreshActiveFolderAfterCleanupAsync();
     }
 
     private void FolderCleanupReviewDialog_Closing(

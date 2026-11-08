@@ -44,6 +44,13 @@ public sealed class CleanupBatchService
         var total = (int)Math.Min(
             int.MaxValue,
             scopes.Sum(scope => scope.Source.ItemCount));
+        progress?.Report(new CleanupProgress
+        {
+            Processed = 0,
+            Total = total,
+            BytesRecycled = 0,
+        });
+        await using var worker = new CleanupExecutionWorker();
         foreach (var scope in scopes)
         {
             var offset = 0;
@@ -90,7 +97,8 @@ public sealed class CleanupBatchService
                             IsAutomatic = false,
                         },
                         pageProgress,
-                        cancellationToken);
+                        cancellationToken,
+                        worker);
                 succeeded += result.SucceededCount;
                 failed += result.FailedCount;
                 skipped += result.SkippedCount;

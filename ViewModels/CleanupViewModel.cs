@@ -18,6 +18,9 @@ public sealed class CleanupViewModel : ObservableObject
     private bool _isCandidateFolderLoading;
     private bool _isCleaning;
     private double _cleanupProgress;
+    private int _cleanupProcessedCount;
+    private int _cleanupTotalCount;
+    private string _cleanupCurrentPath = string.Empty;
     private string? _errorMessage;
     private string? _candidateErrorMessage;
     private string _statusText = string.Empty;
@@ -47,8 +50,8 @@ public sealed class CleanupViewModel : ObservableObject
             ClearCategoryFiles,
             () => CanChangeActiveFolderSelection);
         CancelCleanupCommand = new RelayCommand(
-            () => _cleanupCancellation?.Cancel(),
-            () => IsCleaning);
+            CancelCleanup,
+            () => CanCancelCleanup);
     }
 
     public ObservableCollection<CleanupRecommendation> Recommendations { get; } = [];
@@ -175,6 +178,8 @@ public sealed class CleanupViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(CanReview));
                 OnPropertyChanged(nameof(CanEditCandidateSelection));
+                OnPropertyChanged(nameof(CanCancelCleanup));
+                OnPropertyChanged(nameof(IsCleanupProgressIndeterminate));
                 CancelCleanupCommand.NotifyCanExecuteChanged();
                 NotifyCandidateState();
             }
@@ -186,6 +191,45 @@ public sealed class CleanupViewModel : ObservableObject
         get => _cleanupProgress;
         private set => SetProperty(ref _cleanupProgress, value);
     }
+
+    public int CleanupProcessedCount
+    {
+        get => _cleanupProcessedCount;
+        private set => SetProperty(ref _cleanupProcessedCount, value);
+    }
+
+    public int CleanupTotalCount
+    {
+        get => _cleanupTotalCount;
+        private set
+        {
+            if (SetProperty(ref _cleanupTotalCount, value))
+            {
+                OnPropertyChanged(nameof(IsCleanupProgressIndeterminate));
+            }
+        }
+    }
+
+    public bool IsCleanupProgressIndeterminate =>
+        IsCleaning && CleanupTotalCount == 0;
+
+    public string CleanupCurrentPath
+    {
+        get => _cleanupCurrentPath;
+        private set
+        {
+            if (SetProperty(ref _cleanupCurrentPath, value))
+            {
+                OnPropertyChanged(nameof(HasCleanupCurrentPath));
+            }
+        }
+    }
+
+    public bool HasCleanupCurrentPath =>
+        !string.IsNullOrWhiteSpace(CleanupCurrentPath);
+
+    public bool CanCancelCleanup =>
+        IsCleaning && _cleanupCancellation?.IsCancellationRequested != true;
 
     public string? ErrorMessage
     {
@@ -493,7 +537,6 @@ public sealed class CleanupViewModel : ObservableObject
             recommendation.IsSelected = false;
         }
 
-        await LoadRecommendationsAsync(cancellationToken);
         return result;
     }
 
@@ -512,46 +555,55 @@ public sealed class CleanupViewModel : ObservableObject
             item.ScanId == folder.ScanId);
         var version = _candidateVersion;
         var selection = _candidateSelections;
-        CleanupResult result;
-        try
-        {
-            result = await ExecuteCleanupAsync(
-                [new CleanupBatchScope(
-                    source with
-                    {
-                        ItemCount = folder.CandidateCount,
-                        SizeBytes = folder.CandidateBytes,
-                    },
-                    recommendation.PolicyId,
-                    folder.Path)],
-                cancellationToken);
-        }
-        finally
-        {
-            selection.SetFolderSelected(
-                recommendation,
-                source.ScanId,
-                folder.Path,
-                false);
-            if (version == _candidateVersion)
-            {
-                await OpenRecommendationAsync(recommendation);
-                if (ReferenceEquals(_activeRecommendation, recommendation) &&
-                    _candidateCancellation is { IsCancellationRequested: false })
+        var result = await ExecuteCleanupAsync(
+            [new CleanupBatchScope(
+                source with
                 {
-                    var refreshedFolder = FindFolder(
-                        CandidateFolders,
-                        source.ScanId,
-                        folder.Path);
-                    if (refreshedFolder is not null)
-                    {
-                        await SelectCandidateFolderAsync(refreshedFolder);
-                    }
-                }
-            }
+                    ItemCount = folder.CandidateCount,
+                    SizeBytes = folder.CandidateBytes,
+                },
+                recommendation.PolicyId,
+                folder.Path)],
+            cancellationToken);
+        selection.SetFolderSelected(
+            recommendation,
+            source.ScanId,
+            folder.Path,
+            false);
+        ActiveCandidates?.RefreshSelection();
+        if (version == _candidateVersion)
+        {
+            UpdateActiveFolderSummary();
         }
 
         return result;
+    }
+
+    public async Task RefreshActiveFolderAfterCleanupAsync()
+    {
+        if (_activeRecommendation is not { } recommendation ||
+            SelectedCandidateFolder is not { } folder)
+        {
+            return;
+        }
+
+        var scanId = folder.ScanId;
+        var path = folder.Path;
+        await OpenRecommendationAsync(recommendation);
+        if (!ReferenceEquals(_activeRecommendation, recommendation) ||
+            _candidateCancellation?.IsCancellationRequested == true)
+        {
+            return;
+        }
+
+        var refreshedFolder = FindFolder(
+            CandidateFolders,
+            scanId,
+            path);
+        if (refreshedFolder is not null)
+        {
+            await SelectCandidateFolderAsync(refreshedFolder);
+        }
     }
 
     private async Task<CleanupResult> ExecuteCleanupAsync(
@@ -563,13 +615,16 @@ public sealed class CleanupViewModel : ObservableObject
             throw new InvalidOperationException("Cleanup is already running.");
         }
 
-        IsCleaning = true;
         CleanupProgress = 0;
+        CleanupProcessedCount = 0;
+        CleanupTotalCount = 0;
+        CleanupCurrentPath = string.Empty;
         ErrorMessage = null;
         StatusText = AppText.Get("PreparingCleanup");
         using var cancellation =
             CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _cleanupCancellation = cancellation;
+        IsCleaning = true;
         try
         {
             var progress = new Progress<CleanupProgress>(update =>
@@ -582,11 +637,18 @@ public sealed class CleanupViewModel : ObservableObject
                 CleanupProgress = update.Total == 0
                     ? 0
                     : Math.Clamp((double)update.Processed / update.Total, 0, 1);
-                StatusText = string.Format(
-                    CultureInfo.CurrentCulture,
-                    AppText.Get("CleanupProgressFormat"),
-                    update.Processed,
-                    update.Total);
+                CleanupProcessedCount = update.Processed;
+                CleanupTotalCount = update.Total;
+                CleanupCurrentPath = update.CurrentPath;
+                StatusText = cancellation.IsCancellationRequested
+                    ? AppText.Get("CancellingCleanup")
+                    : update.Total == 0
+                        ? AppText.Get("PreparingCleanup")
+                        : string.Format(
+                            CultureInfo.CurrentCulture,
+                            AppText.Get("CleanupProgressFormat"),
+                            update.Processed,
+                            update.Total);
             });
             var batch = new CleanupBatchService(
                 AppServices.CleanupCandidates,
@@ -597,17 +659,27 @@ public sealed class CleanupViewModel : ObservableObject
                 progress,
                 cancellation.Token);
             CleanupProgress = 1;
+            CleanupCurrentPath = string.Empty;
+            StatusText = string.Format(
+                CultureInfo.CurrentCulture,
+                AppText.Get("CleanupResultSummaryFormat"),
+                LastResult.SucceededCount,
+                LastResult.FailedCount,
+                LastResult.SkippedCount,
+                StorageFormatter.FormatBytes(LastResult.BytesRecycled));
             return LastResult;
         }
         catch (OperationCanceledException)
         {
             StatusText = AppText.Get("CleanupCancelled");
+            CleanupCurrentPath = string.Empty;
             throw;
         }
         catch (Exception exception)
         {
             ErrorMessage = exception.Message;
             StatusText = AppText.Get("CleanupFailed");
+            CleanupCurrentPath = string.Empty;
             throw;
         }
         finally
@@ -615,6 +687,20 @@ public sealed class CleanupViewModel : ObservableObject
             _cleanupCancellation = null;
             IsCleaning = false;
         }
+    }
+
+    private void CancelCleanup()
+    {
+        if (_cleanupCancellation is not
+            { IsCancellationRequested: false } cancellation)
+        {
+            return;
+        }
+
+        cancellation.Cancel();
+        StatusText = AppText.Get("CancellingCleanup");
+        OnPropertyChanged(nameof(CanCancelCleanup));
+        CancelCleanupCommand.NotifyCanExecuteChanged();
     }
 
     private async Task LoadRecommendationsAsync(

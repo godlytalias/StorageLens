@@ -92,12 +92,14 @@ public sealed partial class CleanupPage : Page
 
         var deferral = args.GetDeferral();
         CleanupResult? result = null;
+        var wasCancelled = false;
         try
         {
             result = await ViewModel.RecycleSelectedAsync();
         }
         catch (OperationCanceledException)
         {
+            wasCancelled = true;
         }
         catch (Exception)
         {
@@ -113,6 +115,12 @@ public sealed partial class CleanupPage : Page
         {
             ShowCleanupResult(result);
         }
+        else if (wasCancelled)
+        {
+            ShowCleanupCancelled();
+        }
+
+        await ViewModel.RefreshAsync();
     }
 
     private void CleanupReviewDialog_Closing(
@@ -169,6 +177,15 @@ public sealed partial class CleanupPage : Page
             result.SucceededCount > 0 && result.FailedCount == 0
                 ? InfoBarSeverity.Success
                 : InfoBarSeverity.Warning;
+        CleanupResultInfoBar.IsOpen = true;
+    }
+
+    private void ShowCleanupCancelled()
+    {
+        CleanupResultInfoBar.Title = string.Empty;
+        CleanupResultInfoBar.Message =
+            StorageLens.Localization.AppText.Get("CleanupCancelled");
+        CleanupResultInfoBar.Severity = InfoBarSeverity.Informational;
         CleanupResultInfoBar.IsOpen = true;
     }
 
