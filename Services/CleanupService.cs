@@ -1,5 +1,6 @@
 using StorageLens.Models;
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 
 namespace StorageLens.Services;
 
@@ -174,7 +175,12 @@ public sealed class CleanupService
                 }
             }
             catch (Exception exception) when (
-                exception is IOException or UnauthorizedAccessException or Win32Exception or InvalidOperationException)
+                exception is IOException
+                    or UnauthorizedAccessException
+                    or Win32Exception
+                    or InvalidOperationException
+                    or COMException
+                    or NotSupportedException)
             {
                 failed++;
                 remainingIndexed++;

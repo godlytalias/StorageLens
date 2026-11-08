@@ -1264,6 +1264,40 @@ public sealed class StorageBackendTests
     }
 
     [Fact]
+    public async Task Cleanup_RecordsUnsupportedRecyclerAsFailure()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        var path = await fixture.WriteFileAsync(
+            "unsupported.tmp",
+            10,
+            setOldTimestamp: true);
+        await fixture.Scanner.ScanTestRootAsync(
+            fixture.Drive,
+            fixture.ScanRoot);
+        var candidates = await fixture.Candidates.GetCandidatesAsync(
+            fixture.Drive,
+            CleanupPolicyId.TemporaryFiles);
+        var cleanup = new CleanupService(
+            fixture.Repository,
+            _ => throw new NotSupportedException(
+                "Recycle Bin interop is unavailable."));
+
+        var result = await cleanup.RecycleAsync(new CleanupRequest
+        {
+            Candidates = candidates,
+        });
+
+        Assert.Equal(0, result.SucceededCount);
+        Assert.Equal(1, result.FailedCount);
+        Assert.Equal(1, result.RemainingIndexedCount);
+        Assert.True(File.Exists(path));
+        var history = await fixture.Repository.GetCleanupHistoryAsync();
+        Assert.Single(history);
+        Assert.Equal("Failed", history[0].Result);
+        Assert.Contains("interop", history[0].Error);
+    }
+
+    [Fact]
     public async Task CleanupBatch_RecyclesOnlySelectedFolderDescendants()
     {
         await using var fixture = await ScanFixture.CreateAsync();
@@ -1318,6 +1352,65 @@ public sealed class StorageBackendTests
         Assert.True(File.Exists(keep));
         Assert.True(File.Exists(prefixSibling));
         Assert.True(File.Exists(other));
+    }
+
+    [Fact]
+    public async Task CleanupBatch_RecyclesOldDownloadsFromSelectedFolder()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        var downloads = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            "Downloads",
+            $"StorageLensCleanupTest-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(downloads);
+        var path = Path.Combine(downloads, "old-download.txt");
+        await File.WriteAllTextAsync(path, "Storage Lens cleanup test");
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddDays(-91));
+        try
+        {
+            var scan = await fixture.Scanner.ScanTestRootAsync(
+                fixture.Drive,
+                downloads);
+            var source = new CleanupScanSource(
+                scan.ScanId,
+                fixture.Drive.Letter,
+                DateTimeOffset.UtcNow,
+                1,
+                new FileInfo(path).Length);
+            var folders = await fixture.Candidates.GetCandidateFoldersAsync(
+                source,
+                CleanupPolicyId.OldDownloads);
+            var folder = Assert.Single(
+                folders.SelectMany(FlattenCandidateFolders),
+                item => item.Path == downloads);
+            Assert.Equal(1, folder.CandidateCount);
+            var batch = new CleanupBatchService(
+                fixture.Candidates,
+                new CleanupService(fixture.Repository, File.Delete));
+
+            var result = await batch.RecycleAsync(
+                [new CleanupBatchScope(
+                    source,
+                    CleanupPolicyId.OldDownloads,
+                    folder.Path)],
+                new CleanupCandidateSelectionState());
+
+            Assert.Equal(1, result.SucceededCount);
+            Assert.Equal(0, result.ExcludedCount);
+            Assert.Equal(0, result.FailedCount);
+            Assert.Equal(0, result.SkippedCount);
+            Assert.False(File.Exists(path));
+            var history = await fixture.Repository.GetCleanupHistoryAsync();
+            Assert.Single(history);
+            Assert.Equal("Recycled", history[0].Result);
+        }
+        finally
+        {
+            if (Directory.Exists(downloads))
+            {
+                Directory.Delete(downloads, true);
+            }
+        }
     }
 
     [Fact]

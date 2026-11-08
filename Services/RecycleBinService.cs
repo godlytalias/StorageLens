@@ -1,9 +1,10 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 
 namespace StorageLens.Services;
 
-public static class RecycleBinService
+public static partial class RecycleBinService
 {
     private const uint ClassContextAll = 23;
     private const uint FofSilent = 0x0004;
@@ -35,13 +36,11 @@ public static class RecycleBinService
                 "Recycle Bin is unavailable for this volume. The item was not deleted.");
         }
 
-        IShellItem? shellItem = null;
-        IFileOperation? fileOperation = null;
+        var shellItem = CreateShellItem(fullPath);
+        var fileOperation = CreateFileOperation();
         var progress = new DeleteProgressSink();
         try
         {
-            shellItem = CreateShellItem(fullPath);
-            fileOperation = CreateFileOperation();
             ThrowIfFailed(
                 fileOperation.SetOperationFlags(
                     FofSilent |
@@ -75,15 +74,8 @@ public static class RecycleBinService
         }
         finally
         {
-            if (shellItem is not null)
-            {
-                Marshal.ReleaseComObject(shellItem);
-            }
-
-            if (fileOperation is not null)
-            {
-                Marshal.ReleaseComObject(fileOperation);
-            }
+            (fileOperation as IDisposable)?.Dispose();
+            (shellItem as IDisposable)?.Dispose();
         }
     }
 
@@ -114,7 +106,7 @@ public static class RecycleBinService
             SHCreateItemFromParsingName(
                 path,
                 IntPtr.Zero,
-                ref shellItemId,
+                in shellItemId,
                 out var item),
             "resolve the file for the Shell");
         return item;
@@ -124,23 +116,15 @@ public static class RecycleBinService
     {
         var classId = FileOperationClassId;
         var interfaceId = FileOperationInterfaceId;
-        var result = CoCreateInstance(
-            ref classId,
-            IntPtr.Zero,
-            ClassContextAll,
-            ref interfaceId,
-            out var operationPointer);
-        ThrowIfFailed(result, "create the Shell file operation");
-        try
-        {
-            return (IFileOperation)Marshal.GetTypedObjectForIUnknown(
-                operationPointer,
-                typeof(IFileOperation));
-        }
-        finally
-        {
-            Marshal.Release(operationPointer);
-        }
+        ThrowIfFailed(
+            CoCreateInstance(
+                in classId,
+                IntPtr.Zero,
+                ClassContextAll,
+                in interfaceId,
+                out var operation),
+            "create the Shell file operation");
+        return operation;
     }
 
     private static void ThrowIfFailed(int hresult, string operation)
@@ -163,15 +147,13 @@ public static class RecycleBinService
         public ulong NumberOfItems;
     }
 
-    [ComImport]
+    [GeneratedComInterface(StringMarshalling = StringMarshalling.Utf16)]
     [Guid("43826d1e-e718-42ee-bc55-a1e261c37bfe")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IShellItem;
+    internal partial interface IShellItem;
 
-    [ComImport]
+    [GeneratedComInterface(StringMarshalling = StringMarshalling.Utf16)]
     [Guid("947aab5f-0a5c-4c13-b4d6-4bf7836fc9f8")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IFileOperation
+    internal partial interface IFileOperation
     {
         [PreserveSig]
         int Advise(IntPtr operationProgressSink, out uint cookie);
@@ -250,10 +232,9 @@ public static class RecycleBinService
             [MarshalAs(UnmanagedType.Bool)] out bool aborted);
     }
 
-    [ComImport]
+    [GeneratedComInterface(StringMarshalling = StringMarshalling.Utf16)]
     [Guid("04b0f1a7-9490-44bc-96e1-4296a31252e2")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IFileOperationProgressSink
+    internal partial interface IFileOperationProgressSink
     {
         [PreserveSig]
         int StartOperations();
@@ -346,9 +327,9 @@ public static class RecycleBinService
         int ResumeTimer();
     }
 
-    [ComVisible(true)]
-    [ClassInterface(ClassInterfaceType.None)]
-    private sealed class DeleteProgressSink : IFileOperationProgressSink
+    [GeneratedComClass]
+    internal sealed partial class DeleteProgressSink :
+        IFileOperationProgressSink
     {
         public bool Recycled { get; private set; }
 
@@ -401,7 +382,11 @@ public static class RecycleBinService
             int result,
             IShellItem? newlyCreated)
         {
-            Recycled = result >= 0 && newlyCreated is not null;
+            if (result >= 0)
+            {
+                Recycled = true;
+            }
+
             return 0;
         }
 
@@ -428,23 +413,28 @@ public static class RecycleBinService
         public int ResumeTimer() => 0;
     }
 
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern int SHQueryRecycleBin(
-        string? rootPath,
+    [LibraryImport(
+        "shell32.dll",
+        EntryPoint = "SHQueryRecycleBinW",
+        StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int SHQueryRecycleBin(
+        string rootPath,
         ref ShQueryRecycleBinInfo information);
 
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-    private static extern int SHCreateItemFromParsingName(
+    [LibraryImport(
+        "shell32.dll",
+        StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int SHCreateItemFromParsingName(
         string path,
         IntPtr bindContext,
-        ref Guid interfaceId,
-        [MarshalAs(UnmanagedType.Interface)] out IShellItem item);
+        in Guid interfaceId,
+        out IShellItem item);
 
-    [DllImport("ole32.dll")]
-    private static extern int CoCreateInstance(
-        ref Guid classId,
+    [LibraryImport("ole32.dll")]
+    private static partial int CoCreateInstance(
+        in Guid classId,
         IntPtr outerUnknown,
         uint classContext,
-        ref Guid interfaceId,
-        out IntPtr objectPointer);
+        in Guid interfaceId,
+        out IFileOperation operation);
 }
