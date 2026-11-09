@@ -7,13 +7,16 @@ public sealed class CleanupBatchService
     private const int PageSize = 1000;
     private readonly CleanupCandidateService _candidates;
     private readonly CleanupService _cleanup;
+    private readonly nint _ownerWindowHandle;
 
     public CleanupBatchService(
         CleanupCandidateService candidates,
-        CleanupService cleanup)
+        CleanupService cleanup,
+        nint ownerWindowHandle = 0)
     {
         _candidates = candidates;
         _cleanup = cleanup;
+        _ownerWindowHandle = ownerWindowHandle;
     }
 
     public async Task<CleanupResult> RecycleAsync(
@@ -95,6 +98,7 @@ public sealed class CleanupBatchService
                         {
                             Candidates = included,
                             IsAutomatic = false,
+                            OwnerWindowHandle = _ownerWindowHandle,
                         },
                         pageProgress,
                         cancellationToken,

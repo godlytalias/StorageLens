@@ -22,7 +22,10 @@ public static partial class RecycleBinService
 
     public static void Recycle(string path)
     {
-        var result = RecycleBatch([path], showProgressUi: false)[0];
+        var result = RecycleBatch(
+            [path],
+            showProgressUi: false,
+            ownerWindowHandle: 0)[0];
         if (!result.Succeeded)
         {
             throw new Win32Exception(
@@ -33,7 +36,13 @@ public static partial class RecycleBinService
 
     internal static IReadOnlyList<RecycleBinItemResult> RecycleBatch(
         IReadOnlyList<string> paths,
-        bool showProgressUi)
+        bool showProgressUi) =>
+        RecycleBatch(paths, showProgressUi, 0);
+
+    internal static IReadOnlyList<RecycleBinItemResult> RecycleBatch(
+        IReadOnlyList<string> paths,
+        bool showProgressUi,
+        nint ownerWindowHandle)
     {
         if (paths.Count == 0)
         {
@@ -84,6 +93,13 @@ public static partial class RecycleBinService
             ThrowIfFailed(
                 fileOperation.SetOperationFlags(flags),
                 "configure the Recycle Bin operation");
+            if (showProgressUi && ownerWindowHandle != 0)
+            {
+                ThrowIfFailed(
+                    fileOperation.SetOwnerWindow(ownerWindowHandle),
+                    "attach the Recycle Bin progress window");
+            }
+
             foreach (var queuedItem in queuedItems)
             {
                 ThrowIfFailed(

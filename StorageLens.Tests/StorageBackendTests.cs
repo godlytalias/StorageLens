@@ -1198,13 +1198,15 @@ public sealed class StorageBackendTests
         var batchCount = 0;
         var recycledPaths = Array.Empty<string>();
         var showProgressUi = false;
+        nint ownerWindowHandle = 0;
         var cleanup = new CleanupService(
             fixture.Repository,
-            (batch, shellUi) =>
+            (batch, shellUi, owner) =>
             {
                 batchCount++;
                 recycledPaths = batch.ToArray();
                 showProgressUi = shellUi;
+                ownerWindowHandle = owner;
                 foreach (var path in batch)
                 {
                     File.Delete(path);
@@ -1221,10 +1223,12 @@ public sealed class StorageBackendTests
         {
             Candidates = candidates,
             IsAutomatic = isAutomatic,
+            OwnerWindowHandle = 1234,
         });
 
         Assert.Equal(1, batchCount);
         Assert.Equal(expectedShowProgressUi, showProgressUi);
+        Assert.Equal(1234, ownerWindowHandle);
         Assert.Equal(paths.Order(), recycledPaths.Order());
         Assert.Equal(2, result.SucceededCount);
         Assert.Equal(0, result.FailedCount);

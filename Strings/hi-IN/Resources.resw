@@ -723,6 +723,12 @@
   <data name="PreparingCleanup" xml:space="preserve">
     <value>साफ़-सफ़ाई उम्मीदवार लोड और सत्यापित किए जा रहे हैं…</value>
   </data>
+  <data name="CleanupInProgressInfoBar.Title" xml:space="preserve">
+    <value>Windows चयनित फ़ाइलों को रीसायकल बिन में ले जा रहा है</value>
+  </data>
+  <data name="CleanupInProgressInfoBar.Message" xml:space="preserve">
+    <value>Storage Lens ने यह बैच Windows को सौंप दिया है। आप ऐप का उपयोग जारी रख सकते हैं; Windows फ़ाइल ऑपरेशन विंडो में प्रगति देखें या रद्द करें।</value>
+  </data>
   <data name="CleanupProgressFormat" xml:space="preserve">
     <value>संसाधित: {0}/{1}</value>
   </data>

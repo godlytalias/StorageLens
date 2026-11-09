@@ -723,6 +723,12 @@
   <data name="PreparingCleanup" xml:space="preserve">
     <value>正在加载并验证清理候选项…</value>
   </data>
+  <data name="CleanupInProgressInfoBar.Title" xml:space="preserve">
+    <value>Windows 正在将所选文件移至回收站</value>
+  </data>
+  <data name="CleanupInProgressInfoBar.Message" xml:space="preserve">
+    <value>Storage Lens 已将此批操作交给 Windows。你可以继续使用应用；可在 Windows 文件操作窗口中查看进度或取消。</value>
+  </data>
   <data name="CleanupProgressFormat" xml:space="preserve">
     <value>已处理 {0}/{1}</value>
   </data>

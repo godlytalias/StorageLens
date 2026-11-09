@@ -723,6 +723,12 @@
   <data name="PreparingCleanup" xml:space="preserve">
     <value>טוען ומאמת מועמדים לניקוי…</value>
   </data>
+  <data name="CleanupInProgressInfoBar.Title" xml:space="preserve">
+    <value>Windows מעביר את הקבצים שנבחרו לסל המיחזור</value>
+  </data>
+  <data name="CleanupInProgressInfoBar.Message" xml:space="preserve">
+    <value>Storage Lens העביר את קבוצת הפעולות אל Windows. ניתן להמשיך להשתמש באפליקציה; עקוב אחר ההתקדמות או בטל בחלון פעולות הקבצים של Windows.</value>
+  </data>
   <data name="CleanupProgressFormat" xml:space="preserve">
     <value>עובדו {0} מתוך {1}</value>
   </data>

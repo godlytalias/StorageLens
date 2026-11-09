@@ -56,6 +56,8 @@ public sealed class CleanupRequest
     public required IReadOnlyList<CleanupCandidate> Candidates { get; init; }
 
     public bool IsAutomatic { get; init; }
+
+    public nint OwnerWindowHandle { get; init; }
 }
 
 public sealed class CleanupProgress

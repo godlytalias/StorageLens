@@ -96,6 +96,7 @@ public sealed partial class CleanupPage : Page
         CleanupResult? result = null;
         var wasCancelled = false;
         var cleanup = ViewModel.RecycleSelectedAsync();
+        NotificationService.ShowCleanupStarted();
         try
         {
             _closingForCleanup = true;
@@ -118,15 +119,18 @@ public sealed partial class CleanupPage : Page
         catch (Exception exception)
         {
             ShowCleanupError(exception);
+            NotificationService.ShowCleanupFailed(exception.Message);
         }
 
         if (result is not null)
         {
             ShowCleanupResult(result);
+            NotificationService.ShowCleanupFinished(result);
         }
         else if (wasCancelled)
         {
             ShowCleanupCancelled();
+            NotificationService.ShowCleanupCancelled();
         }
 
         await ViewModel.RefreshAsync();

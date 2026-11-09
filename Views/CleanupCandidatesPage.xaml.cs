@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using StorageLens.Localization;
 using StorageLens.Models;
+using StorageLens.Services;
 using StorageLens.ViewModels;
 using Windows.System;
 
@@ -94,6 +95,7 @@ public sealed partial class CleanupCandidatesPage : Page
         var wasCancelled = false;
         _hasCompletedCleanup = true;
         var cleanup = ViewModel.RecycleActiveFolderAsync();
+        NotificationService.ShowCleanupStarted();
         try
         {
             _closingForCleanup = true;
@@ -120,6 +122,7 @@ public sealed partial class CleanupCandidatesPage : Page
             FolderCleanupResultInfoBar.Message = exception.Message;
             FolderCleanupResultInfoBar.Severity = InfoBarSeverity.Error;
             FolderCleanupResultInfoBar.IsOpen = true;
+            NotificationService.ShowCleanupFailed(exception.Message);
         }
         if (result is not null)
         {
@@ -151,6 +154,7 @@ public sealed partial class CleanupCandidatesPage : Page
                     ? InfoBarSeverity.Success
                     : InfoBarSeverity.Warning;
             FolderCleanupResultInfoBar.IsOpen = true;
+            NotificationService.ShowCleanupFinished(result);
         }
         else if (wasCancelled)
         {
@@ -159,6 +163,7 @@ public sealed partial class CleanupCandidatesPage : Page
                 "CleanupCancelled");
             FolderCleanupResultInfoBar.Severity = InfoBarSeverity.Informational;
             FolderCleanupResultInfoBar.IsOpen = true;
+            NotificationService.ShowCleanupCancelled();
         }
 
         await ViewModel.RefreshActiveFolderAfterCleanupAsync();

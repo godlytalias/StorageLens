@@ -744,6 +744,12 @@
   <data name="PreparingCleanup" xml:space="preserve">
     <value>Loading and validating cleanup candidates…</value>
   </data>
+  <data name="CleanupInProgressInfoBar.Title" xml:space="preserve">
+    <value>Windows is recycling the selected files</value>
+  </data>
+  <data name="CleanupInProgressInfoBar.Message" xml:space="preserve">
+    <value>Storage Lens handed this batch to Windows. You can continue using the app; follow progress or cancel in the Windows file operation window.</value>
+  </data>
   <data name="CleanupProgressFormat" xml:space="preserve">
     <value>Processed {0} of {1}</value>
   </data>

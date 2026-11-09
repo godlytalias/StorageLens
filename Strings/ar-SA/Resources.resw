@@ -723,6 +723,12 @@
   <data name="PreparingCleanup" xml:space="preserve">
     <value>جارٍ تحميل عناصر التنظيف المرشحة والتحقق منها…</value>
   </data>
+  <data name="CleanupInProgressInfoBar.Title" xml:space="preserve">
+    <value>يقوم Windows بنقل الملفات المحددة إلى سلة المحذوفات</value>
+  </data>
+  <data name="CleanupInProgressInfoBar.Message" xml:space="preserve">
+    <value>سلّم Storage Lens هذه المجموعة إلى Windows. يمكنك متابعة استخدام التطبيق، ومتابعة التقدم أو الإلغاء من نافذة عمليات الملفات في Windows.</value>
+  </data>
   <data name="CleanupProgressFormat" xml:space="preserve">
     <value>تمت معالجة {0} من {1}</value>
   </data>

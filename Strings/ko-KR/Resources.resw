@@ -723,6 +723,12 @@
   <data name="PreparingCleanup" xml:space="preserve">
     <value>정리 후보를 로드하고 검사하는 중…</value>
   </data>
+  <data name="CleanupInProgressInfoBar.Title" xml:space="preserve">
+    <value>Windows에서 선택한 파일을 휴지통으로 이동하는 중</value>
+  </data>
+  <data name="CleanupInProgressInfoBar.Message" xml:space="preserve">
+    <value>Storage Lens가 이 일괄 작업을 Windows에 전달했습니다. 앱을 계속 사용할 수 있으며 Windows 파일 작업 창에서 진행률을 확인하거나 취소할 수 있습니다.</value>
+  </data>
   <data name="CleanupProgressFormat" xml:space="preserve">
     <value>{0}개 처리됨(총 {1}개)</value>
   </data>

@@ -75,6 +75,15 @@
                 x:Name="CleanupResultInfoBar"
                 IsClosable="True"
                 IsOpen="False" />
+            <InfoBar
+                x:Uid="CleanupInProgressInfoBar"
+                IsClosable="False"
+                IsOpen="{x:Bind ViewModel.IsCleaning, Mode=OneWay}"
+                Severity="Informational"
+                AutomationProperties.LiveSetting="Polite" />
+            <ProgressBar
+                IsIndeterminate="True"
+                Visibility="{x:Bind ViewModel.IsCleaning, Mode=OneWay}" />
         </StackPanel>
 
         <ScrollViewer

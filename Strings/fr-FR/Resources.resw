@@ -723,6 +723,12 @@
   <data name="PreparingCleanup" xml:space="preserve">
     <value>Chargement et validation des candidats au nettoyage…</value>
   </data>
+  <data name="CleanupInProgressInfoBar.Title" xml:space="preserve">
+    <value>Windows déplace les fichiers sélectionnés vers la Corbeille</value>
+  </data>
+  <data name="CleanupInProgressInfoBar.Message" xml:space="preserve">
+    <value>Storage Lens a confié ce lot à Windows. Vous pouvez continuer à utiliser l’application ; suivez la progression ou annulez dans la fenêtre d’opération sur les fichiers de Windows.</value>
+  </data>
   <data name="CleanupProgressFormat" xml:space="preserve">
     <value>{0} éléments traités sur {1}</value>
   </data>

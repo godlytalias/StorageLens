@@ -723,6 +723,12 @@
   <data name="PreparingCleanup" xml:space="preserve">
     <value>Cargando y validando los candidatos de limpieza…</value>
   </data>
+  <data name="CleanupInProgressInfoBar.Title" xml:space="preserve">
+    <value>Windows está moviendo los archivos seleccionados a la Papelera de reciclaje</value>
+  </data>
+  <data name="CleanupInProgressInfoBar.Message" xml:space="preserve">
+    <value>Storage Lens entregó este lote a Windows. Puedes seguir usando la aplicación; consulta el progreso o cancela desde la ventana de operaciones de archivos de Windows.</value>
+  </data>
   <data name="CleanupProgressFormat" xml:space="preserve">
     <value>Se procesaron {0} de {1}</value>
   </data>

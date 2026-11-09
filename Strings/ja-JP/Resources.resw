@@ -723,6 +723,12 @@
   <data name="PreparingCleanup" xml:space="preserve">
     <value>クリーンアップ候補を読み込み、検証しています…</value>
   </data>
+  <data name="CleanupInProgressInfoBar.Title" xml:space="preserve">
+    <value>Windows が選択したファイルをごみ箱へ移動しています</value>
+  </data>
+  <data name="CleanupInProgressInfoBar.Message" xml:space="preserve">
+    <value>Storage Lens はこの一括処理を Windows に引き渡しました。アプリは引き続き使用できます。進行状況やキャンセルは Windows のファイル操作ウィンドウで確認できます。</value>
+  </data>
   <data name="CleanupProgressFormat" xml:space="preserve">
     <value>{0} 件を処理済み（全 {1} 件）</value>
   </data>

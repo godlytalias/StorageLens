@@ -11,6 +11,7 @@ public sealed class CleanupService
     private readonly Func<
         IReadOnlyList<string>,
         bool,
+        nint,
         IReadOnlyList<RecycleBinItemResult>>? _recycleBatch;
 
     public CleanupService(StorageRepository repository, Action<string>? recycle = null)
@@ -27,10 +28,23 @@ public sealed class CleanupService
         Func<
             IReadOnlyList<string>,
             bool,
+            nint,
             IReadOnlyList<RecycleBinItemResult>> recycleBatch)
     {
         _repository = repository;
         _recycleBatch = recycleBatch;
+    }
+
+    internal CleanupService(
+        StorageRepository repository,
+        Func<
+            IReadOnlyList<string>,
+            bool,
+            IReadOnlyList<RecycleBinItemResult>> recycleBatch)
+    {
+        _repository = repository;
+        _recycleBatch = (paths, showProgressUi, _) =>
+            recycleBatch(paths, showProgressUi);
     }
 
     public Task<CleanupResult> RecycleAsync(
@@ -250,7 +264,8 @@ public sealed class CleanupService
                         prepared.Select(item =>
                                 item.Candidate.Item.Path)
                             .ToArray(),
-                        !request.IsAutomatic)))
+                        !request.IsAutomatic,
+                        request.OwnerWindowHandle)))
                     .ToArray();
             }
             catch (OperationCanceledException)

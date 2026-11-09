@@ -652,7 +652,8 @@ public sealed class CleanupViewModel : ObservableObject
             });
             var batch = new CleanupBatchService(
                 AppServices.CleanupCandidates,
-                AppServices.Cleanup);
+                AppServices.Cleanup,
+                App.WindowHandle);
             LastResult = await batch.RecycleAsync(
                 scopes,
                 _candidateSelections,
