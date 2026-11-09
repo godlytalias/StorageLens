@@ -423,7 +423,10 @@
                                                 FlowDirection="LeftToRight"
                                                 Style="{StaticResource CaptionTextBlockStyle}"
                                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                TextTrimming="CharacterEllipsis" />
+                                                TextTrimming="CharacterEllipsis"
+                                                TextWrapping="NoWrap"
+                                                MaxLines="1"
+                                                ToolTipService.ToolTip="{x:Bind DisplayPath}" />
                                             <TextBlock
                                                 Text="{x:Bind GrowthText}"
                                                 Style="{StaticResource CaptionTextBlockStyle}"

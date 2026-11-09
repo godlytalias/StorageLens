@@ -157,7 +157,7 @@
     <value>Folders growing quickly</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>Compares with the previous index sample and shows the largest non-overlapping growing folders.</value>
+    <value>Compares each folder with its first indexed size and shows the largest non-overlapping increases.</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>No fast-growing folders spotted yet</value>
@@ -688,7 +688,7 @@
     <value>Finding growing folders</value>
   </data>
   <data name="HelpGrowthDescription.Text" xml:space="preserve">
-    <value>The growth section compares recent scan snapshots and calls out where available space is disappearing fastest. Change the tracked-folder minimum in Automation; it starts at 1 GB.</value>
+    <value>Storage Lens keeps the first indexed size for every folder. Growth is shown from that baseline, deleted folders are removed, and recreated folders start fresh. Change the tracked-folder minimum in Automation; it starts at 1 GB.</value>
   </data>
   <data name="HelpCleanupSafetyTitle.Text" xml:space="preserve">
     <value>Cleanup safety</value>
@@ -892,7 +892,7 @@
     <value>Next review {0:g}</value>
   </data>
   <data name="GrowthSummaryFormat" xml:space="preserve">
-    <value>+{0:0}% in {1} days</value>
+    <value>+{0:0}% since first index ({1} days)</value>
   </data>
   <data name="KindFile" xml:space="preserve">
     <value>File</value>

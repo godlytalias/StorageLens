@@ -142,7 +142,7 @@
     <value>急速に増加しているフォルダー</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>前回のインデックス サンプルと比較し、重複しない最大の増加フォルダーを表示します。</value>
+    <value>各フォルダーを初回インデックス作成時のサイズと比較し、重複しない最大の増加を表示します。</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>急増しているフォルダーはまだ見つかっていません</value>
@@ -670,7 +670,7 @@
     <value>増加しているフォルダーの検出</value>
   </data>
   <data name="HelpGrowthDescription.Text" xml:space="preserve">
-    <value>増加セクションでは最近のスキャン スナップショットを比較し、空き容量が最も急速に減っている場所を示します。追跡対象フォルダーの最小サイズは自動化で変更できます。既定値は 1 GB です。</value>
+    <value>Storage Lens は各フォルダーの初回インデックス作成時のサイズを保持します。増加量はその基準から計算され、削除されたフォルダーは除外され、再作成されたフォルダーには新しい基準が設定されます。追跡対象フォルダーの最小サイズは自動化で変更できます。既定値は 1 GB です。</value>
   </data>
   <data name="HelpCleanupSafetyTitle.Text" xml:space="preserve">
     <value>クリーンアップの安全性</value>
@@ -871,7 +871,7 @@
     <value>次回の確認: {0:g}</value>
   </data>
   <data name="GrowthSummaryFormat" xml:space="preserve">
-    <value>+{0:0}%（{1} 日間）</value>
+    <value>初回インデックスから +{0:0}%（{1} 日）</value>
   </data>
   <data name="BackgroundIndexOff" xml:space="preserve">
     <value>アイドル インデックス作成はオフです</value>

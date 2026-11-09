@@ -142,7 +142,7 @@
     <value>Carpetas que crecen rápidamente</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>Compara con la muestra de índice anterior y muestra las carpetas de mayor crecimiento sin superposiciones.</value>
+    <value>Compara cada carpeta con su tamaño en el primer índice y muestra los mayores aumentos sin solapamientos.</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>Aún no se han detectado carpetas que crezcan rápidamente</value>
@@ -670,7 +670,7 @@
     <value>Encontrar carpetas en crecimiento</value>
   </data>
   <data name="HelpGrowthDescription.Text" xml:space="preserve">
-    <value>La sección de crecimiento compara instantáneas de análisis recientes y señala dónde desaparece más rápido el espacio disponible. Cambia el tamaño mínimo de las carpetas supervisadas en Automatización; el valor inicial es 1 GB.</value>
+    <value>Storage Lens conserva el tamaño de cada carpeta en su primer índice. El crecimiento se calcula desde esa referencia, se quitan las carpetas eliminadas y las carpetas recreadas comienzan con una referencia nueva. Cambia el tamaño mínimo de las carpetas supervisadas en Automatización; el valor inicial es 1 GB.</value>
   </data>
   <data name="HelpCleanupSafetyTitle.Text" xml:space="preserve">
     <value>Seguridad de la limpieza</value>
@@ -871,7 +871,7 @@
     <value>Próxima revisión {0:g}</value>
   </data>
   <data name="GrowthSummaryFormat" xml:space="preserve">
-    <value>+{0:0}% en {1} días</value>
+    <value>+{0:0}% desde el primer índice ({1} días)</value>
   </data>
   <data name="KindFile" xml:space="preserve">
     <value>Archivo</value>

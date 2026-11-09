@@ -24,8 +24,19 @@ public sealed partial class StorageFolderNode : ObservableObject
         ? SizeBytes
         : AllocatedSizeBytes;
 
+    public long GrowthBytes { get; init; }
+
+    public DateTimeOffset? GrowthBaselineUtc { get; init; }
+
+    public bool HasGrowth => GrowthBytes > 0;
+
+    public string GrowthText => HasGrowth
+        ? $"+{StorageFormatter.FormatBytes(GrowthBytes)}"
+        : string.Empty;
+
     public string AccessibleSummary =>
-        $"{Name}, {DisplayTag}, {StorageFormatter.FormatBytes(DisplaySizeBytes)}, {DisplayPath}";
+        $"{Name}, {DisplayTag}, {StorageFormatter.FormatBytes(DisplaySizeBytes)}, " +
+        $"{(HasGrowth ? GrowthText + ", " : string.Empty)}{DisplayPath}";
 
     public string DisplayTag => StorageText.Tag(Tag);
 

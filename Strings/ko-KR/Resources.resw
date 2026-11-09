@@ -142,7 +142,7 @@
     <value>빠르게 증가하는 폴더</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>이전 인덱스 샘플과 비교해 서로 겹치지 않는 가장 큰 증가 폴더를 표시합니다.</value>
+    <value>각 폴더를 처음 인덱싱한 크기와 비교해 서로 겹치지 않는 가장 큰 증가 항목을 표시합니다.</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>빠르게 증가하는 폴더가 아직 없습니다</value>
@@ -670,7 +670,7 @@
     <value>증가 중인 폴더 찾기</value>
   </data>
   <data name="HelpGrowthDescription.Text" xml:space="preserve">
-    <value>증가 섹션은 최근 검사 스냅샷을 비교하여 사용 가능한 공간이 가장 빠르게 줄어드는 위치를 표시합니다. 자동화에서 추적 폴더 최소 크기를 변경할 수 있으며 시작값은 1 GB입니다.</value>
+    <value>Storage Lens는 각 폴더를 처음 인덱싱한 크기를 유지합니다. 증가는 이 기준에서 계산되며 삭제된 폴더는 제거되고 다시 만든 폴더는 새 기준으로 시작됩니다. 자동화에서 추적 폴더 최소 크기를 변경할 수 있으며 시작값은 1 GB입니다.</value>
   </data>
   <data name="HelpCleanupSafetyTitle.Text" xml:space="preserve">
     <value>정리 안전</value>
@@ -871,7 +871,7 @@
     <value>다음 검토: {0:g}</value>
   </data>
   <data name="GrowthSummaryFormat" xml:space="preserve">
-    <value>+{0:0}%({1}일 동안)</value>
+    <value>첫 인덱스 이후 +{0:0}%({1}일)</value>
   </data>
   <data name="BackgroundIndexOff" xml:space="preserve">
     <value>유휴 인덱싱이 꺼져 있습니다</value>

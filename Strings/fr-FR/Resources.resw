@@ -142,7 +142,7 @@
     <value>Dossiers en croissance rapide</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>Compare au précédent échantillon d’index et affiche les plus grands dossiers en croissance sans chevauchement.</value>
+    <value>Compare chaque dossier à sa taille lors du premier indexage et affiche les plus fortes augmentations sans chevauchement.</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>Aucun dossier en forte croissance repéré pour le moment</value>
@@ -670,7 +670,7 @@
     <value>Recherche des dossiers en croissance</value>
   </data>
   <data name="HelpGrowthDescription.Text" xml:space="preserve">
-    <value>La section sur la croissance compare les instantanés des analyses récentes et indique où l’espace disponible disparaît le plus rapidement. Modifiez la taille minimale des dossiers suivis dans Automatisation ; elle est de 1 GB au départ.</value>
+    <value>Storage Lens conserve la taille de chaque dossier lors de son premier indexage. La croissance est calculée depuis cette référence, les dossiers supprimés sont retirés et les dossiers recréés repartent d’une nouvelle référence. Modifiez la taille minimale des dossiers suivis dans Automatisation ; elle est de 1 GB au départ.</value>
   </data>
   <data name="HelpCleanupSafetyTitle.Text" xml:space="preserve">
     <value>Sécurité du nettoyage</value>
@@ -871,7 +871,7 @@
     <value>Prochaine révision {0:g}</value>
   </data>
   <data name="GrowthSummaryFormat" xml:space="preserve">
-    <value>+{0:0}% en {1} jours</value>
+    <value>+{0:0}% depuis le premier index ({1} jours)</value>
   </data>
   <data name="KindFile" xml:space="preserve">
     <value>Fichier</value>

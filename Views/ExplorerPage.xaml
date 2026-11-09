@@ -182,11 +182,22 @@
                                             TextTrimming="CharacterEllipsis"
                                             TextWrapping="Wrap"
                                             MaxLines="2" />
-                                        <TextBlock
-                                            Grid.Row="1"
-                                            Text="{x:Bind local:StorageFormatter.FormatBytes(DisplaySizeBytes)}"
-                                            Style="{StaticResource CaptionTextBlockStyle}"
-                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <Grid Grid.Row="1" ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock
+                                                Text="{x:Bind local:StorageFormatter.FormatBytes(DisplaySizeBytes)}"
+                                                Style="{StaticResource CaptionTextBlockStyle}"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            <TextBlock
+                                                Grid.Column="1"
+                                                Text="{x:Bind GrowthText}"
+                                                Style="{StaticResource CaptionTextBlockStyle}"
+                                                Foreground="{ThemeResource SystemFillColorAttentionBrush}"
+                                                Visibility="{x:Bind HasGrowth}" />
+                                        </Grid>
                                     </Grid>
                                 </TreeViewItem.Content>
                                 <ToolTipService.ToolTip>
@@ -305,6 +316,12 @@
                                             HorizontalAlignment="Right"
                                             Style="{StaticResource CaptionTextBlockStyle}"
                                             Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock
+                                            Text="{x:Bind GrowthText}"
+                                            HorizontalAlignment="Right"
+                                            Style="{StaticResource CaptionTextBlockStyle}"
+                                            Foreground="{ThemeResource SystemFillColorAttentionBrush}"
+                                            Visibility="{x:Bind HasGrowth}" />
                                     </StackPanel>
                                 </Grid>
                             </DataTemplate>
@@ -381,11 +398,22 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <TextBlock
+                    <StackPanel
                         Grid.Column="2"
-                        Text="{x:Bind local:StorageFormatter.FormatBytes(ViewModel.SelectedItem.DisplaySizeBytes), Mode=OneWay}"
+                        HorizontalAlignment="Right"
                         VerticalAlignment="Center"
-                        Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        Spacing="2">
+                        <TextBlock
+                            Text="{x:Bind local:StorageFormatter.FormatBytes(ViewModel.SelectedItem.DisplaySizeBytes), Mode=OneWay}"
+                            HorizontalAlignment="Right"
+                            Style="{StaticResource BodyStrongTextBlockStyle}" />
+                        <TextBlock
+                            Text="{x:Bind ViewModel.SelectedItem.GrowthText, Mode=OneWay}"
+                            HorizontalAlignment="Right"
+                            Style="{StaticResource CaptionTextBlockStyle}"
+                            Foreground="{ThemeResource SystemFillColorAttentionBrush}"
+                            Visibility="{x:Bind ViewModel.SelectedItem.HasGrowth, Mode=OneWay}" />
+                    </StackPanel>
                     <Grid
                         Grid.Row="1"
                         Grid.ColumnSpan="3"

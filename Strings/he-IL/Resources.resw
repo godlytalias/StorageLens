@@ -142,7 +142,7 @@
     <value>תיקיות שגדלות במהירות</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>משווה לדגימת האינדקס הקודמת ומציג את תיקיות הצמיחה הגדולות ביותר ללא חפיפה.</value>
+    <value>משווה כל תיקייה לגודל שלה באינדוקס הראשון ומציג את העליות הגדולות ביותר ללא חפיפה.</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>טרם זוהו תיקיות שגדלות במהירות</value>
@@ -670,7 +670,7 @@
     <value>איתור תיקיות גדלות</value>
   </data>
   <data name="HelpGrowthDescription.Text" xml:space="preserve">
-    <value>המקטע 'גידול' משווה צילומי סריקה אחרונים ומציג היכן המקום הפנוי מתרוקן במהירות הגבוהה ביותר. שנו את הגודל המינימלי של תיקייה במעקב באוטומציה; הוא מתחיל ב־1 GB.</value>
+    <value>Storage Lens שומר את הגודל של כל תיקייה בעת האינדוקס הראשון שלה. הגידול מחושב מבסיס זה, תיקיות שנמחקו מוסרות ותיקיות שנוצרו מחדש מתחילות מבסיס חדש. שנו את הגודל המינימלי של תיקייה במעקב באוטומציה; הוא מתחיל ב־1 GB.</value>
   </data>
   <data name="HelpCleanupSafetyTitle.Text" xml:space="preserve">
     <value>בטיחות ניקוי</value>
@@ -871,7 +871,7 @@
     <value>הסקירה הבאה {0:g}</value>
   </data>
   <data name="GrowthSummaryFormat" xml:space="preserve">
-    <value>עלייה של +{0:0}% בתוך {1} ימים</value>
+    <value>+{0:0}% מאז האינדוקס הראשון ({1} ימים)</value>
   </data>
   <data name="KindFile" xml:space="preserve">
     <value>קובץ</value>

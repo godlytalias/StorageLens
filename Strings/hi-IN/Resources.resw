@@ -142,7 +142,7 @@
     <value>तेज़ी से बढ़ रहे फ़ोल्डर</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>पिछले इंडेक्स नमूने से तुलना करके सबसे अधिक बढ़ने वाले गैर-ओवरलैपिंग फ़ोल्डर दिखाता है।</value>
+    <value>हर फ़ोल्डर की पहली इंडेक्सिंग के समय के आकार से तुलना करता है और सबसे अधिक गैर-ओवरलैपिंग बढ़ोतरी दिखाता है।</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>अभी तक तेज़ी से बढ़ते फ़ोल्डर नहीं मिले</value>
@@ -670,7 +670,7 @@
     <value>बढ़ते फ़ोल्डरों को ढूँढ़ना</value>
   </data>
   <data name="HelpGrowthDescription.Text" xml:space="preserve">
-    <value>वृद्धि अनुभाग हाल के स्कैन स्नैपशॉट की तुलना करता है और बताता है कि खाली जगह कहाँ सबसे तेज़ी से घट रही है। स्वचालन में ट्रैक किए जाने वाले फ़ोल्डर का न्यूनतम आकार बदलें; शुरुआत 1 GB से होती है।</value>
+    <value>Storage Lens हर फ़ोल्डर के पहले इंडेक्स आकार को रखता है। वृद्धि इसी आधार से दिखाई जाती है, हटाए गए फ़ोल्डर सूची से निकलते हैं और फिर से बनाए गए फ़ोल्डर नया आधार पाते हैं। स्वचालन में ट्रैक किए जाने वाले फ़ोल्डर का न्यूनतम आकार बदलें; शुरुआत 1 GB से होती है।</value>
   </data>
   <data name="HelpCleanupSafetyTitle.Text" xml:space="preserve">
     <value>साफ़-सफ़ाई सुरक्षा</value>
@@ -871,7 +871,7 @@
     <value>अगली समीक्षा {0:g}</value>
   </data>
   <data name="GrowthSummaryFormat" xml:space="preserve">
-    <value>+{0:0}% की वृद्धि {1} दिनों में</value>
+    <value>पहले इंडेक्स के बाद +{0:0}% ({1} दिन)</value>
   </data>
   <data name="KindFile" xml:space="preserve">
     <value>फ़ाइल</value>

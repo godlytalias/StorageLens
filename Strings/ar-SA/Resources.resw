@@ -142,7 +142,7 @@
     <value>مجلدات تنمو بسرعة</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>يقارن بعينة الفهرس السابقة ويعرض أكبر المجلدات النامية غير المتداخلة.</value>
+    <value>يقارن كل مجلد بحجمه عند أول فهرسة ويعرض أكبر الزيادات غير المتداخلة.</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>لم تُرصد مجلدات سريعة النمو بعد</value>
@@ -670,7 +670,7 @@
     <value>العثور على المجلدات المتزايدة</value>
   </data>
   <data name="HelpGrowthDescription.Text" xml:space="preserve">
-    <value>يقارن قسم النمو لقطات الفحص الأخيرة ويبيّن أين تختفي المساحة المتاحة بأسرع وتيرة. غيّر الحد الأدنى لحجم المجلد المتابع في الأتمتة؛ ويبدأ من 1 GB.</value>
+    <value>يحتفظ Storage Lens بحجم كل مجلد عند أول فهرسة له. يُحسب النمو من هذا الأساس، وتُزال المجلدات المحذوفة، وتبدأ المجلدات التي أُعيد إنشاؤها من أساس جديد. غيّر الحد الأدنى لحجم المجلد المتابع في الأتمتة؛ ويبدأ من 1 GB.</value>
   </data>
   <data name="HelpCleanupSafetyTitle.Text" xml:space="preserve">
     <value>أمان التنظيف</value>
@@ -871,7 +871,7 @@
     <value>المراجعة التالية {0:g}</value>
   </data>
   <data name="GrowthSummaryFormat" xml:space="preserve">
-    <value>زيادة قدرها +{0:0}% خلال {1} من الأيام</value>
+    <value>+{0:0}% منذ أول فهرسة ({1} من الأيام)</value>
   </data>
   <data name="KindFile" xml:space="preserve">
     <value>ملف</value>

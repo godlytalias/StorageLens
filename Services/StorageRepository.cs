@@ -5,7 +5,7 @@ namespace StorageLens.Services;
 
 public sealed class StorageRepository
 {
-    private const int CurrentSchemaVersion = 6;
+    private const int CurrentSchemaVersion = 7;
     private const long MinimumGrowthSampleBytes = 1L * 1024 * 1024 * 1024;
     private readonly string _connectionString;
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
@@ -265,6 +265,17 @@ public sealed class StorageRepository
                     AllocatedSize INTEGER NOT NULL,
                     FileCount INTEGER NOT NULL,
                     PRIMARY KEY (VolumeKey, PathHash, SampleUtc)
+                ) WITHOUT ROWID;
+
+                CREATE TABLE IF NOT EXISTS FolderGrowthBaselines (
+                    VolumeKey TEXT NOT NULL,
+                    PathHash TEXT NOT NULL,
+                    FirstSeenUtc INTEGER NOT NULL,
+                    BaselineLogicalSize INTEGER NOT NULL,
+                    BaselineAllocatedSize INTEGER NOT NULL,
+                    BaselineFileCount INTEGER NOT NULL,
+                    FolderIdentity TEXT NOT NULL DEFAULT '',
+                    PRIMARY KEY (VolumeKey, PathHash)
                 ) WITHOUT ROWID;
 
                 CREATE TABLE IF NOT EXISTS ScanWorkItems (
@@ -779,6 +790,7 @@ public sealed class StorageRepository
         long runKey,
         CancellationToken cancellationToken)
     {
+        var completedUtc = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         await using var connection = await OpenConnectionAsync(cancellationToken);
         await using var transaction =
             (SqliteTransaction)await connection.BeginTransactionAsync(
@@ -846,7 +858,7 @@ public sealed class StorageRepository
             update.Parameters.AddWithValue("$run", runKey);
             update.Parameters.AddWithValue(
                 "$completed",
-                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+                completedUtc);
             update.Parameters.AddWithValue(
                 "$completedStatus",
                 (int)StorageScanStatus.Completed);
@@ -855,6 +867,7 @@ public sealed class StorageRepository
                 connection,
                 transaction,
                 runKey,
+                completedUtc,
                 cancellationToken);
         }
 
@@ -913,17 +926,24 @@ public sealed class StorageRepository
             connection,
             transaction,
             Convert.ToInt64(value),
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
-    private static async Task RecordFolderGrowthSamplesAsync(
+    internal static async Task RecordFolderGrowthSamplesAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
         long runKey,
+        long sampleUtc,
         CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        await ReconcileFolderGrowthBaselinesAsync(
+            connection,
+            transaction,
+            runKey,
+            sampleUtc,
+            cancellationToken);
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
@@ -948,12 +968,135 @@ public sealed class StorageRepository
               );
             """;
         command.Parameters.AddWithValue("$run", runKey);
-        command.Parameters.AddWithValue("$sample", now);
+        command.Parameters.AddWithValue("$sample", sampleUtc);
         command.Parameters.AddWithValue("$minimum", MinimumGrowthSampleBytes);
         command.Parameters.AddWithValue(
             "$stale",
             DateTimeOffset.UtcNow.AddDays(-35).ToUnixTimeMilliseconds());
         await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task ReconcileFolderGrowthBaselinesAsync(
+        Guid scanId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var transaction =
+            (SqliteTransaction)await connection.BeginTransactionAsync(
+                cancellationToken);
+        await using var key = connection.CreateCommand();
+        key.Transaction = transaction;
+        key.CommandText = "SELECT RunKey FROM ScanRuns WHERE Id = $scan";
+        key.Parameters.AddWithValue("$scan", scanId.ToString("N"));
+        var value = await key.ExecuteScalarAsync(cancellationToken);
+        if (value is null || value == DBNull.Value)
+        {
+            throw new InvalidOperationException(
+                "The scan run for folder growth reconciliation was not found.");
+        }
+
+        await ReconcileFolderGrowthBaselinesAsync(
+            connection,
+            transaction,
+            Convert.ToInt64(value),
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    internal static async Task ReconcileFolderGrowthBaselinesAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        long runKey,
+        long sampleUtc,
+        CancellationToken cancellationToken)
+    {
+        var volumeKey = await GetScanVolumeKeyAsync(
+            connection,
+            transaction,
+            runKey,
+            cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DELETE FROM FolderGrowthSamples
+            WHERE VolumeKey = $volume
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM FolderNodes f
+                  WHERE f.RunKey = $run
+                    AND f.PathHash = FolderGrowthSamples.PathHash
+              );
+
+            DELETE FROM FolderGrowthBaselines
+            WHERE VolumeKey = $volume
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM FolderNodes f
+                  WHERE f.RunKey = $run
+                    AND f.PathHash = FolderGrowthBaselines.PathHash
+                    AND (
+                        FolderGrowthBaselines.FolderIdentity = ''
+                        OR f.FileId128 = ''
+                        OR FolderGrowthBaselines.FolderIdentity = f.FileId128
+                    )
+              );
+
+            UPDATE FolderGrowthBaselines
+            SET FolderIdentity = (
+                SELECT f.FileId128
+                FROM FolderNodes f
+                WHERE f.RunKey = $run
+                  AND f.PathHash = FolderGrowthBaselines.PathHash
+                LIMIT 1
+            )
+            WHERE VolumeKey = $volume
+              AND FolderIdentity = ''
+              AND EXISTS (
+                  SELECT 1
+                  FROM FolderNodes f
+                  WHERE f.RunKey = $run
+                    AND f.PathHash = FolderGrowthBaselines.PathHash
+                    AND f.FileId128 <> ''
+              );
+
+            INSERT OR IGNORE INTO FolderGrowthBaselines (
+                VolumeKey, PathHash, FirstSeenUtc, BaselineLogicalSize,
+                BaselineAllocatedSize, BaselineFileCount, FolderIdentity
+            )
+            SELECT $volume, f.PathHash, $sample, f.LogicalSize,
+                   f.AllocatedSize, f.FileCount, f.FileId128
+            FROM FolderNodes f
+            WHERE f.RunKey = $run;
+            """;
+        command.Parameters.AddWithValue("$volume", volumeKey);
+        command.Parameters.AddWithValue("$run", runKey);
+        command.Parameters.AddWithValue("$sample", sampleUtc);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<string> GetScanVolumeKeyAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        long runKey,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            SELECT COALESCE(NULLIF(VolumeSerialNumber, ''), DriveLetter)
+            FROM ScanRuns
+            WHERE RunKey = $run AND Status = $completed
+            """;
+        command.Parameters.AddWithValue("$run", runKey);
+        command.Parameters.AddWithValue(
+            "$completed",
+            (int)StorageScanStatus.Completed);
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return value is null || value == DBNull.Value
+            ? throw new InvalidOperationException(
+                "The scan volume could not be resolved for folder growth.")
+            : Convert.ToString(value) ?? string.Empty;
     }
 
     private async Task<long> GetRunVolumeSerialAsync(
@@ -1844,8 +1987,23 @@ public sealed class StorageRepository
                            SELECT 1 FROM FolderNodes child
                            WHERE child.RunKey = f.RunKey
                              AND child.ParentId = f.Id
-                       )
+                       ),
+                       MAX(
+                           f.AllocatedSize - COALESCE(
+                               baseline.BaselineAllocatedSize,
+                               f.AllocatedSize
+                           ),
+                           0
+                       ),
+                       baseline.FirstSeenUtc
                 FROM FolderNodes f
+                INNER JOIN ScanRuns run ON run.RunKey = f.RunKey
+                LEFT JOIN FolderGrowthBaselines baseline
+                    ON baseline.VolumeKey = COALESCE(
+                           NULLIF(run.VolumeSerialNumber, ''),
+                           run.DriveLetter
+                       )
+                   AND baseline.PathHash = f.PathHash
                 WHERE f.RunKey = $run AND f.ParentId = $parent
                 ORDER BY f.AllocatedSize DESC, f.Name
                 """;
@@ -1889,6 +2047,11 @@ public sealed class StorageRepository
                     IsFolder = true,
                     IsSystem = (attributes & FileAttributes.System) != 0,
                     IsIncomplete = reader.GetBoolean(9),
+                    GrowthBytes = reader.GetInt64(11),
+                    GrowthBaselineUtc = reader.IsDBNull(12)
+                        ? null
+                        : DateTimeOffset.FromUnixTimeMilliseconds(
+                            reader.GetInt64(12)),
                 });
             }
         }
@@ -2135,18 +2298,37 @@ public sealed class StorageRepository
             int Category,
             int Tag,
             long Attributes,
-            bool IsIncomplete)>();
+            bool IsIncomplete,
+            long GrowthBytes,
+            DateTimeOffset? GrowthBaselineUtc)>();
         await using var folders = connection.CreateCommand();
         folders.CommandText = """
-            SELECT Id, ParentId, Name, LogicalSize, AllocatedSize, ModifiedUtc,
-                   Category, Tag, Attributes, ReparseTag, IsIncomplete
-            FROM FolderNodes
-            WHERE RunKey = $run
-              AND Name LIKE $search ESCAPE '\'
-              AND ($includeSystem = 1 OR Category <> $system)
-              AND ($includeHidden = 1 OR (Attributes & $hidden) = 0)
-              AND ($category < 0 OR Category = $category)
-            ORDER BY AllocatedSize DESC, Name
+            SELECT folder.Id, folder.ParentId, folder.Name, folder.LogicalSize,
+                   folder.AllocatedSize, folder.ModifiedUtc, folder.Category,
+                   folder.Tag, folder.Attributes, folder.ReparseTag,
+                   folder.IsIncomplete,
+                   MAX(
+                       folder.AllocatedSize - COALESCE(
+                           baseline.BaselineAllocatedSize,
+                           folder.AllocatedSize
+                       ),
+                       0
+                   ),
+                   baseline.FirstSeenUtc
+            FROM FolderNodes folder
+            INNER JOIN ScanRuns run ON run.RunKey = folder.RunKey
+            LEFT JOIN FolderGrowthBaselines baseline
+                ON baseline.VolumeKey = COALESCE(
+                       NULLIF(run.VolumeSerialNumber, ''),
+                       run.DriveLetter
+                   )
+               AND baseline.PathHash = folder.PathHash
+            WHERE folder.RunKey = $run
+              AND folder.Name LIKE $search ESCAPE '\'
+              AND ($includeSystem = 1 OR folder.Category <> $system)
+              AND ($includeHidden = 1 OR (folder.Attributes & $hidden) = 0)
+              AND ($category < 0 OR folder.Category = $category)
+            ORDER BY folder.AllocatedSize DESC, folder.Name
             LIMIT $limit
             """;
         folders.Parameters.AddWithValue("$run", runKey);
@@ -2176,7 +2358,12 @@ public sealed class StorageRepository
                     reader.GetInt32(6),
                     reader.GetInt32(7),
                     reader.GetInt64(8),
-                    reader.GetBoolean(10)));
+                    reader.GetBoolean(10),
+                    reader.GetInt64(11),
+                    reader.IsDBNull(12)
+                        ? null
+                        : DateTimeOffset.FromUnixTimeMilliseconds(
+                            reader.GetInt64(12))));
             }
         }
 
@@ -2203,6 +2390,8 @@ public sealed class StorageRepository
                 IsSystem =
                     ((FileAttributes)row.Attributes & FileAttributes.System) != 0,
                 IsIncomplete = row.IsIncomplete,
+                GrowthBytes = row.GrowthBytes,
+                GrowthBaselineUtc = row.GrowthBaselineUtc,
             });
         }
 
@@ -2457,10 +2646,25 @@ public sealed class StorageRepository
         {
             await using var folder = connection.CreateCommand();
             folder.CommandText = """
-                SELECT Name, LogicalSize, AllocatedSize, ModifiedUtc,
-                       Category, Tag, Attributes, IsIncomplete
-                FROM FolderNodes
-                WHERE RunKey = $run AND Id = $id
+                SELECT f.Name, f.LogicalSize, f.AllocatedSize, f.ModifiedUtc,
+                       f.Category, f.Tag, f.Attributes, f.IsIncomplete,
+                       MAX(
+                           f.AllocatedSize - COALESCE(
+                               baseline.BaselineAllocatedSize,
+                               f.AllocatedSize
+                           ),
+                           0
+                       ),
+                       baseline.FirstSeenUtc
+                FROM FolderNodes f
+                INNER JOIN ScanRuns run ON run.RunKey = f.RunKey
+                LEFT JOIN FolderGrowthBaselines baseline
+                    ON baseline.VolumeKey = COALESCE(
+                           NULLIF(run.VolumeSerialNumber, ''),
+                           run.DriveLetter
+                       )
+                   AND baseline.PathHash = f.PathHash
+                WHERE f.RunKey = $run AND f.Id = $id
                 """;
             folder.Parameters.AddWithValue("$run", runKey);
             folder.Parameters.AddWithValue("$id", fileId.Value);
@@ -2484,6 +2688,11 @@ public sealed class StorageRepository
                     IsFolder = true,
                     IsSystem = (attributes & FileAttributes.System) != 0,
                     IsIncomplete = reader.GetBoolean(7),
+                    GrowthBytes = reader.GetInt64(8),
+                    GrowthBaselineUtc = reader.IsDBNull(9)
+                        ? null
+                        : DateTimeOffset.FromUnixTimeMilliseconds(
+                            reader.GetInt64(9)),
                 };
             }
         }
@@ -2943,8 +3152,23 @@ public sealed class StorageRepository
                            FROM FolderNodes child
                            WHERE child.RunKey = f.RunKey
                              AND child.ParentId = f.Id
-                       )
+                       ),
+                       MAX(
+                           f.AllocatedSize - COALESCE(
+                               baseline.BaselineAllocatedSize,
+                               f.AllocatedSize
+                           ),
+                           0
+                       ),
+                       baseline.FirstSeenUtc
                 FROM FolderNodes f
+                INNER JOIN ScanRuns run ON run.RunKey = f.RunKey
+                LEFT JOIN FolderGrowthBaselines baseline
+                    ON baseline.VolumeKey = COALESCE(
+                           NULLIF(run.VolumeSerialNumber, ''),
+                           run.DriveLetter
+                       )
+                   AND baseline.PathHash = f.PathHash
                 WHERE f.RunKey = $run AND f.Id = $id
                 """;
             command.Parameters.AddWithValue("$run", format.RunKey);
@@ -2966,6 +3190,11 @@ public sealed class StorageRepository
                 SizeBytes = reader.GetInt64(1),
                 AllocatedSizeBytes = reader.GetInt64(2),
                 HasChildren = reader.GetBoolean(4),
+                GrowthBytes = reader.GetInt64(5),
+                GrowthBaselineUtc = reader.IsDBNull(6)
+                    ? null
+                    : DateTimeOffset.FromUnixTimeMilliseconds(
+                        reader.GetInt64(6)),
             };
         }
 
@@ -3029,8 +3258,23 @@ public sealed class StorageRepository
                        SELECT 1 FROM FolderNodes child
                        WHERE child.RunKey = f.RunKey
                          AND child.ParentId = f.Id
-                   )
+                   ),
+                   MAX(
+                       f.AllocatedSize - COALESCE(
+                           baseline.BaselineAllocatedSize,
+                           f.AllocatedSize
+                       ),
+                       0
+                   ),
+                   baseline.FirstSeenUtc
             FROM FolderNodes f
+            INNER JOIN ScanRuns run ON run.RunKey = f.RunKey
+            LEFT JOIN FolderGrowthBaselines baseline
+                ON baseline.VolumeKey = COALESCE(
+                       NULLIF(run.VolumeSerialNumber, ''),
+                       run.DriveLetter
+                   )
+               AND baseline.PathHash = f.PathHash
             WHERE f.RunKey = $run
               AND f.ParentId = $parent
               AND ($includeSystem = 1 OR f.Category <> $system)
@@ -3060,6 +3304,11 @@ public sealed class StorageRepository
                 AllocatedSizeBytes = reader.GetInt64(3),
                 Tag = StorageCategoryClassifier.TagName(reader.GetInt32(4)),
                 HasChildren = reader.GetBoolean(7),
+                GrowthBytes = reader.GetInt64(8),
+                GrowthBaselineUtc = reader.IsDBNull(9)
+                    ? null
+                    : DateTimeOffset.FromUnixTimeMilliseconds(
+                        reader.GetInt64(9)),
             });
         }
 
@@ -3187,28 +3436,17 @@ public sealed class StorageRepository
     {
         var volume = VolumeIdentityService.TryGetVolumeSerial(driveLetter) ??
                      string.Empty;
-        var sampled = await GetSampledGrowingFoldersAsync(
-            driveLetter,
-            volume,
-            minimumTrackedBytes,
-            limit,
-            cancellationToken);
-        if (sampled.Count > 0)
-        {
-            return sampled;
-        }
-
         await using var connection = await OpenConnectionAsync(cancellationToken);
         var rows = new List<(long FolderId, long RunKey, string Name, long Size,
             long Allocated, long Added, double Percentage, int Days)>();
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = """
-                WITH Runs AS (
-                    SELECT RunKey, CompletedUtc,
-                           ROW_NUMBER() OVER (
-                               ORDER BY CompletedUtc DESC
-                           ) AS Position
+                WITH LatestRun AS (
+                    SELECT RunKey,
+                           CompletedUtc,
+                           COALESCE(NULLIF(VolumeSerialNumber, ''), DriveLetter)
+                               AS VolumeKey
                     FROM ScanRuns
                     WHERE DriveLetter = $drive
                       AND Status = $completed
@@ -3216,23 +3454,25 @@ public sealed class StorageRepository
                       AND ($volume = '' OR VolumeSerialNumber = $volume
                            OR VolumeSerialNumber IS NULL
                            OR VolumeSerialNumber = '')
+                    ORDER BY CompletedUtc DESC
+                    LIMIT 1
                 )
                 SELECT n.Id, n.RunKey, n.Name, n.LogicalSize, n.AllocatedSize,
-                       n.AllocatedSize - o.AllocatedSize,
-                       CAST(n.AllocatedSize - o.AllocatedSize AS REAL) /
-                           NULLIF(o.AllocatedSize, 0) * 100,
-                       MAX(1, CAST((nr.CompletedUtc - old.CompletedUtc
+                       n.AllocatedSize - baseline.BaselineAllocatedSize,
+                       CAST(n.AllocatedSize -
+                            baseline.BaselineAllocatedSize AS REAL) /
+                           NULLIF(baseline.BaselineAllocatedSize, 0) * 100,
+                       MAX(1, CAST((run.CompletedUtc - baseline.FirstSeenUtc
                                     + 86399999) / 86400000 AS INTEGER))
                 FROM FolderNodes n
-                INNER JOIN Runs nr
-                    ON nr.RunKey = n.RunKey AND nr.Position = 1
-                INNER JOIN Runs old ON old.Position = 2
-                INNER JOIN FolderNodes o
-                    ON o.RunKey = old.RunKey
-                   AND o.PathHash = n.PathHash
+                INNER JOIN LatestRun run ON run.RunKey = n.RunKey
+                INNER JOIN FolderGrowthBaselines baseline
+                    ON baseline.VolumeKey = run.VolumeKey
+                   AND baseline.PathHash = n.PathHash
                 WHERE n.AllocatedSize >= $minimum
-                  AND n.AllocatedSize > o.AllocatedSize
-                ORDER BY (n.AllocatedSize - o.AllocatedSize) DESC
+                  AND n.AllocatedSize > baseline.BaselineAllocatedSize
+                ORDER BY
+                    (n.AllocatedSize - baseline.BaselineAllocatedSize) DESC
                 LIMIT $limit
                 """;
             command.Parameters.AddWithValue("$drive", NormalizeDriveLetter(driveLetter));
@@ -3267,112 +3507,6 @@ public sealed class StorageRepository
                     cancellationToken),
                 Name = row.Name,
                 SizeBytes = row.Allocated,
-                AddedBytes = row.Added,
-                GrowthPercentage = row.Percentage,
-                WindowDays = row.Days,
-            });
-        }
-
-        return results;
-    }
-
-    private async Task<IReadOnlyList<FolderGrowthInsight>>
-        GetSampledGrowingFoldersAsync(
-            string driveLetter,
-            string volume,
-            long minimumTrackedBytes,
-            int limit,
-            CancellationToken cancellationToken)
-    {
-        var volumeKey = string.IsNullOrWhiteSpace(volume)
-            ? NormalizeDriveLetter(driveLetter)
-            : volume;
-        await using var connection = await OpenConnectionAsync(cancellationToken);
-        var rows = new List<(long FolderId, long RunKey, string Name, long Size,
-            long Added, double Percentage, int Days)>();
-        await using (var command = connection.CreateCommand())
-        {
-            command.CommandText = """
-                WITH Ranked AS (
-                    SELECT PathHash, SampleUtc, LogicalSize, AllocatedSize,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY PathHash
-                               ORDER BY SampleUtc DESC
-                           ) AS Position
-                    FROM FolderGrowthSamples
-                    WHERE VolumeKey = $volume
-                ),
-                Growth AS (
-                    SELECT current.PathHash,
-                           current.AllocatedSize,
-                           current.AllocatedSize - previous.AllocatedSize AS Added,
-                           CAST(current.AllocatedSize - previous.AllocatedSize AS REAL) /
-                               NULLIF(previous.AllocatedSize, 0) * 100 AS Percentage,
-                           MAX(1, CAST(
-                               (current.SampleUtc - previous.SampleUtc + 86399999) /
-                               86400000 AS INTEGER)) AS Days
-                    FROM Ranked current
-                    INNER JOIN Ranked previous
-                        ON previous.PathHash = current.PathHash
-                       AND previous.Position = 2
-                    WHERE current.Position = 1
-                ),
-                LatestRun AS (
-                    SELECT RunKey
-                    FROM ScanRuns
-                    WHERE Status = $completed
-                      AND ScanFormat >= 4
-                      AND DriveLetter = $drive
-                    ORDER BY CompletedUtc DESC
-                    LIMIT 1
-                )
-                SELECT f.Id, f.RunKey, f.Name, g.AllocatedSize,
-                       g.Added, COALESCE(g.Percentage, 0), g.Days
-                FROM Growth g
-                INNER JOIN FolderNodes f
-                    ON f.PathHash = g.PathHash
-                INNER JOIN LatestRun r ON r.RunKey = f.RunKey
-                WHERE g.AllocatedSize >= $minimum
-                  AND g.Added > 0
-                ORDER BY g.Added DESC
-                LIMIT $limit
-                """;
-            command.Parameters.AddWithValue("$volume", volumeKey);
-            command.Parameters.AddWithValue(
-                "$completed",
-                (int)StorageScanStatus.Completed);
-            command.Parameters.AddWithValue(
-                "$drive",
-                NormalizeDriveLetter(driveLetter));
-            command.Parameters.AddWithValue("$minimum", minimumTrackedBytes);
-            command.Parameters.AddWithValue("$limit", limit);
-            await using var reader =
-                await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
-            {
-                rows.Add((
-                    reader.GetInt64(0),
-                    reader.GetInt64(1),
-                    reader.GetString(2),
-                    reader.GetInt64(3),
-                    reader.GetInt64(4),
-                    reader.GetDouble(5),
-                    reader.GetInt32(6)));
-            }
-        }
-
-        var results = new List<FolderGrowthInsight>(rows.Count);
-        foreach (var row in rows)
-        {
-            results.Add(new FolderGrowthInsight
-            {
-                Path = await BuildFolderPathAsync(
-                    connection,
-                    row.RunKey,
-                    row.FolderId,
-                    cancellationToken),
-                Name = row.Name,
-                SizeBytes = row.Size,
                 AddedBytes = row.Added,
                 GrowthPercentage = row.Percentage,
                 WindowDays = row.Days,
@@ -5953,6 +6087,13 @@ public sealed class StorageRepository
                         cancellationToken);
                     version = 6;
                     break;
+                case 6:
+                    await EnsureFolderGrowthBaselineTableAsync(
+                        connection,
+                        transaction,
+                        cancellationToken);
+                    version = 7;
+                    break;
                 default:
                     throw new InvalidDataException(
                         $"Storage index schema version {version} cannot be migrated.");
@@ -6323,6 +6464,124 @@ public sealed class StorageRepository
               AND LENGTH(ContentHash) = 64
               AND IsHardLinkAlias = 0
             """;
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task EnsureFolderGrowthBaselineTableAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            CREATE TABLE IF NOT EXISTS FolderGrowthBaselines (
+                VolumeKey TEXT NOT NULL,
+                PathHash TEXT NOT NULL,
+                FirstSeenUtc INTEGER NOT NULL,
+                BaselineLogicalSize INTEGER NOT NULL,
+                BaselineAllocatedSize INTEGER NOT NULL,
+                BaselineFileCount INTEGER NOT NULL,
+                FolderIdentity TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (VolumeKey, PathHash)
+            ) WITHOUT ROWID;
+
+            WITH FirstSamples AS (
+                SELECT VolumeKey, PathHash, SampleUtc, LogicalSize,
+                       AllocatedSize, FileCount,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY VolumeKey, PathHash
+                           ORDER BY SampleUtc ASC
+                       ) AS Position
+                FROM FolderGrowthSamples
+            )
+            INSERT OR IGNORE INTO FolderGrowthBaselines (
+                VolumeKey, PathHash, FirstSeenUtc, BaselineLogicalSize,
+                BaselineAllocatedSize, BaselineFileCount, FolderIdentity
+            )
+            SELECT VolumeKey, PathHash, SampleUtc, LogicalSize,
+                   AllocatedSize, FileCount, ''
+            FROM FirstSamples
+            WHERE Position = 1;
+
+            WITH LatestRuns AS (
+                SELECT RunKey,
+                       COALESCE(NULLIF(VolumeSerialNumber, ''), DriveLetter)
+                           AS VolumeKey,
+                       CompletedUtc,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY
+                               COALESCE(NULLIF(VolumeSerialNumber, ''),
+                                        DriveLetter)
+                           ORDER BY CompletedUtc DESC
+                       ) AS Position
+                FROM ScanRuns
+                WHERE Status = $completed
+                  AND ScanFormat >= 4
+            )
+            INSERT OR IGNORE INTO FolderGrowthBaselines (
+                VolumeKey, PathHash, FirstSeenUtc, BaselineLogicalSize,
+                BaselineAllocatedSize, BaselineFileCount, FolderIdentity
+            )
+            SELECT r.VolumeKey, f.PathHash,
+                   COALESCE(r.CompletedUtc, $now), f.LogicalSize,
+                   f.AllocatedSize, f.FileCount, f.FileId128
+            FROM LatestRuns r
+            INNER JOIN FolderNodes f ON f.RunKey = r.RunKey
+            WHERE r.Position = 1;
+
+            UPDATE FolderGrowthBaselines
+            SET FolderIdentity = COALESCE((
+                SELECT f.FileId128
+                FROM ScanRuns r
+                INNER JOIN FolderNodes f ON f.RunKey = r.RunKey
+                WHERE r.Status = $completed
+                  AND r.ScanFormat >= 4
+                  AND COALESCE(
+                          NULLIF(r.VolumeSerialNumber, ''),
+                          r.DriveLetter
+                      ) = FolderGrowthBaselines.VolumeKey
+                  AND f.PathHash = FolderGrowthBaselines.PathHash
+                  AND f.FileId128 <> ''
+                ORDER BY r.CompletedUtc DESC
+                LIMIT 1
+            ), FolderIdentity)
+            WHERE FolderIdentity = '';
+
+            DELETE FROM FolderGrowthBaselines
+            WHERE EXISTS (
+                SELECT 1
+                FROM ScanRuns latest
+                WHERE latest.Status = $completed
+                  AND latest.ScanFormat >= 4
+                  AND COALESCE(
+                          NULLIF(latest.VolumeSerialNumber, ''),
+                          latest.DriveLetter
+                      ) = FolderGrowthBaselines.VolumeKey
+                  AND latest.CompletedUtc = (
+                      SELECT MAX(candidate.CompletedUtc)
+                      FROM ScanRuns candidate
+                      WHERE candidate.Status = $completed
+                        AND candidate.ScanFormat >= 4
+                        AND COALESCE(
+                                NULLIF(candidate.VolumeSerialNumber, ''),
+                                candidate.DriveLetter
+                            ) = FolderGrowthBaselines.VolumeKey
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM FolderNodes current
+                      WHERE current.RunKey = latest.RunKey
+                        AND current.PathHash = FolderGrowthBaselines.PathHash
+                  )
+            );
+            """;
+        command.Parameters.AddWithValue(
+            "$completed",
+            (int)StorageScanStatus.Completed);
+        command.Parameters.AddWithValue(
+            "$now",
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -9137,16 +9396,28 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         CancellationToken cancellationToken,
         long? allocatedBytesScanned = null)
     {
+        var completedUtc = DateTimeOffset.UtcNow;
+        await using var transaction =
+            (SqliteTransaction)await _connection.BeginTransactionAsync(
+                cancellationToken);
         await UpdateRunAsync(
             StorageScanStatus.Completed,
-            DateTimeOffset.UtcNow,
+            completedUtc,
             filesScanned,
             foldersScanned,
             bytesScanned,
             inaccessibleItems,
             null,
             cancellationToken,
+            transaction,
             allocatedBytesScanned: allocatedBytesScanned);
+        await StorageRepository.RecordFolderGrowthSamplesAsync(
+            _connection,
+            transaction,
+            _runKey,
+            completedUtc.ToUnixTimeMilliseconds(),
+            cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         _closed = true;
     }
 

@@ -454,31 +454,6 @@ public sealed class StorageScanService
         string? warning = null;
         try
         {
-            using var growthBudget =
-                CancellationTokenSource.CreateLinkedTokenSource(
-                    cancellationToken);
-            growthBudget.CancelAfter(TimeSpan.FromSeconds(15));
-            await _repository.RecordFolderGrowthSamplesAsync(
-                scanId,
-                growthBudget.Token);
-        }
-        catch (OperationCanceledException) when (
-            !cancellationToken.IsCancellationRequested)
-        {
-            warning = AppendWarning(
-                warning,
-                "The index is complete; folder-growth history will be updated during a later scan.");
-        }
-        catch (Exception exception) when (
-            exception is not OperationCanceledException)
-        {
-            warning = AppendWarning(
-                warning,
-                $"The index is complete, but folder-growth history could not be updated: {exception.Message}");
-        }
-
-        try
-        {
             await _duplicateDetection.ComputeHashesAsync(
                 scanId,
                 cancellationToken: cancellationToken,

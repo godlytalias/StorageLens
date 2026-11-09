@@ -142,7 +142,7 @@
     <value>快速增长的文件夹</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>与上一次索引样本比较，并显示互不重叠、增长最大的文件夹。</value>
+    <value>将每个文件夹与首次建立索引时的大小进行比较，并显示互不重叠、增长最大的文件夹。</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>尚未发现快速增长的文件夹</value>
@@ -670,7 +670,7 @@
     <value>查找增长的文件夹</value>
   </data>
   <data name="HelpGrowthDescription.Text" xml:space="preserve">
-    <value>增长部分会比较最近的扫描快照，并指出可用空间消耗最快的位置。可在“自动化”中更改跟踪文件夹的最小大小；默认值为 1 GB。</value>
+    <value>Storage Lens 会保留每个文件夹首次建立索引时的大小。增长值以此为基准，已删除文件夹会被移除，重新创建的文件夹会建立新基准。可在“自动化”中更改跟踪文件夹的最小大小；默认值为 1 GB。</value>
   </data>
   <data name="HelpCleanupSafetyTitle.Text" xml:space="preserve">
     <value>清理安全</value>
@@ -871,7 +871,7 @@
     <value>下次审查：{0:g}</value>
   </data>
   <data name="GrowthSummaryFormat" xml:space="preserve">
-    <value>+{0:0}%（{1} 天内）</value>
+    <value>自首次建立索引以来 +{0:0}%（{1} 天）</value>
   </data>
   <data name="BackgroundIndexOff" xml:space="preserve">
     <value>空闲索引已关闭</value>

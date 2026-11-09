@@ -23,7 +23,8 @@ public sealed partial class StorageItem : ObservableObject
     public string DisplayKind => StorageText.Kind(Kind);
 
     public string AccessibleSummary =>
-        $"{Name}, {DisplayCategory}, {StorageFormatter.FormatBytes(DisplaySizeBytes)}, {DisplayPath}";
+        $"{Name}, {DisplayCategory}, {StorageFormatter.FormatBytes(DisplaySizeBytes)}, " +
+        $"{(HasGrowth ? GrowthText + ", " : string.Empty)}{DisplayPath}";
 
     public required DateTimeOffset ModifiedAt { get; init; }
 
@@ -48,6 +49,16 @@ public sealed partial class StorageItem : ObservableObject
         : AllocatedSizeBytes == 0
             ? SizeBytes
             : AllocatedSizeBytes;
+
+    public long GrowthBytes { get; init; }
+
+    public DateTimeOffset? GrowthBaselineUtc { get; init; }
+
+    public bool HasGrowth => IsFolder && GrowthBytes > 0;
+
+    public string GrowthText => HasGrowth
+        ? $"+{StorageFormatter.FormatBytes(GrowthBytes)}"
+        : string.Empty;
 
     public bool IsFolder { get; init; }
 
