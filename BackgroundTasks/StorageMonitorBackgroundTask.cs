@@ -199,72 +199,14 @@ public sealed partial class StorageMonitorBackgroundTask : IBackgroundTask
         ScheduledCleanupTaskSnapshot schedule,
         CancellationToken cancellationToken)
     {
-        const int maximumCandidatesPerRun = 5_000;
         await AppServices.InitializeAsync(cancellationToken);
-        var candidates = new List<CleanupCandidate>();
-        var policies = schedule.Categories
-            .Select(CleanupPolicyService.ParsePolicy)
-            .Where(policy => policy.HasValue)
-            .Select(policy => policy!.Value)
-            .Where(policy => CleanupPolicyService.GetDefinition(policy).AutomaticEligible)
-            .Distinct()
-            .ToList();
-
-        foreach (var drive in DriveDiscoveryService.GetAvailableDrives())
-        {
-            foreach (var policy in policies)
-            {
-                var offset = 0;
-                const int pageSize = 1000;
-                while (true)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (candidates.Count >= maximumCandidatesPerRun)
-                    {
-                        break;
-                    }
-
-                    var page = await AppServices.CleanupCandidates.GetCandidatesAsync(
-                        drive,
-                        policy,
-                        pageSize,
-                        offset,
-                        cancellationToken);
-                    if (page.Count == 0)
-                    {
-                        break;
-                    }
-
-                    candidates.AddRange(
-                        page.Where(item =>
-                                item.IsEligibleForAutomaticCleanup)
-                            .Take(maximumCandidatesPerRun - candidates.Count));
-                    offset += page.Count;
-                    if (page.Count < pageSize)
-                    {
-                        break;
-                    }
-                }
-
-                if (candidates.Count >= maximumCandidatesPerRun)
-                {
-                    break;
-                }
-            }
-
-            if (candidates.Count >= maximumCandidatesPerRun)
-            {
-                break;
-            }
-        }
-
-        return await AppServices.Cleanup.RecycleAsync(
-            new CleanupRequest
-            {
-                Candidates = candidates,
-                IsAutomatic = true,
-            },
-            cancellationToken: cancellationToken);
+        var runner = new ScheduledCleanupRunner(
+            DriveDiscoveryService.GetAvailableDrives,
+            AppServices.CleanupCandidates.GetCandidatesAsync,
+            (request, token) => AppServices.Cleanup.RecycleAsync(
+                request,
+                cancellationToken: token));
+        return await runner.RunAsync(schedule, cancellationToken);
     }
 
     private static string BuildCleanupActivation(IEnumerable<string> categories)

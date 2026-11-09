@@ -1716,6 +1716,176 @@ public sealed class StorageBackendTests
     }
 
     [Fact]
+    public async Task ScheduledCleanup_RecyclesSafeTemporaryFileAndWritesAutomaticAudit()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        var oldPath = await fixture.WriteFileAsync(
+            $"scheduled-{Guid.NewGuid():N}.tmp",
+            10,
+            setOldTimestamp: true);
+        var recentPath = await fixture.WriteFileAsync(
+            $"recent-{Guid.NewGuid():N}.tmp",
+            20);
+        var scan = await fixture.Scanner.ScanTestRootAsync(
+            fixture.Drive,
+            fixture.ScanRoot);
+        var cleanup = new CleanupService(fixture.Repository);
+        var runner = new ScheduledCleanupRunner(
+            () => [fixture.Drive],
+            (drive, policy, limit, offset, cancellationToken) =>
+                fixture.Candidates.GetCandidatesAsync(
+                    drive,
+                    policy,
+                    limit,
+                    offset,
+                    cancellationToken),
+            (request, cancellationToken) => cleanup.RecycleAsync(
+                request,
+                cancellationToken: cancellationToken));
+
+        try
+        {
+            var result = await runner.RunAsync(
+                new ScheduledCleanupTaskSnapshot
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Scheduled temporary cleanup",
+                    IntervalDays = 1,
+                    Categories = ["Cache & temporary"],
+                    IsEnabled = true,
+                    Mode = CleanupMode.RecycleSafeItems,
+                    LastRun = DateTimeOffset.UtcNow.AddDays(-1),
+                });
+            var sourceWasRecycled = !File.Exists(oldPath);
+            if (sourceWasRecycled)
+            {
+                RestoreFromRecycleBin(Path.GetFileName(oldPath));
+            }
+
+            Assert.True(sourceWasRecycled);
+            Assert.Equal(1, result.SucceededCount);
+            Assert.Equal(0, result.FailedCount);
+            Assert.Equal(0, result.SkippedCount);
+            Assert.True(File.Exists(recentPath));
+            Assert.Null(
+                await fixture.Repository.GetItemByPathAsync(
+                    scan.ScanId,
+                    oldPath));
+            Assert.NotNull(
+                await fixture.Repository.GetItemByPathAsync(
+                    scan.ScanId,
+                    recentPath));
+            var audit = Assert.Single(
+                await fixture.Repository.GetCleanupHistoryAsync());
+            Assert.Equal(oldPath, audit.Path);
+            Assert.Equal(CleanupPolicyId.TemporaryFiles, audit.Policy);
+            Assert.True(audit.Automatic);
+            Assert.Equal("Recycled", audit.Result);
+        }
+        finally
+        {
+            if (!File.Exists(oldPath))
+            {
+                RestoreFromRecycleBin(Path.GetFileName(oldPath));
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ScheduledCleanup_ReviewOnlyDoesNotRunDiscoveryOrCleanup()
+    {
+        var path = Path.Combine(
+            Path.GetTempPath(),
+            $"StorageLens-ScheduledReview-{Guid.NewGuid():N}.txt");
+        await File.WriteAllTextAsync(path, "Storage Lens review-only test");
+        try
+        {
+            var runner = new ScheduledCleanupRunner(
+                () => throw new InvalidOperationException(
+                    "Review-only schedules must not discover drives."),
+                (_, _, _, _, _) => throw new InvalidOperationException(
+                    "Review-only schedules must not query candidates."),
+                (_, _) => throw new InvalidOperationException(
+                    "Review-only schedules must not recycle files."));
+
+            var result = await runner.RunAsync(
+                new ScheduledCleanupTaskSnapshot
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Review temporary files",
+                    IntervalDays = 1,
+                    Categories = ["Cache & temporary"],
+                    IsEnabled = true,
+                    Mode = CleanupMode.ReviewOnly,
+                    LastRun = DateTimeOffset.UtcNow.AddDays(-1),
+                });
+
+            Assert.True(File.Exists(path));
+            Assert.Equal(0, result.SucceededCount);
+            Assert.Equal(0, result.FailedCount);
+            Assert.Equal(0, result.SkippedCount);
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ScheduledCleanup_AutomaticModeQueriesOnlyAutomaticPolicies()
+    {
+        var queriedPolicies = new List<CleanupPolicyId>();
+        var cleanupCalled = false;
+        var drive = new DriveSummary
+        {
+            Name = "Test drive",
+            Letter = "C:",
+            FileSystem = "NTFS",
+            TotalBytes = 1L << 30,
+            UsedBytes = 0,
+        };
+        var runner = new ScheduledCleanupRunner(
+            () => [drive],
+            (_, policy, _, _, _) =>
+            {
+                queriedPolicies.Add(policy);
+                return Task.FromResult<IReadOnlyList<CleanupCandidate>>([]);
+            },
+            (_, _) =>
+            {
+                cleanupCalled = true;
+                return Task.FromResult(new CleanupResult());
+            });
+
+        var result = await runner.RunAsync(
+            new ScheduledCleanupTaskSnapshot
+            {
+                Id = Guid.NewGuid(),
+                Name = "Automatic temporary cleanup",
+                IntervalDays = 1,
+                Categories =
+                [
+                    "Cache & temporary",
+                    "Downloads",
+                    "Package caches",
+                    "Duplicates",
+                ],
+                IsEnabled = true,
+                Mode = CleanupMode.RecycleSafeItems,
+                LastRun = DateTimeOffset.UtcNow.AddDays(-1),
+            });
+
+        Assert.Equal(
+            CleanupPolicyId.TemporaryFiles,
+            Assert.Single(queriedPolicies));
+        Assert.False(cleanupCalled);
+        Assert.Equal(0, result.SucceededCount);
+    }
+
+    [Fact]
     public void AutomationClaim_IsExclusiveAndDoesNotRestoreANewerRun()
     {
         var previous = DateTimeOffset.Parse("2026-11-01T12:00:00Z");
