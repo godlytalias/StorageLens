@@ -142,7 +142,7 @@
     <value>快速增长的文件夹</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>尽早发现近期增长，避免空间不足。</value>
+    <value>与上一次索引样本比较，并显示互不重叠、增长最大的文件夹。</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>尚未发现快速增长的文件夹</value>

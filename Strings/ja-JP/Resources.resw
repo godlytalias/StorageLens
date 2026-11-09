@@ -142,7 +142,7 @@
     <value>急速に増加しているフォルダー</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>領域不足になる前に最近の増加を把握します。</value>
+    <value>前回のインデックス サンプルと比較し、重複しない最大の増加フォルダーを表示します。</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>急増しているフォルダーはまだ見つかっていません</value>

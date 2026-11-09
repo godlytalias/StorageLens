@@ -157,7 +157,7 @@
     <value>Folders growing quickly</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>Spot recent growth before it becomes a low-space problem.</value>
+    <value>Compares with the previous index sample and shows the largest non-overlapping growing folders.</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>No fast-growing folders spotted yet</value>

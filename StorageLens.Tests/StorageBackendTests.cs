@@ -185,6 +185,73 @@ public sealed class StorageBackendTests
     }
 
     [Fact]
+    public void GrowthInsights_ReplacesParentRollupsWithLargestChildren()
+    {
+        var result = FolderGrowthInsights.SelectLargest(
+            [
+                CreateGrowthInsight(@"C:\", 100, 110),
+                CreateGrowthInsight(@"C:\Users", 95, 105),
+                CreateGrowthInsight(@"C:\Users\Alex", 90, 100),
+                CreateGrowthInsight(
+                    @"C:\Users\Alex\AppData",
+                    85,
+                    95),
+                CreateGrowthInsight(
+                    @"C:\Users\Alex\AppData\Local",
+                    80,
+                    90),
+                CreateGrowthInsight(@"C:\Other", 5, 20),
+            ],
+            3);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal(
+            new[]
+            {
+                @"C:\Users\Alex\AppData\Local",
+                @"C:\Other",
+            },
+            result.Select(insight => insight.Path));
+        Assert.DoesNotContain(
+            result,
+            insight => insight.Path is @"C:\" or @"C:\Users" or @"C:\Users\Alex");
+    }
+
+    [Fact]
+    public void GrowthInsights_RetainsDirectFileHeavyParent()
+    {
+        var parent = CreateGrowthInsight(@"C:\Users\Alex", 100, 200);
+
+        var result = FolderGrowthInsights.SelectLargest(
+            [
+                parent,
+                CreateGrowthInsight(
+                    @"C:\Users\Alex\AppData",
+                    20,
+                    50),
+            ],
+            3);
+
+        Assert.Equal(parent, Assert.Single(result));
+    }
+
+    [Fact]
+    public void GrowthInsights_AlwaysOmitsDriveRoot()
+    {
+        var child = CreateGrowthInsight(@"C:\Users", 20, 50);
+
+        var result = FolderGrowthInsights.SelectLargest(
+            [
+                CreateGrowthInsight(@"C:\", 100, 200),
+                child,
+            ],
+            3);
+
+        Assert.Equal(child, Assert.Single(result));
+        Assert.DoesNotContain(result, insight => insight.Path == @"C:\");
+    }
+
+    [Fact]
     public async Task Repository_OverviewFoldersReachHeavyApplicationSubfolders()
     {
         await using var fixture = await ScanFixture.CreateAsync();
@@ -853,6 +920,19 @@ public sealed class StorageBackendTests
             1);
         var folder = Assert.Single(growth, item => item.Name == "GrowingFolder");
         Assert.True(folder.AddedBytes >= 50);
+        await fixture.WriteFileAsync("GrowingFolder\\latest.bin", 5);
+
+        await fixture.Scanner.ScanTestRootAsync(
+            fixture.Drive,
+            fixture.ScanRoot);
+
+        var latestGrowth = await fixture.Repository.GetGrowingFoldersAsync(
+            fixture.Drive.Letter,
+            1);
+        var latestFolder = Assert.Single(
+            latestGrowth,
+            item => item.Name == "GrowingFolder");
+        Assert.True(latestFolder.AddedBytes < folder.AddedBytes);
         await using var connection = new SqliteConnection(
             $"Data Source={fixture.Repository.DatabasePath}");
         await connection.OpenAsync();
@@ -3468,6 +3548,24 @@ public sealed class StorageBackendTests
             FileSystem = "NTFS",
             TotalBytes = 1L << 30,
             UsedBytes = 0,
+        };
+
+    private static FolderGrowthInsight CreateGrowthInsight(
+        string path,
+        long addedBytes,
+        long sizeBytes) =>
+        new()
+        {
+            Name = Path.GetFileName(path.TrimEnd('\\')) switch
+            {
+                "" => path,
+                var name => name,
+            },
+            Path = path,
+            SizeBytes = sizeBytes,
+            AddedBytes = addedBytes,
+            GrowthPercentage = 10,
+            WindowDays = 1,
         };
 
     private static CleanupCandidate CreateCleanupCandidate(

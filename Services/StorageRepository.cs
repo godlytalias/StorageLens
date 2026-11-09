@@ -3092,21 +3092,29 @@ public sealed class StorageRepository
         int limit = 20,
         CancellationToken cancellationToken = default)
     {
+        if (limit <= 0)
+        {
+            return [];
+        }
+
+        var candidateLimit = Math.Clamp((long)limit * 16, 64, 512);
         var latest = await GetLatestCompletedScanAsync(
             driveLetter,
             cancellationToken);
+        IReadOnlyList<FolderGrowthInsight> results;
         if (latest is { ScanFormat: >= 4 })
         {
-            return await GetNormalizedGrowingFoldersAsync(
+            results = await GetNormalizedGrowingFoldersAsync(
                 driveLetter,
                 minimumTrackedBytes,
-                limit,
+                (int)candidateLimit,
                 cancellationToken);
         }
-
-        await using var connection = await OpenConnectionAsync(cancellationToken);
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
+        else
+        {
+            await using var connection = await OpenConnectionAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
             WITH LatestRuns AS (
                 SELECT Id, CompletedUtc
                 FROM ScanRuns
@@ -3140,30 +3148,35 @@ public sealed class StorageRepository
             ORDER BY AddedBytes DESC
             LIMIT $limit
             """;
-        command.Parameters.AddWithValue("$drive", NormalizeDriveLetter(driveLetter));
-        command.Parameters.AddWithValue("$completed", (int)StorageScanStatus.Completed);
-        command.Parameters.AddWithValue(
-            "$volume",
-            VolumeIdentityService.TryGetVolumeSerial(driveLetter) ??
-            string.Empty);
-        command.Parameters.AddWithValue("$minimum", minimumTrackedBytes);
-        command.Parameters.AddWithValue("$limit", limit);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        var results = new List<FolderGrowthInsight>();
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            results.Add(new FolderGrowthInsight
+            command.Parameters.AddWithValue("$drive", NormalizeDriveLetter(driveLetter));
+            command.Parameters.AddWithValue("$completed", (int)StorageScanStatus.Completed);
+            command.Parameters.AddWithValue(
+                "$volume",
+                VolumeIdentityService.TryGetVolumeSerial(driveLetter) ??
+                string.Empty);
+            command.Parameters.AddWithValue("$minimum", minimumTrackedBytes);
+            command.Parameters.AddWithValue("$limit", candidateLimit);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            var legacyResults = new List<FolderGrowthInsight>();
+            while (await reader.ReadAsync(cancellationToken))
             {
-                Path = reader.GetString(0),
-                Name = reader.GetString(1),
-                SizeBytes = reader.GetInt64(2),
-                AddedBytes = reader.GetInt64(3),
-                GrowthPercentage = reader.IsDBNull(4) ? 0 : reader.GetDouble(4),
-                WindowDays = Math.Max(1, reader.GetInt32(5)),
-            });
+                legacyResults.Add(new FolderGrowthInsight
+                {
+                    Path = reader.GetString(0),
+                    Name = reader.GetString(1),
+                    SizeBytes = reader.GetInt64(2),
+                    AddedBytes = reader.GetInt64(3),
+                    GrowthPercentage = reader.IsDBNull(4) ? 0 : reader.GetDouble(4),
+                    WindowDays = Math.Max(1, reader.GetInt32(5)),
+                });
+            }
+
+            results = legacyResults;
         }
 
-        return results;
+        return FolderGrowthInsights.SelectLargest(
+            results,
+            limit);
     }
 
     private async Task<IReadOnlyList<FolderGrowthInsight>> GetNormalizedGrowingFoldersAsync(

@@ -142,7 +142,7 @@
     <value>तेज़ी से बढ़ रहे फ़ोल्डर</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>कम जगह की समस्या बनने से पहले हाल की वृद्धि देखें।</value>
+    <value>पिछले इंडेक्स नमूने से तुलना करके सबसे अधिक बढ़ने वाले गैर-ओवरलैपिंग फ़ोल्डर दिखाता है।</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>अभी तक तेज़ी से बढ़ते फ़ोल्डर नहीं मिले</value>

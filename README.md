@@ -63,7 +63,7 @@ dotnet test .\StorageLens.Tests\StorageLens.Tests.csproj -c Debug -r win-x64
 
 ## Safety
 
-Background monitoring reads drive free space and indexed folder-growth samples. Idle indexing uses maintenance and user-away triggers plus internal cadence checks and a cross-process scan lock, so first indexes run at the next idle opportunity and normal refreshes do not run too often. Scheduled review runs send a notification that opens the exact selected policies. Optional automatic schedules are limited to explicitly selected Temporary app files, revalidate every file, and move only eligible items to the Recycle Bin.
+Background monitoring reads drive free space and indexed folder-growth samples. Folder growth compares the latest two index samples and suppresses parent rollups when a significant share of their growth belongs to visible child folders. Idle indexing uses maintenance and user-away triggers plus internal cadence checks and a cross-process scan lock, so first indexes run at the next idle opportunity and normal refreshes do not run too often. Scheduled review runs send a notification that opens the exact selected policies. Optional automatic schedules are limited to explicitly selected Temporary app files, revalidate every file, and move only eligible items to the Recycle Bin.
 
 ## Local index and recovery
 

@@ -142,7 +142,7 @@
     <value>Carpetas que crecen rápidamente</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>Detecta el crecimiento reciente antes de que se convierta en un problema de espacio.</value>
+    <value>Compara con la muestra de índice anterior y muestra las carpetas de mayor crecimiento sin superposiciones.</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>Aún no se han detectado carpetas que crezcan rápidamente</value>

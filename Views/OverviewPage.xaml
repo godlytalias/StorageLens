@@ -358,6 +358,10 @@
                             Foreground="{ThemeResource SystemFillColorAttentionBrush}" />
                         <StackPanel Grid.Column="1" Spacing="2">
                             <TextBlock x:Uid="GrowingFoldersTitle" Style="{StaticResource SubtitleTextBlockStyle}" />
+                            <TextBlock
+                                x:Uid="GrowingFoldersDescription"
+                                Style="{StaticResource MutedTextBlockStyle}"
+                                TextWrapping="Wrap" />
                         </StackPanel>
                         <Grid
                             Grid.Column="2"

@@ -142,7 +142,7 @@
     <value>Dossiers en croissance rapide</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>Repérez les croissances récentes avant qu’elles ne provoquent un manque d’espace.</value>
+    <value>Compare au précédent échantillon d’index et affiche les plus grands dossiers en croissance sans chevauchement.</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>Aucun dossier en forte croissance repéré pour le moment</value>

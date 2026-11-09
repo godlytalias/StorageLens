@@ -142,7 +142,7 @@
     <value>תיקיות שגדלות במהירות</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>זהו גידול לאחרונה לפני שהוא הופך לבעיה של חוסר מקום.</value>
+    <value>משווה לדגימת האינדקס הקודמת ומציג את תיקיות הצמיחה הגדולות ביותר ללא חפיפה.</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>טרם זוהו תיקיות שגדלות במהירות</value>

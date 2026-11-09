@@ -142,7 +142,7 @@
     <value>مجلدات تنمو بسرعة</value>
   </data>
   <data name="GrowingFoldersDescription.Text" xml:space="preserve">
-    <value>اكتشف النمو الأخير قبل أن يتحول إلى مشكلة نقص المساحة.</value>
+    <value>يقارن بعينة الفهرس السابقة ويعرض أكبر المجلدات النامية غير المتداخلة.</value>
   </data>
   <data name="GrowingFoldersEmptyTitle.Text" xml:space="preserve">
     <value>لم تُرصد مجلدات سريعة النمو بعد</value>
