@@ -50,7 +50,22 @@ public sealed partial class StorageIndexBackgroundTask : IBackgroundTask
             }
 
             await AppServices.InitializeAsync(_cancellation.Token);
-            foreach (var drive in DriveDiscoveryService.GetAvailableDrives())
+            var drives = DriveDiscoveryService.GetAvailableDrives();
+            var isDue = await BackgroundIndexPolicy.IsDueAsync(
+                settings,
+                drives,
+                async (driveLetter, cancellationToken) =>
+                    (await AppServices.Repository.GetLatestCompletedScanAsync(
+                        driveLetter,
+                        cancellationToken))?.ScanFormat,
+                DateTimeOffset.UtcNow,
+                _cancellation.Token);
+            if (!isDue)
+            {
+                return;
+            }
+
+            foreach (var drive in drives)
             {
                 _cancellation.Token.ThrowIfCancellationRequested();
                 try

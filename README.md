@@ -13,7 +13,7 @@ Storage indexes and preferences stay on the local device. User-authorized cleanu
 - Exact, paged candidate-file review for each cleanup recommendation with bounded loading and visible error states.
 - Dedicated Help page describing navigation, safety, growth alerts, and automation.
 - WinAppSDK timer background task for configurable drive/free-space and user-folder growth notifications.
-- Opt-in WinAppSDK maintenance task that refreshes every available drive on a configurable cadence from 1 to 7 days when Windows is idle.
+- Opt-in WinAppSDK maintenance and user-away tasks that refresh every available drive on a configurable cadence from 1 to 7 days when Windows is idle.
 - Persisted daily, weekly, biweekly, or monthly cleanup-review schedules with category selection.
 - Settings for theme, scan preferences, cleanup safety, and app information.
 - Desktop Acrylic at the window and tile levels, Light/Dark/System themes, responsive Explorer filters, and automatic right-to-left handling.
@@ -63,7 +63,7 @@ dotnet test .\StorageLens.Tests\StorageLens.Tests.csproj -c Debug -r win-x64
 
 ## Safety
 
-Background monitoring reads drive free space and indexed folder-growth samples. Idle indexing uses a maintenance trigger and a cross-process scan lock so it does not race an interactive scan. Scheduled review runs send a notification that opens the exact selected policies. Optional automatic schedules are limited to explicitly selected Temporary app files, revalidate every file, and move only eligible items to the Recycle Bin.
+Background monitoring reads drive free space and indexed folder-growth samples. Idle indexing uses maintenance and user-away triggers plus internal cadence checks and a cross-process scan lock, so first indexes run at the next idle opportunity and normal refreshes do not run too often. Scheduled review runs send a notification that opens the exact selected policies. Optional automatic schedules are limited to explicitly selected Temporary app files, revalidate every file, and move only eligible items to the Recycle Bin.
 
 ## Local index and recovery
 

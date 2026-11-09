@@ -900,6 +900,12 @@
   <data name="IdleIndexNotRun" xml:space="preserve">
     <value>La indexación durante la inactividad aún no ha finalizado.</value>
   </data>
+  <data name="BackgroundIndexOff" xml:space="preserve">
+    <value>La indexación en inactividad está desactivada</value>
+  </data>
+  <data name="BackgroundIndexWaiting" xml:space="preserve">
+    <value>Esperando la próxima oportunidad de inactividad de Windows</value>
+  </data>
   <data name="LastIdleIndexStatusFormat" xml:space="preserve">
     <value>Última indexación durante la inactividad: {0:g} — {1}</value>
   </data>

@@ -921,6 +921,12 @@
   <data name="IdleIndexNotRun" xml:space="preserve">
     <value>Idle indexing has not completed yet.</value>
   </data>
+  <data name="BackgroundIndexOff" xml:space="preserve">
+    <value>Idle indexing is off</value>
+  </data>
+  <data name="BackgroundIndexWaiting" xml:space="preserve">
+    <value>Waiting for the next Windows idle opportunity</value>
+  </data>
   <data name="LastIdleIndexStatusFormat" xml:space="preserve">
     <value>Last idle index: {0:g} — {1}</value>
   </data>

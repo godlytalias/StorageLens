@@ -900,6 +900,12 @@
   <data name="IdleIndexNotRun" xml:space="preserve">
     <value>निष्क्रिय समय की इंडेक्सिंग अभी पूरी नहीं हुई है।</value>
   </data>
+  <data name="BackgroundIndexOff" xml:space="preserve">
+    <value>निष्क्रिय समय की इंडेक्सिंग बंद है</value>
+  </data>
+  <data name="BackgroundIndexWaiting" xml:space="preserve">
+    <value>Windows के अगले निष्क्रिय अवसर की प्रतीक्षा है</value>
+  </data>
   <data name="LastIdleIndexStatusFormat" xml:space="preserve">
     <value>पिछली निष्क्रिय इंडेक्सिंग: {0:g} — {1}</value>
   </data>

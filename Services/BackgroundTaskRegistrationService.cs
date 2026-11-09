@@ -9,6 +9,11 @@ public static class BackgroundTaskRegistrationService
 {
     private const string TaskNamePrefix = "StorageLensDailyStorageMonitor";
     private const string IndexTaskPrefix = "StorageLensIdleDriveIndex";
+    private const string IndexMaintenanceTaskName =
+        IndexTaskPrefix + "-v4-maintenance";
+    private const string IndexUserAwayTaskName =
+        IndexTaskPrefix + "-v4-user-away";
+    private const uint IndexMaintenanceFreshnessMinutes = 15;
     private static readonly SemaphoreSlim RegistrationLock = new(1, 1);
 
     public static async Task<string> ApplyAutomationRegistrationAsync(
@@ -98,8 +103,6 @@ public static class BackgroundTaskRegistrationService
             }
 
             intervalDays = Math.Clamp(intervalDays, 1, 7);
-            var intervalMinutes = intervalDays * 24 * 60;
-            var indexTaskName = $"{IndexTaskPrefix}-v3-{intervalMinutes}";
             var access = await BackgroundExecutionManager.RequestAccessAsync();
             if (access is BackgroundAccessStatus.DeniedBySystemPolicy or
                 BackgroundAccessStatus.DeniedByUser)
@@ -107,30 +110,43 @@ public static class BackgroundTaskRegistrationService
                 return "Windows blocked daily idle indexing.";
             }
 
-            if (!BackgroundTaskRegistration.AllTasks.Values.Any(registration =>
-                    string.Equals(
-                        registration.Name,
-                        indexTaskName,
-                        StringComparison.OrdinalIgnoreCase)))
+            var plan = GetIndexRegistrationPlan(true);
+            foreach (var task in plan)
             {
+                if (BackgroundTaskRegistration.AllTasks.Values.Any(registration =>
+                        string.Equals(
+                            registration.Name,
+                            task.Name,
+                            StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
                 var builder = new Microsoft.Windows.ApplicationModel.Background.BackgroundTaskBuilder
                 {
-                    Name = indexTaskName,
+                    Name = task.Name,
                 };
                 builder.SetTaskEntryPointClsid(typeof(StorageIndexBackgroundTask).GUID);
-                builder.SetTrigger(
-                    new MaintenanceTrigger(
-                        (uint)intervalMinutes,
+                if (task.Trigger == BackgroundIndexTriggerKind.Maintenance)
+                {
+                    builder.SetTrigger(new MaintenanceTrigger(
+                        task.FreshnessMinutes,
                         false));
-                builder.AddCondition(
-                    new SystemCondition(SystemConditionType.UserNotPresent));
+                }
+                else
+                {
+                    builder.SetTrigger(new SystemTrigger(
+                        SystemTriggerType.UserAway,
+                        false));
+                }
+
                 builder.Register();
             }
 
-            UnregisterIndexTaskExcept(indexTaskName);
+            UnregisterIndexTaskExcept(plan.Select(task => task.Name).ToList());
             return
                 $"Drive indexing is registered approximately every {intervalDays} day" +
-                $"{(intervalDays == 1 ? string.Empty : "s")} during Windows maintenance periods.";
+                $"{(intervalDays == 1 ? string.Empty : "s")} at Windows idle opportunities.";
         }
         catch (Exception exception)
         {
@@ -140,6 +156,27 @@ public static class BackgroundTaskRegistrationService
         {
             RegistrationLock.Release();
         }
+    }
+
+    internal static IReadOnlyList<BackgroundIndexTaskPlan>
+        GetIndexRegistrationPlan(bool shouldRegister)
+    {
+        if (!shouldRegister)
+        {
+            return [];
+        }
+
+        return
+        [
+            new BackgroundIndexTaskPlan(
+                IndexMaintenanceTaskName,
+                BackgroundIndexTriggerKind.Maintenance,
+                IndexMaintenanceFreshnessMinutes),
+            new BackgroundIndexTaskPlan(
+                IndexUserAwayTaskName,
+                BackgroundIndexTriggerKind.UserAway,
+                0),
+        ];
     }
 
     public static async Task ReconcileAsync(CancellationToken cancellationToken = default)
@@ -166,20 +203,31 @@ public static class BackgroundTaskRegistrationService
         UnregisterIndexTaskExcept(null);
     }
 
-    private static void UnregisterIndexTaskExcept(string? retainedName)
+    private static void UnregisterIndexTaskExcept(
+        IReadOnlyCollection<string>? retainedNames)
     {
         foreach (var registration in BackgroundTaskRegistration.AllTasks.Values.ToList())
         {
             if (registration.Name.StartsWith(
                     IndexTaskPrefix,
                     StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(
+                !(retainedNames?.Contains(
                     registration.Name,
-                    retainedName,
-                    StringComparison.OrdinalIgnoreCase))
+                    StringComparer.OrdinalIgnoreCase) ?? false))
             {
                 registration.Unregister(true);
             }
         }
     }
 }
+
+internal enum BackgroundIndexTriggerKind
+{
+    Maintenance,
+    UserAway,
+}
+
+internal sealed record BackgroundIndexTaskPlan(
+    string Name,
+    BackgroundIndexTriggerKind Trigger,
+    uint FreshnessMinutes);

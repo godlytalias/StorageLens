@@ -900,6 +900,12 @@
   <data name="IdleIndexNotRun" xml:space="preserve">
     <value>יצירת האינדקס בזמן חוסר פעילות עדיין לא הושלמה.</value>
   </data>
+  <data name="BackgroundIndexOff" xml:space="preserve">
+    <value>יצירת האינדקס בזמן אי-פעילות כבויה</value>
+  </data>
+  <data name="BackgroundIndexWaiting" xml:space="preserve">
+    <value>ממתין להזדמנות האי-פעילות הבאה של Windows</value>
+  </data>
   <data name="LastIdleIndexStatusFormat" xml:space="preserve">
     <value>האינדקס האחרון בזמן חוסר פעילות: {0:g} — {1}</value>
   </data>

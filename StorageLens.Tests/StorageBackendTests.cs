@@ -2137,6 +2137,97 @@ public sealed class StorageBackendTests
     }
 
     [Fact]
+    public void IdleIndexRegistration_UsesLowDelayIdleTriggers()
+    {
+        var plan = BackgroundTaskRegistrationService.GetIndexRegistrationPlan(
+            true);
+
+        Assert.Collection(
+            plan,
+            maintenance =>
+            {
+                Assert.Equal(
+                    BackgroundIndexTriggerKind.Maintenance,
+                    maintenance.Trigger);
+                Assert.Equal(15u, maintenance.FreshnessMinutes);
+            },
+            userAway =>
+            {
+                Assert.Equal(
+                    BackgroundIndexTriggerKind.UserAway,
+                    userAway.Trigger);
+                Assert.Equal(0u, userAway.FreshnessMinutes);
+            });
+        Assert.Empty(
+            BackgroundTaskRegistrationService.GetIndexRegistrationPlan(
+                false));
+    }
+
+    [Fact]
+    public async Task IdleIndexDue_WithoutAnyCompletedScan_IsImmediate()
+    {
+        var now = DateTimeOffset.Parse("2026-11-09T12:00:00Z");
+        var settings = new AutomationSettings
+        {
+            BackgroundIndexEnabled = true,
+            BackgroundIndexIntervalDays = 7,
+            LastBackgroundIndexUtc = now.AddMinutes(-5),
+        };
+        var drive = CreateIndexDrive("C:");
+
+        var isDue = await BackgroundIndexPolicy.IsDueAsync(
+            settings,
+            [drive],
+            (_, _) => Task.FromResult<int?>(null),
+            now,
+            CancellationToken.None);
+
+        Assert.True(isDue);
+    }
+
+    [Fact]
+    public async Task IdleIndexDue_UsesCadenceOnlyWhenAllIndexesAreCurrent()
+    {
+        var now = DateTimeOffset.Parse("2026-11-09T12:00:00Z");
+        var settings = new AutomationSettings
+        {
+            BackgroundIndexEnabled = true,
+            BackgroundIndexIntervalDays = 1,
+            LastBackgroundIndexUtc = now.AddHours(-1),
+        };
+        var currentDrives = new[]
+        {
+            CreateIndexDrive("C:"),
+            CreateIndexDrive("D:"),
+        };
+
+        var notYetDue = await BackgroundIndexPolicy.IsDueAsync(
+            settings,
+            currentDrives,
+            (_, _) => Task.FromResult<int?>(4),
+            now,
+            CancellationToken.None);
+        var legacyIndexDue = await BackgroundIndexPolicy.IsDueAsync(
+            settings,
+            currentDrives,
+            (letter, _) => Task.FromResult<int?>(
+                letter == "D:" ? 3 : 4),
+            now,
+            CancellationToken.None);
+        settings.LastBackgroundIndexUtc = now.AddDays(-1);
+        var cadenceDue = await BackgroundIndexPolicy.IsDueAsync(
+            settings,
+            currentDrives,
+            (_, _) => Task.FromResult<int?>(4),
+            now,
+            CancellationToken.None);
+
+        Assert.False(notYetDue);
+        Assert.True(legacyIndexDue);
+        Assert.True(cadenceDue);
+    }
+
+    [Fact]
     public async Task Repository_ReconcilesInterruptedCleanupAudits()
     {
         await using var fixture = await ScanFixture.CreateAsync();
@@ -3367,6 +3458,16 @@ public sealed class StorageBackendTests
             AllocatedSizeBytes = bytes,
             HasChildren = hasChildren,
             Tag = "Folder",
+        };
+
+    private static DriveSummary CreateIndexDrive(string letter) =>
+        new()
+        {
+            Name = "Test drive",
+            Letter = letter,
+            FileSystem = "NTFS",
+            TotalBytes = 1L << 30,
+            UsedBytes = 0,
         };
 
     private static CleanupCandidate CreateCleanupCandidate(

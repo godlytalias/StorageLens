@@ -900,6 +900,12 @@
   <data name="IdleIndexNotRun" xml:space="preserve">
     <value>لم تكتمل الفهرسة أثناء الخمول بعد.</value>
   </data>
+  <data name="BackgroundIndexOff" xml:space="preserve">
+    <value>الفهرسة أثناء الخمول متوقفة</value>
+  </data>
+  <data name="BackgroundIndexWaiting" xml:space="preserve">
+    <value>في انتظار فرصة الخمول التالية في Windows</value>
+  </data>
   <data name="LastIdleIndexStatusFormat" xml:space="preserve">
     <value>آخر فهرسة أثناء الخمول: {0:g} — {1}</value>
   </data>

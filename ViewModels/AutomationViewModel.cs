@@ -252,18 +252,12 @@ public sealed class AutomationViewModel : ObservableObject
     {
         get
         {
-            if (!MonitorEnabled)
+            if (!BackgroundIndexEnabled)
             {
-                return AppText.Get("BackgroundMonitoringOff");
+                return AppText.Get("BackgroundIndexOff");
             }
 
-            var interval = MonitorIntervals[Math.Clamp(MonitorIntervalIndex, 0, MonitorIntervals.Count - 1)];
-            return interval == 1
-                ? AppText.Get("NextCheckOneDay")
-                : string.Format(
-                    System.Globalization.CultureInfo.CurrentCulture,
-                    AppText.Get("NextCheckManyDaysFormat"),
-                    interval);
+            return AppText.Get("BackgroundIndexWaiting");
         }
     }
 
