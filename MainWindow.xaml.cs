@@ -1,4 +1,6 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Windowing;
 using Windows.Graphics;
 using StorageLens.Services;
@@ -20,8 +22,18 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
 
+        var appTitleBar = new TitleBar
+        {
+            Title = "Storage Lens",
+            IconSource = new ImageIconSource
+            {
+                ImageSource = new BitmapImage(
+                    new Uri("ms-appx:///Assets/AppIcon.ico")),
+            },
+        };
+        AppTitleBarHost.Children.Add(appTitleBar);
         ExtendsContentIntoTitleBar = true;
-        SetTitleBar(AppTitleBar);
+        SetTitleBar(appTitleBar);
 
         AppWindow.SetIcon(
             Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"));

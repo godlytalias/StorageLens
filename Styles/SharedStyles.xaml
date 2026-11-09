@@ -9,7 +9,7 @@
                 <GradientStop Color="#F3F6FC" Offset="0" />
                 <GradientStop Color="#E6EDF8" Offset="1" />
             </LinearGradientBrush>
-            <AcrylicBrush x:Key="CardSurfaceBrush" TintColor="#F4F7FC" TintOpacity="0.55" TintLuminosityOpacity="0.4" FallbackColor="#F4F7FC" />
+            <StaticResource x:Key="CardSurfaceBrush" ResourceKey="AcrylicInAppFillColorDefaultBrush" />
             <StaticResource x:Key="CardSurfaceStrokeBrush" ResourceKey="SurfaceStrokeColorDefaultBrush" />
             <SolidColorBrush x:Key="CardShadowBrush" Color="Black" />
             <Thickness x:Key="CardSurfaceBorderThickness">1</Thickness>
@@ -19,7 +19,7 @@
                 <GradientStop Color="#222A38" Offset="0" />
                 <GradientStop Color="#141B28" Offset="1" />
             </LinearGradientBrush>
-            <AcrylicBrush x:Key="CardSurfaceBrush" TintColor="#202A3A" TintOpacity="0.55" TintLuminosityOpacity="0.4" FallbackColor="#202A3A" />
+            <StaticResource x:Key="CardSurfaceBrush" ResourceKey="AcrylicInAppFillColorDefaultBrush" />
             <StaticResource x:Key="CardSurfaceStrokeBrush" ResourceKey="SurfaceStrokeColorDefaultBrush" />
             <SolidColorBrush x:Key="CardShadowBrush" Color="Black" />
             <Thickness x:Key="CardSurfaceBorderThickness">1</Thickness>
