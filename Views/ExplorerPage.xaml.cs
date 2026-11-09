@@ -1,3 +1,4 @@
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Navigation;
@@ -8,7 +9,10 @@ namespace StorageLens.Views;
 
 public sealed partial class ExplorerPage : Page
 {
+    private static readonly TimeSpan PublishedScanRefreshInterval =
+        TimeSpan.FromSeconds(10);
     private int _navigationVersion;
+    private DispatcherTimer? _publishedScanRefreshTimer;
 
     public ExplorerPage()
     {
@@ -20,6 +24,7 @@ public sealed partial class ExplorerPage : Page
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         var version = ++_navigationVersion;
+        StartPublishedScanRefresh();
         _ = HandleNavigationSafelyAsync(
             e.NavigationMode == NavigationMode.New ? e.Parameter : null,
             version);
@@ -29,8 +34,27 @@ public sealed partial class ExplorerPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         ++_navigationVersion;
+        _publishedScanRefreshTimer?.Stop();
         ViewModel.Suspend();
         base.OnNavigatedFrom(e);
+    }
+
+    private void StartPublishedScanRefresh()
+    {
+        _publishedScanRefreshTimer ??= new DispatcherTimer
+        {
+            Interval = PublishedScanRefreshInterval,
+        };
+        _publishedScanRefreshTimer.Tick -= PublishedScanRefreshTimer_Tick;
+        _publishedScanRefreshTimer.Tick += PublishedScanRefreshTimer_Tick;
+        _publishedScanRefreshTimer.Start();
+    }
+
+    private async void PublishedScanRefreshTimer_Tick(
+        object? sender,
+        object args)
+    {
+        await ViewModel.RefreshPublishedScanAsync();
     }
 
     private async Task HandleNavigationSafelyAsync(

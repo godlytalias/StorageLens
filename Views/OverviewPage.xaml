@@ -142,12 +142,13 @@
                         Width="168"
                         Height="168"
                         VerticalAlignment="Center">
-                        <ProgressRing
+                        <controls:StorageUsageRing
                             x:Uid="StorageUsageRing"
                             Width="160"
                             Height="160"
-                            IsIndeterminate="False"
-                            Maximum="100"
+                            ProgressBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                            TrackBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}"
+                            StrokeThickness="12"
                             Value="{x:Bind ViewModel.SelectedDrive.UsedPercentage, Mode=OneWay}" />
                         <StackPanel
                             HorizontalAlignment="Center"

@@ -21,6 +21,7 @@ public sealed class ExplorerViewModel : ObservableObject
         "Other",
     ];
     private readonly SemaphoreSlim _loadLock = new(1, 1);
+    private readonly SemaphoreSlim _publishedScanRefreshLock = new(1, 1);
     private readonly Dictionary<StorageFolderNode, Task> _folderLoadTasks = [];
     private DriveSummary _selectedDrive;
     private int _selectedDriveIndex;
@@ -238,9 +239,60 @@ public sealed class ExplorerViewModel : ObservableObject
     {
         await AppServices.InitializeAsync();
         _isSuspended = false;
-        if (HasAvailableDrive && !_driveDataLoaded)
+        if (HasAvailableDrive)
         {
-            await LoadSelectedDriveAsync();
+            await RefreshPublishedScanAsync();
+        }
+    }
+
+    public async Task RefreshPublishedScanAsync()
+    {
+        if (_isSuspended || !HasAvailableDrive)
+        {
+            return;
+        }
+
+        if (!await _publishedScanRefreshLock.WaitAsync(0))
+        {
+            return;
+        }
+
+        try
+        {
+            var drive = SelectedDrive;
+            var scan = await Task.Run(() =>
+                AppServices.Repository.GetLatestCompletedScanAsync(
+                    drive.Letter));
+            if (_isSuspended ||
+                !ReferenceEquals(drive, SelectedDrive))
+            {
+                return;
+            }
+
+            if (_driveDataLoaded &&
+                _scan?.Id == scan?.Id &&
+                _scan?.CompletedUtc == scan?.CompletedUtc)
+            {
+                return;
+            }
+
+            await LoadSelectedDriveAsync(
+                scan,
+                preserveNavigation: _driveDataLoaded);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception)
+        {
+            if (!_isSuspended)
+            {
+                ErrorMessage = exception.Message;
+            }
+        }
+        finally
+        {
+            _publishedScanRefreshLock.Release();
         }
     }
 
@@ -263,7 +315,6 @@ public sealed class ExplorerViewModel : ObservableObject
         await AppServices.InitializeAsync();
         _isSuspended = false;
         _filterCancellation?.Cancel();
-        var driveChanged = false;
         if (!string.IsNullOrWhiteSpace(request.DriveLetter))
         {
             var drive = Drives.FirstOrDefault(item =>
@@ -272,14 +323,10 @@ public sealed class ExplorerViewModel : ObservableObject
                 !string.Equals(drive.Letter, SelectedDrive.Letter, StringComparison.OrdinalIgnoreCase))
             {
                 SelectDrive(drive, load: false);
-                driveChanged = true;
             }
         }
 
-        if (_scan is null || driveChanged)
-        {
-            await LoadSelectedDriveAsync();
-        }
+        await RefreshPublishedScanAsync();
 
         SetProperty(
             ref _searchText,
@@ -517,7 +564,9 @@ public sealed class ExplorerViewModel : ObservableObject
         }
     }
 
-    private async Task LoadSelectedDriveAsync()
+    private async Task LoadSelectedDriveAsync(
+        StorageScanRun? publishedScan = null,
+        bool preserveNavigation = false)
     {
         if (!HasAvailableDrive)
         {
@@ -544,7 +593,10 @@ public sealed class ExplorerViewModel : ObservableObject
         try
         {
             var drive = SelectedDrive;
-            var scan = await Task.Run(() =>
+            var previousPath = preserveNavigation ? _currentPath : null;
+            var previousSelectedItemPath =
+                preserveNavigation ? SelectedItem?.Path : null;
+            var scan = publishedScan ?? await Task.Run(() =>
                 AppServices.Repository.GetLatestCompletedScanAsync(
                     drive.Letter,
                     token));
@@ -600,17 +652,30 @@ public sealed class ExplorerViewModel : ObservableObject
                 root.Children.Add(child);
             }
 
-            root.IsExpanded = true;
-            root.IsSelected = true;
             _scan = scan;
             OnPropertyChanged(nameof(HasScanData));
             FolderTree.Clear();
             FolderTree.Add(root);
-            _selectedFolder = root;
-            _currentPath = root.Path;
+            StorageFolderNode? selectedFolder = null;
+            if (!string.IsNullOrWhiteSpace(previousPath))
+            {
+                selectedFolder =
+                    await SynchronizeFolderTreeAsync(previousPath);
+            }
+
+            if (selectedFolder is null)
+            {
+                ClearSelectedNodes(FolderTree);
+                root.IsExpanded = true;
+                root.IsSelected = true;
+                selectedFolder = root;
+            }
+
+            _selectedFolder = selectedFolder;
+            _currentPath = selectedFolder.Path;
             OnPropertyChanged(nameof(SelectedFolder));
             NotifyLocationState();
-            await RefreshItemsAsync();
+            await RefreshItemsAsync(previousSelectedItemPath);
             _driveDataLoaded = true;
         }
         catch (OperationCanceledException)
