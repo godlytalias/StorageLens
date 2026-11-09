@@ -10,6 +10,8 @@ namespace StorageLens.Views;
 
 public sealed partial class CleanupPage : Page
 {
+    private bool _closingForCleanup;
+
     public CleanupPage()
     {
         InitializeComponent();
@@ -93,24 +95,31 @@ public sealed partial class CleanupPage : Page
         var deferral = args.GetDeferral();
         CleanupResult? result = null;
         var wasCancelled = false;
+        var cleanup = ViewModel.RecycleSelectedAsync();
         try
         {
-            result = await ViewModel.RecycleSelectedAsync();
+            _closingForCleanup = true;
+            CleanupReviewDialog.Hide();
+        }
+        finally
+        {
+            _closingForCleanup = false;
+            deferral.Complete();
+        }
+
+        try
+        {
+            result = await cleanup;
         }
         catch (OperationCanceledException)
         {
             wasCancelled = true;
         }
-        catch (Exception)
+        catch (Exception exception)
         {
-            args.Cancel = true;
-        }
-        finally
-        {
-            deferral.Complete();
+            ShowCleanupError(exception);
         }
 
-        CleanupReviewDialog.Hide();
         if (result is not null)
         {
             ShowCleanupResult(result);
@@ -127,7 +136,7 @@ public sealed partial class CleanupPage : Page
         ContentDialog sender,
         ContentDialogClosingEventArgs args)
     {
-        if (ViewModel.IsCleaning)
+        if (ViewModel.IsCleaning && !_closingForCleanup)
         {
             args.Cancel = true;
         }
@@ -186,6 +195,15 @@ public sealed partial class CleanupPage : Page
         CleanupResultInfoBar.Message =
             StorageLens.Localization.AppText.Get("CleanupCancelled");
         CleanupResultInfoBar.Severity = InfoBarSeverity.Informational;
+        CleanupResultInfoBar.IsOpen = true;
+    }
+
+    private void ShowCleanupError(Exception exception)
+    {
+        CleanupResultInfoBar.Title = StorageLens.Localization.AppText.Get(
+            "CleanupResultPartialTitle");
+        CleanupResultInfoBar.Message = exception.Message;
+        CleanupResultInfoBar.Severity = InfoBarSeverity.Error;
         CleanupResultInfoBar.IsOpen = true;
     }
 

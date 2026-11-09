@@ -11,6 +11,7 @@ namespace StorageLens.Views;
 
 public sealed partial class CleanupCandidatesPage : Page
 {
+    private bool _closingForCleanup;
     private bool _hasCompletedCleanup;
     private bool _reviewOpen;
 
@@ -36,7 +37,6 @@ public sealed partial class CleanupCandidatesPage : Page
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
-        ViewModel.CancelCleanupCommand.Execute(null);
         ViewModel.CancelCandidateLoading();
         base.OnNavigatedFrom(e);
     }
@@ -93,9 +93,21 @@ public sealed partial class CleanupCandidatesPage : Page
         CleanupResult? result = null;
         var wasCancelled = false;
         _hasCompletedCleanup = true;
+        var cleanup = ViewModel.RecycleActiveFolderAsync();
         try
         {
-            result = await ViewModel.RecycleActiveFolderAsync();
+            _closingForCleanup = true;
+            FolderCleanupReviewDialog.Hide();
+        }
+        finally
+        {
+            _closingForCleanup = false;
+            deferral.Complete();
+        }
+
+        try
+        {
+            result = await cleanup;
         }
         catch (OperationCanceledException)
         {
@@ -109,12 +121,6 @@ public sealed partial class CleanupCandidatesPage : Page
             FolderCleanupResultInfoBar.Severity = InfoBarSeverity.Error;
             FolderCleanupResultInfoBar.IsOpen = true;
         }
-        finally
-        {
-            deferral.Complete();
-        }
-
-        FolderCleanupReviewDialog.Hide();
         if (result is not null)
         {
             FolderCleanupResultInfoBar.Title = AppText.Get(
@@ -162,7 +168,7 @@ public sealed partial class CleanupCandidatesPage : Page
         ContentDialog sender,
         ContentDialogClosingEventArgs args)
     {
-        args.Cancel = ViewModel.IsCleaning;
+        args.Cancel = ViewModel.IsCleaning && !_closingForCleanup;
     }
 
     private async void CleanupCandidateTreeView_SelectionChanged(

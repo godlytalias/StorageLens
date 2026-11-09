@@ -7,12 +7,30 @@ namespace StorageLens.Services;
 public sealed class CleanupService
 {
     private readonly StorageRepository _repository;
-    private readonly Action<string> _recycle;
+    private readonly Action<string>? _recycle;
+    private readonly Func<
+        IReadOnlyList<string>,
+        bool,
+        IReadOnlyList<RecycleBinItemResult>>? _recycleBatch;
 
     public CleanupService(StorageRepository repository, Action<string>? recycle = null)
     {
         _repository = repository;
-        _recycle = recycle ?? RecycleBinService.Recycle;
+        _recycle = recycle;
+        _recycleBatch = recycle is null
+            ? RecycleBinService.RecycleBatch
+            : null;
+    }
+
+    internal CleanupService(
+        StorageRepository repository,
+        Func<
+            IReadOnlyList<string>,
+            bool,
+            IReadOnlyList<RecycleBinItemResult>> recycleBatch)
+    {
+        _repository = repository;
+        _recycleBatch = recycleBatch;
     }
 
     public Task<CleanupResult> RecycleAsync(
@@ -57,189 +75,129 @@ public sealed class CleanupService
         long bytesRecycled = 0;
         var failures = new List<CleanupFailure>();
         var now = DateTimeOffset.Now;
-
-        for (var index = 0; index < request.Candidates.Count; index++)
+        var prepared = new List<PreparedCleanup>();
+        var processed = 0;
+        progress?.Report(new CleanupProgress
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var candidate = request.Candidates[index];
-            long? pendingActionId = null;
-            var recycled = false;
-            progress?.Report(new CleanupProgress
+            Processed = 0,
+            Total = request.Candidates.Count,
+        });
+        try
+        {
+            for (var index = 0; index < request.Candidates.Count; index++)
             {
-                Processed = index,
-                Total = request.Candidates.Count,
-                BytesRecycled = bytesRecycled,
-                CurrentPath = candidate.Item.Path,
-            });
-
-            try
-            {
-                var record = await GetCurrentRecordAsync(candidate, cancellationToken);
-                if (record is null)
+                cancellationToken.ThrowIfCancellationRequested();
+                var candidate = request.Candidates[index];
+                progress?.Report(new CleanupProgress
                 {
-                    skipped++;
-                    await _repository.RecordCleanupActionAsync(
-                        candidate.ScanId,
-                        candidate.PolicyId,
-                        candidate.Item.Path,
-                        candidate.Item.SizeBytes,
-                        request.IsAutomatic,
-                        "Skipped",
-                        "The file no longer exists or changed after the scan.",
+                    Processed = processed,
+                    Total = request.Candidates.Count,
+                    BytesRecycled = bytesRecycled,
+                    CurrentPath = candidate.Item.Path,
+                });
+                try
+                {
+                    var record = await GetCurrentRecordAsync(
+                        candidate,
                         cancellationToken);
-                    try
+                    if (record is null)
                     {
-                        await _repository.RemoveIndexedFileAsync(
+                        skipped++;
+                        await _repository.RecordCleanupActionAsync(
                             candidate.ScanId,
+                            candidate.PolicyId,
                             candidate.Item.Path,
-                            CancellationToken.None);
+                            candidate.Item.SizeBytes,
+                            request.IsAutomatic,
+                            "Skipped",
+                            "The file no longer exists or changed after the scan.",
+                            cancellationToken);
+                        try
+                        {
+                            await _repository.RemoveIndexedFileAsync(
+                                candidate.ScanId,
+                                candidate.Item.Path,
+                                CancellationToken.None);
+                        }
+                        catch (Exception indexException)
+                        {
+                            remainingIndexed++;
+                            failures.Add(new CleanupFailure
+                            {
+                                Path = candidate.Item.Path,
+                                Error =
+                                    $"The stale candidate was skipped, but its index entry could not be removed: {indexException.Message}",
+                            });
+                        }
+
+                        ReportProcessed(candidate);
+                        continue;
                     }
-                    catch (Exception indexException)
+
+                    var policy = CleanupPolicyService.Evaluate(
+                        record,
+                        candidate.PolicyId,
+                        now,
+                        request.IsAutomatic);
+                    if (!policy.IsAllowed)
                     {
                         remainingIndexed++;
-                        failures.Add(new CleanupFailure
-                        {
-                            Path = candidate.Item.Path,
-                            Error =
-                                $"The stale candidate was skipped, but its index entry could not be removed: {indexException.Message}",
-                        });
+                        skipped++;
+                        await _repository.RecordCleanupActionAsync(
+                            candidate.ScanId,
+                            candidate.PolicyId,
+                            candidate.Item.Path,
+                            candidate.Item.SizeBytes,
+                            request.IsAutomatic,
+                            "Skipped",
+                            policy.Reason,
+                            cancellationToken);
+                        ReportProcessed(candidate);
+                        continue;
                     }
 
-                    continue;
-                }
+                    if (candidate.PolicyId == CleanupPolicyId.LargeDuplicates &&
+                        !await HasValidRetainedCopyAsync(
+                            candidate,
+                            cancellationToken))
+                    {
+                        skipped++;
+                        remainingIndexed++;
+                        await _repository.RecordCleanupActionAsync(
+                            candidate.ScanId,
+                            candidate.PolicyId,
+                            candidate.Item.Path,
+                            candidate.Item.SizeBytes,
+                            request.IsAutomatic,
+                            "Skipped",
+                            "No distinct retained copy passed content and identity validation.",
+                            cancellationToken);
+                        ReportProcessed(candidate);
+                        continue;
+                    }
 
-                var policy = CleanupPolicyService.Evaluate(record, candidate.PolicyId, now, request.IsAutomatic);
-                if (!policy.IsAllowed)
-                {
-                    skipped++;
-                    remainingIndexed++;
-                    await _repository.RecordCleanupActionAsync(
-                        candidate.ScanId,
-                        candidate.PolicyId,
-                        candidate.Item.Path,
-                        candidate.Item.SizeBytes,
-                        request.IsAutomatic,
-                        "Skipped",
-                        policy.Reason,
-                        cancellationToken);
-                    continue;
-                }
-
-                if (candidate.PolicyId == CleanupPolicyId.LargeDuplicates &&
-                    !await HasValidRetainedCopyAsync(
+                    var pendingActionId =
+                        await _repository.BeginCleanupActionAsync(
+                            candidate.ScanId,
+                            candidate.PolicyId,
+                            candidate.Item.Path,
+                            candidate.Item.SizeBytes,
+                            request.IsAutomatic,
+                            cancellationToken);
+                    prepared.Add(new PreparedCleanup(
                         candidate,
-                        cancellationToken))
-                {
-                    skipped++;
-                    remainingIndexed++;
-                    await _repository.RecordCleanupActionAsync(
-                        candidate.ScanId,
-                        candidate.PolicyId,
-                        candidate.Item.Path,
-                        candidate.Item.SizeBytes,
-                        request.IsAutomatic,
-                        "Skipped",
-                        "No distinct retained copy passed content and identity validation.",
-                        cancellationToken);
-                    continue;
+                        pendingActionId));
                 }
-
-                pendingActionId = await _repository.BeginCleanupActionAsync(
-                    candidate.ScanId,
-                    candidate.PolicyId,
-                    candidate.Item.Path,
-                    candidate.Item.SizeBytes,
-                    request.IsAutomatic,
-                    cancellationToken);
-                await worker.RunAsync(() => _recycle(candidate.Item.Path));
-                recycled = true;
-                succeeded++;
-                bytesRecycled += candidate.Item.DisplaySizeBytes;
-                try
+                catch (Exception exception) when (
+                    IsRecoverableCleanupException(exception))
                 {
-                    await _repository.CompleteCleanupActionAsync(
-                        pendingActionId.Value,
-                        "Recycled",
-                        null,
-                        CancellationToken.None);
-                }
-                catch (Exception auditException)
-                {
-                    failures.Add(new CleanupFailure
-                    {
-                        Path = candidate.Item.Path,
-                        Error = $"The file was recycled, but its audit record could not be finalized: {auditException.Message}",
-                    });
-                }
-                try
-                {
-                    await _repository.RemoveIndexedFileAsync(
-                        candidate.ScanId,
-                        candidate.Item.Path,
-                        CancellationToken.None);
-                }
-                catch (Exception indexException)
-                {
+                    failed++;
                     remainingIndexed++;
                     failures.Add(new CleanupFailure
                     {
                         Path = candidate.Item.Path,
-                        Error = $"The file was recycled, but the storage index could not be updated: {indexException.Message}",
+                        Error = exception.Message,
                     });
-                    try
-                    {
-                        await _repository.CompleteCleanupActionAsync(
-                            pendingActionId.Value,
-                            "RecycledIndexStale",
-                            indexException.Message,
-                            CancellationToken.None);
-                    }
-                    catch (Exception auditException)
-                    {
-                        failures.Add(new CleanupFailure
-                        {
-                            Path = candidate.Item.Path,
-                            Error = $"The file was recycled, but its stale-index audit result could not be saved: {auditException.Message}",
-                        });
-                    }
-                }
-            }
-            catch (Exception exception) when (
-                exception is IOException
-                    or UnauthorizedAccessException
-                    or Win32Exception
-                    or InvalidOperationException
-                    or COMException
-                    or NotSupportedException)
-            {
-                failed++;
-                remainingIndexed++;
-                failures.Add(new CleanupFailure
-                {
-                    Path = candidate.Item.Path,
-                    Error = exception.Message,
-                });
-                if (pendingActionId.HasValue)
-                {
-                    try
-                    {
-                        await _repository.CompleteCleanupActionAsync(
-                            pendingActionId.Value,
-                            recycled ? "Recycled" : "Failed",
-                            exception.Message,
-                            CancellationToken.None);
-                    }
-                    catch (Exception auditException)
-                    {
-                        failures.Add(new CleanupFailure
-                        {
-                            Path = candidate.Item.Path,
-                            Error = $"The cleanup failed and its audit result could not be saved: {auditException.Message}",
-                        });
-                    }
-                }
-                else
-                {
                     try
                     {
                         await _repository.RecordCleanupActionAsync(
@@ -257,20 +215,130 @@ public sealed class CleanupService
                         failures.Add(new CleanupFailure
                         {
                             Path = candidate.Item.Path,
-                            Error = $"The cleanup failed and its audit record could not be saved: {auditException.Message}",
+                            Error =
+                                $"The cleanup failed and its audit record could not be saved: {auditException.Message}",
                         });
                     }
+
+                    ReportProcessed(candidate);
                 }
             }
-            finally
+        }
+        catch (OperationCanceledException)
+        {
+            await CancelPreparedAsync(
+                prepared,
+                "Cleanup was cancelled before the Shell operation started.");
+            throw;
+        }
+        catch
+        {
+            await CancelPreparedAsync(
+                prepared,
+                "Cleanup preparation failed before the Shell operation started.");
+            throw;
+        }
+
+        if (_recycleBatch is not null)
+        {
+            RecycleBinItemResult[] batchResults;
+            try
             {
-                progress?.Report(new CleanupProgress
+                cancellationToken.ThrowIfCancellationRequested();
+                batchResults = (await worker.RunAsync(() =>
+                    _recycleBatch(
+                        prepared.Select(item =>
+                                item.Candidate.Item.Path)
+                            .ToArray(),
+                        !request.IsAutomatic)))
+                    .ToArray();
+            }
+            catch (OperationCanceledException)
+            {
+                await CancelPreparedAsync(
+                    prepared,
+                    "Cleanup was cancelled before the Shell operation started.");
+                throw;
+            }
+            catch (Exception exception) when (
+                IsRecoverableCleanupException(exception))
+            {
+                batchResults = prepared
+                    .Select(item => new RecycleBinItemResult
+                    {
+                        Path = item.Candidate.Item.Path,
+                        HResult = exception.HResult,
+                        Error = exception.Message,
+                    })
+                    .ToArray();
+            }
+            catch
+            {
+                await CancelPreparedAsync(
+                    prepared,
+                    "The Shell operation could not be started.");
+                throw;
+            }
+
+            for (var index = 0; index < prepared.Count; index++)
+            {
+                var item = prepared[index];
+                var result = index < batchResults.Length &&
+                             string.Equals(
+                                 batchResults[index].Path,
+                                 item.Candidate.Item.Path,
+                                 StringComparison.OrdinalIgnoreCase)
+                    ? batchResults[index]
+                    : new RecycleBinItemResult
+                    {
+                        Path = item.Candidate.Item.Path,
+                        HResult = unchecked((int)0x80004005),
+                        Error =
+                            "Windows did not report a result for this item.",
+                    };
+                await FinalizePreparedAsync(item, result);
+                ReportProcessed(item.Candidate);
+            }
+        }
+        else
+        {
+            for (var index = 0; index < prepared.Count; index++)
+            {
+                var item = prepared[index];
+                try
                 {
-                    Processed = index + 1,
-                    Total = request.Candidates.Count,
-                    BytesRecycled = bytesRecycled,
-                    CurrentPath = candidate.Item.Path,
-                });
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await worker.RunAsync(() =>
+                        _recycle!(item.Candidate.Item.Path));
+                    await FinalizePreparedAsync(
+                        item,
+                        new RecycleBinItemResult
+                        {
+                            Path = item.Candidate.Item.Path,
+                            Succeeded = true,
+                        });
+                }
+                catch (OperationCanceledException)
+                {
+                    await CancelPreparedAsync(
+                        prepared.Skip(index),
+                        "Cleanup was cancelled.");
+                    throw;
+                }
+                catch (Exception exception) when (
+                    IsRecoverableCleanupException(exception))
+                {
+                    await FinalizePreparedAsync(
+                        item,
+                        new RecycleBinItemResult
+                        {
+                            Path = item.Candidate.Item.Path,
+                            HResult = exception.HResult,
+                            Error = exception.Message,
+                        });
+                }
+
+                ReportProcessed(item.Candidate);
             }
         }
 
@@ -283,7 +351,150 @@ public sealed class CleanupService
             RemainingIndexedCount = remainingIndexed,
             Failures = failures,
         };
+
+        void ReportProcessed(CleanupCandidate candidate)
+        {
+            processed++;
+            progress?.Report(new CleanupProgress
+            {
+                Processed = processed,
+                Total = request.Candidates.Count,
+                BytesRecycled = bytesRecycled,
+                CurrentPath = candidate.Item.Path,
+            });
+        }
+
+        async Task FinalizePreparedAsync(
+            PreparedCleanup item,
+            RecycleBinItemResult recycleResult)
+        {
+            var candidate = item.Candidate;
+            if (recycleResult.Succeeded)
+            {
+                succeeded++;
+                bytesRecycled += candidate.Item.DisplaySizeBytes;
+                try
+                {
+                    await _repository.CompleteCleanupActionAsync(
+                        item.PendingActionId,
+                        "Recycled",
+                        null,
+                        CancellationToken.None);
+                }
+                catch (Exception auditException)
+                {
+                    failures.Add(new CleanupFailure
+                    {
+                        Path = candidate.Item.Path,
+                        Error =
+                            $"The file was recycled, but its audit record could not be finalized: {auditException.Message}",
+                    });
+                }
+
+                try
+                {
+                    await _repository.RemoveIndexedFileAsync(
+                        item.Candidate.ScanId,
+                        candidate.Item.Path,
+                        CancellationToken.None);
+                }
+                catch (Exception indexException)
+                {
+                    remainingIndexed++;
+                    failures.Add(new CleanupFailure
+                    {
+                        Path = candidate.Item.Path,
+                        Error =
+                            $"The file was recycled, but the storage index could not be updated: {indexException.Message}",
+                    });
+                    try
+                    {
+                        await _repository.CompleteCleanupActionAsync(
+                            item.PendingActionId,
+                            "RecycledIndexStale",
+                            indexException.Message,
+                            CancellationToken.None);
+                    }
+                    catch (Exception auditException)
+                    {
+                        failures.Add(new CleanupFailure
+                        {
+                            Path = candidate.Item.Path,
+                            Error =
+                                $"The file was recycled, but its stale-index audit result could not be saved: {auditException.Message}",
+                        });
+                    }
+                }
+            }
+            else
+            {
+                failed++;
+                remainingIndexed++;
+                var error = recycleResult.Error ??
+                            "Windows could not move the item to the Recycle Bin.";
+                failures.Add(new CleanupFailure
+                {
+                    Path = candidate.Item.Path,
+                    Error = error,
+                });
+                try
+                {
+                    await _repository.CompleteCleanupActionAsync(
+                        item.PendingActionId,
+                        "Failed",
+                        error,
+                        CancellationToken.None);
+                }
+                catch (Exception auditException)
+                {
+                    failures.Add(new CleanupFailure
+                    {
+                        Path = candidate.Item.Path,
+                        Error =
+                            $"The cleanup failed and its audit result could not be saved: {auditException.Message}",
+                    });
+                }
+            }
+        }
+
+        async Task CancelPreparedAsync(
+            IEnumerable<PreparedCleanup> items,
+            string reason)
+        {
+            foreach (var item in items)
+            {
+                try
+                {
+                    await _repository.CompleteCleanupActionAsync(
+                        item.PendingActionId,
+                        "Cancelled",
+                        reason,
+                        CancellationToken.None);
+                }
+                catch (Exception auditException)
+                {
+                    failures.Add(new CleanupFailure
+                    {
+                        Path = item.Candidate.Item.Path,
+                        Error =
+                            $"The cleanup was cancelled, but its audit result could not be saved: {auditException.Message}",
+                    });
+                }
+            }
+        }
     }
+
+    private static bool IsRecoverableCleanupException(Exception exception) =>
+        exception is IOException
+            or UnauthorizedAccessException
+            or Win32Exception
+            or InvalidOperationException
+            or COMException
+            or NotSupportedException;
+
+    private sealed record PreparedCleanup(
+        CleanupCandidate Candidate,
+        long PendingActionId);
 
     private static async Task<StorageFileRecord?> GetCurrentRecordAsync(
         CleanupCandidate candidate,

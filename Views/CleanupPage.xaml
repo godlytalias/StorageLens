@@ -348,37 +348,6 @@
                     Style="{StaticResource CaptionTextBlockStyle}"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     TextWrapping="Wrap" />
-                <InfoBar
-                    x:Uid="CleanupDialogErrorInfoBar"
-                    IsClosable="False"
-                    IsOpen="{x:Bind ViewModel.HasError, Mode=OneWay}"
-                    Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
-                    Severity="Error" />
-                <ProgressBar
-                    x:Uid="CleanupProgressBar"
-                    Maximum="1"
-                    IsIndeterminate="{x:Bind ViewModel.IsCleanupProgressIndeterminate, Mode=OneWay}"
-                    Value="{x:Bind ViewModel.CleanupProgress, Mode=OneWay}"
-                    Visibility="{x:Bind ViewModel.IsCleaning, Mode=OneWay}" />
-                <TextBlock
-                    Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    AutomationProperties.LiveSetting="Polite" />
-                <TextBlock
-                    Text="{x:Bind ViewModel.CleanupCurrentPath, Mode=OneWay}"
-                    FlowDirection="LeftToRight"
-                    IsTextSelectionEnabled="True"
-                    Style="{StaticResource CaptionTextBlockStyle}"
-                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                    TextWrapping="Wrap"
-                    Visibility="{x:Bind ViewModel.HasCleanupCurrentPath, Mode=OneWay}" />
-                <Button
-                    x:Uid="CancelCleanupButton"
-                    HorizontalAlignment="Left"
-                    Command="{x:Bind ViewModel.CancelCleanupCommand}"
-                    IsEnabled="{x:Bind ViewModel.CanCancelCleanup, Mode=OneWay}"
-                    Visibility="{x:Bind ViewModel.IsCleaning, Mode=OneWay}" />
             </StackPanel>
         </ContentDialog>
 

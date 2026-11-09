@@ -7,10 +7,10 @@ namespace StorageLens.Services;
 public static partial class RecycleBinService
 {
     private const uint ClassContextAll = 23;
+    private const uint FofAllowUndo = 0x0040;
     private const uint FofSilent = 0x0004;
     private const uint FofNoConfirmation = 0x0010;
     private const uint FofNoErrorUi = 0x0400;
-    private const uint FofxWantNukeWarning = 0x00002000;
     private const uint FofxRecycleOnDelete = 0x00080000;
     private const uint FofxEarlyFailure = 0x00100000;
     private static readonly Guid FileOperationClassId =
@@ -22,60 +22,99 @@ public static partial class RecycleBinService
 
     public static void Recycle(string path)
     {
-        if (string.IsNullOrWhiteSpace(path))
+        var result = RecycleBatch([path], showProgressUi: false)[0];
+        if (!result.Succeeded)
         {
-            throw new ArgumentException("A path is required.", nameof(path));
+            throw new Win32Exception(
+                result.HResult,
+                result.Error);
+        }
+    }
+
+    internal static IReadOnlyList<RecycleBinItemResult> RecycleBatch(
+        IReadOnlyList<string> paths,
+        bool showProgressUi)
+    {
+        if (paths.Count == 0)
+        {
+            return [];
         }
 
-        var fullPath = Path.GetFullPath(path);
-        var rootPath = Path.GetPathRoot(fullPath) ??
-                       throw new ArgumentException("The path does not have a drive root.", nameof(path));
-        if (!CanRecycle(rootPath))
-        {
-            throw new InvalidOperationException(
-                "Recycle Bin is unavailable for this volume. The item was not deleted.");
-        }
-
-        var shellItem = CreateShellItem(fullPath);
-        var fileOperation = CreateFileOperation();
-        var progress = new DeleteProgressSink();
+        var queuedItems = new List<QueuedDelete>(paths.Count);
+        IFileOperation? fileOperation = null;
         try
         {
-            ThrowIfFailed(
-                fileOperation.SetOperationFlags(
-                    FofSilent |
-                    FofNoConfirmation |
-                    FofNoErrorUi |
-                    FofxRecycleOnDelete |
-                    FofxWantNukeWarning |
-                    FofxEarlyFailure),
-                "configure the Recycle Bin operation");
-            ThrowIfFailed(
-                fileOperation.DeleteItem(shellItem, progress),
-                "queue the item for recycling");
-            ThrowIfFailed(
-                fileOperation.PerformOperations(),
-                "move the item to the Recycle Bin");
-            ThrowIfFailed(
-                fileOperation.GetAnyOperationsAborted(out var aborted),
-                "verify the Recycle Bin operation");
-            if (aborted || File.Exists(fullPath) || Directory.Exists(fullPath))
+            foreach (var path in paths)
             {
-                throw new Win32Exception(
-                    1223,
-                    "The item was not confirmed in the Recycle Bin operation.");
+                if (string.IsNullOrWhiteSpace(path))
+                {
+                    throw new ArgumentException(
+                        "A path is required.",
+                        nameof(paths));
+                }
+
+                var fullPath = Path.GetFullPath(path);
+                var rootPath = Path.GetPathRoot(fullPath) ??
+                               throw new ArgumentException(
+                                   "The path does not have a drive root.",
+                                   nameof(paths));
+                if (!CanRecycle(rootPath))
+                {
+                    throw new InvalidOperationException(
+                        $"Recycle Bin is unavailable for {rootPath}. The items were not deleted.");
+                }
+
+                queuedItems.Add(new QueuedDelete(
+                    fullPath,
+                    CreateShellItem(fullPath),
+                    new DeleteProgressSink()));
             }
 
-            if (!progress.Recycled)
+            fileOperation = CreateFileOperation();
+            var flags = FofNoConfirmation |
+                        FofAllowUndo |
+                        FofxRecycleOnDelete;
+            if (!showProgressUi)
             {
-                throw new InvalidOperationException(
-                    "Windows did not report a Recycle Bin destination. The item was not treated as safely recycled.");
+                flags |= FofSilent |
+                         FofNoErrorUi |
+                         FofxEarlyFailure;
             }
+
+            ThrowIfFailed(
+                fileOperation.SetOperationFlags(flags),
+                "configure the Recycle Bin operation");
+            foreach (var queuedItem in queuedItems)
+            {
+                ThrowIfFailed(
+                    fileOperation.DeleteItem(
+                        queuedItem.Item,
+                        queuedItem.Progress),
+                    "queue the item for recycling");
+            }
+
+            var operationHResult = fileOperation.PerformOperations();
+            var abortHResult = fileOperation.GetAnyOperationsAborted(
+                out var aborted);
+            return queuedItems
+                .Select(queuedItem => CreateBatchResult(
+                    queuedItem,
+                    operationHResult,
+                    abortHResult,
+                    aborted))
+                .ToArray();
         }
         finally
         {
-            (fileOperation as IDisposable)?.Dispose();
-            (shellItem as IDisposable)?.Dispose();
+            if (fileOperation is not null)
+            {
+                (fileOperation as IDisposable)?.Dispose();
+            }
+
+            foreach (var queuedItem in queuedItems)
+            {
+                (queuedItem.Item as IDisposable)?.Dispose();
+            }
         }
     }
 
@@ -125,6 +164,66 @@ public static partial class RecycleBinService
                 out var operation),
             "create the Shell file operation");
         return operation;
+    }
+
+    private static RecycleBinItemResult CreateBatchResult(
+        QueuedDelete queuedItem,
+        int operationHResult,
+        int abortHResult,
+        bool aborted)
+    {
+        var sourceStillExists =
+            File.Exists(queuedItem.Path) ||
+            Directory.Exists(queuedItem.Path);
+        var succeeded =
+            queuedItem.Progress.Recycled &&
+            !sourceStillExists;
+        if (succeeded)
+        {
+            return new RecycleBinItemResult
+            {
+                Path = queuedItem.Path,
+                Succeeded = true,
+                HResult = 0,
+            };
+        }
+
+        var hresult = queuedItem.Progress.HResult;
+        if (hresult == 0 && abortHResult < 0)
+        {
+            hresult = abortHResult;
+        }
+
+        if (hresult == 0 && operationHResult < 0)
+        {
+            hresult = operationHResult;
+        }
+
+        if (hresult == 0 && aborted)
+        {
+            hresult = 1223;
+        }
+
+        if (hresult == 0)
+        {
+            hresult = unchecked((int)0x80004005);
+        }
+
+        var error = sourceStillExists
+            ? "The source item still exists after the Shell Recycle Bin operation."
+            : "Windows did not confirm that the item reached the Recycle Bin.";
+        if (hresult != unchecked((int)0x80004005))
+        {
+            error = $"{error} {new Win32Exception(hresult).Message}";
+        }
+
+        return new RecycleBinItemResult
+        {
+            Path = queuedItem.Path,
+            Succeeded = false,
+            HResult = hresult,
+            Error = error,
+        };
     }
 
     private static void ThrowIfFailed(int hresult, string operation)
@@ -333,6 +432,8 @@ public static partial class RecycleBinService
     {
         public bool Recycled { get; private set; }
 
+        public int HResult { get; private set; }
+
         public int StartOperations() => 0;
 
         public int FinishOperations(int result) => 0;
@@ -387,6 +488,7 @@ public static partial class RecycleBinService
                 Recycled = true;
             }
 
+            HResult = result;
             return 0;
         }
 
@@ -413,6 +515,11 @@ public static partial class RecycleBinService
         public int ResumeTimer() => 0;
     }
 
+    private sealed record QueuedDelete(
+        string Path,
+        IShellItem Item,
+        DeleteProgressSink Progress);
+
     [LibraryImport(
         "shell32.dll",
         EntryPoint = "SHQueryRecycleBinW",
@@ -437,4 +544,15 @@ public static partial class RecycleBinService
         uint classContext,
         in Guid interfaceId,
         out IFileOperation operation);
+}
+
+internal sealed class RecycleBinItemResult
+{
+    public required string Path { get; init; }
+
+    public bool Succeeded { get; init; }
+
+    public int HResult { get; init; }
+
+    public string? Error { get; init; }
 }

@@ -1129,6 +1129,169 @@ public sealed class StorageBackendTests
     }
 
     [Fact]
+    public async Task RecycleBin_MovesMultipleTemporaryFilesInOneBatch()
+    {
+        var paths = Enumerable.Range(0, 2)
+            .Select(_ => Path.Combine(
+                Path.GetTempPath(),
+                $"StorageLens-BatchRecycle-{Guid.NewGuid():N}.txt"))
+            .ToArray();
+        foreach (var path in paths)
+        {
+            await File.WriteAllTextAsync(path, "Storage Lens batch recycle test");
+        }
+
+        try
+        {
+            await using var worker = new CleanupExecutionWorker();
+            var results = await worker.RunAsync(() =>
+                RecycleBinService.RecycleBatch(paths, showProgressUi: false));
+
+            Assert.Equal(2, results.Count);
+            Assert.All(results, result => Assert.True(result.Succeeded));
+            Assert.All(paths, path => Assert.False(File.Exists(path)));
+            foreach (var path in paths)
+            {
+                RestoreFromRecycleBin(Path.GetFileName(path));
+            }
+
+            Assert.All(paths, path => Assert.True(File.Exists(path)));
+        }
+        finally
+        {
+            foreach (var path in paths)
+            {
+                if (!File.Exists(path))
+                {
+                    RestoreFromRecycleBin(Path.GetFileName(path));
+                }
+
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task Cleanup_UsesOneShellBatchAndSelectsUiFromAutomationMode(
+        bool isAutomatic,
+        bool expectedShowProgressUi)
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        var paths = new[]
+        {
+            await fixture.WriteFileAsync(
+                "batch-first.tmp", 10, setOldTimestamp: true),
+            await fixture.WriteFileAsync(
+                "batch-second.tmp", 20, setOldTimestamp: true),
+        };
+        await fixture.Scanner.ScanTestRootAsync(
+            fixture.Drive,
+            fixture.ScanRoot);
+        var candidates = await fixture.Candidates.GetCandidatesAsync(
+            fixture.Drive,
+            CleanupPolicyId.TemporaryFiles);
+        var batchCount = 0;
+        var recycledPaths = Array.Empty<string>();
+        var showProgressUi = false;
+        var cleanup = new CleanupService(
+            fixture.Repository,
+            (batch, shellUi) =>
+            {
+                batchCount++;
+                recycledPaths = batch.ToArray();
+                showProgressUi = shellUi;
+                foreach (var path in batch)
+                {
+                    File.Delete(path);
+                }
+
+                return batch.Select(path => new RecycleBinItemResult
+                {
+                    Path = path,
+                    Succeeded = true,
+                }).ToArray();
+            });
+
+        var result = await cleanup.RecycleAsync(new CleanupRequest
+        {
+            Candidates = candidates,
+            IsAutomatic = isAutomatic,
+        });
+
+        Assert.Equal(1, batchCount);
+        Assert.Equal(expectedShowProgressUi, showProgressUi);
+        Assert.Equal(paths.Order(), recycledPaths.Order());
+        Assert.Equal(2, result.SucceededCount);
+        Assert.Equal(0, result.FailedCount);
+        Assert.All(paths, path => Assert.False(File.Exists(path)));
+    }
+
+    [Fact]
+    public async Task Cleanup_FinalizesMixedShellBatchResultsIndependently()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        var succeededPath = await fixture.WriteFileAsync(
+            "batch-succeeded.tmp", 10, setOldTimestamp: true);
+        var failedPath = await fixture.WriteFileAsync(
+            "batch-failed.tmp", 20, setOldTimestamp: true);
+        var scan = await fixture.Scanner.ScanTestRootAsync(
+            fixture.Drive,
+            fixture.ScanRoot);
+        var candidates = await fixture.Candidates.GetCandidatesAsync(
+            fixture.Drive,
+            CleanupPolicyId.TemporaryFiles);
+        var cleanup = new CleanupService(
+            fixture.Repository,
+            (paths, _) =>
+            {
+                File.Delete(succeededPath);
+                return paths.Select(path =>
+                    path == succeededPath
+                        ? new RecycleBinItemResult
+                        {
+                            Path = path,
+                            Succeeded = true,
+                        }
+                        : new RecycleBinItemResult
+                        {
+                            Path = path,
+                            HResult = unchecked((int)0x80070020),
+                            Error = "The file is in use.",
+                        })
+                    .ToArray();
+            });
+
+        var result = await cleanup.RecycleAsync(new CleanupRequest
+        {
+            Candidates = candidates,
+        });
+
+        Assert.Equal(1, result.SucceededCount);
+        Assert.Equal(1, result.FailedCount);
+        Assert.Equal(1, result.RemainingIndexedCount);
+        Assert.False(File.Exists(succeededPath));
+        Assert.True(File.Exists(failedPath));
+        Assert.Null(await fixture.Repository.GetItemByPathAsync(
+            scan.ScanId,
+            succeededPath));
+        Assert.NotNull(await fixture.Repository.GetItemByPathAsync(
+            scan.ScanId,
+            failedPath));
+        var history = await fixture.Repository.GetCleanupHistoryAsync();
+        Assert.Contains(history, item =>
+            item.Path == succeededPath && item.Result == "Recycled");
+        Assert.Contains(history, item =>
+            item.Path == failedPath &&
+            item.Result == "Failed" &&
+            item.Error == "The file is in use.");
+    }
+
+    [Fact]
     public async Task Cleanup_SkipsAFileThatChangedAfterScan()
     {
         await using var fixture = await ScanFixture.CreateAsync();

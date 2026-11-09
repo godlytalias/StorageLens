@@ -32,17 +32,29 @@ internal sealed partial class CleanupExecutionWorker : IAsyncDisposable
     public async Task RunAsync(Action action)
     {
         ArgumentNullException.ThrowIfNull(action);
+        await RunAsync(() =>
+        {
+            action();
+            return true;
+        }).ConfigureAwait(false);
+    }
+
+    public async Task<T> RunAsync<T>(Func<T> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
         await _started.Task.ConfigureAwait(false);
         if (Volatile.Read(ref _disposeStarted) != 0)
         {
             throw new ObjectDisposedException(nameof(CleanupExecutionWorker));
         }
 
-        var completion = new TaskCompletionSource(
+        var completion = new TaskCompletionSource<T>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         try
         {
-            _workItems.Add(new WorkItem(action, completion));
+            _workItems.Add(new WorkItem(
+                () => completion.TrySetResult(action()),
+                exception => completion.TrySetException(exception)));
         }
         catch (InvalidOperationException exception) when (
             Volatile.Read(ref _disposeStarted) != 0)
@@ -52,7 +64,7 @@ internal sealed partial class CleanupExecutionWorker : IAsyncDisposable
                 exception);
         }
 
-        await completion.Task.ConfigureAwait(false);
+        return await completion.Task.ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()
@@ -86,12 +98,11 @@ internal sealed partial class CleanupExecutionWorker : IAsyncDisposable
             {
                 try
                 {
-                    workItem.Action();
-                    workItem.Completion.TrySetResult();
+                    workItem.Execute();
                 }
                 catch (Exception exception)
                 {
-                    workItem.Completion.TrySetException(exception);
+                    workItem.Fail(exception);
                 }
             }
         }
@@ -119,7 +130,7 @@ internal sealed partial class CleanupExecutionWorker : IAsyncDisposable
     {
         while (_workItems.TryTake(out var workItem))
         {
-            workItem.Completion.TrySetException(exception);
+            workItem.Fail(exception);
         }
     }
 
@@ -130,6 +141,6 @@ internal sealed partial class CleanupExecutionWorker : IAsyncDisposable
     private static partial void OleUninitialize();
 
     private sealed record WorkItem(
-        Action Action,
-        TaskCompletionSource Completion);
+        Action Execute,
+        Action<Exception> Fail);
 }
