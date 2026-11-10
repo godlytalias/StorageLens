@@ -10,6 +10,7 @@ using StorageLens.BackgroundTasks;
 using StorageLens.Services;
 using Windows.ApplicationModel.Activation;
 using Windows.Storage;
+using Package = Windows.ApplicationModel.Package;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -21,9 +22,9 @@ namespace StorageLens;
 /// </summary>
 public partial class App : Application
 {
-    private const string MainInstanceKey = "StorageLens.MainInstance";
     private static uint _comRegistrationToken;
     private static uint _indexComRegistrationToken;
+    private AppUpdateCoordinator? _updateCoordinator;
 
     /// <summary>
     /// The main application window. Use <c>App.Window</c> from any class that needs
@@ -84,17 +85,30 @@ public partial class App : Application
                 return;
             }
 
+            DispatcherQueue =
+                Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
             var currentInstance = AppInstance.GetCurrent();
-            var mainInstance = AppInstance.FindOrRegisterForKey(MainInstanceKey);
-            if (!mainInstance.IsCurrent)
+            var coordinator = new AppUpdateCoordinator();
+            _updateCoordinator = coordinator;
+            var packageVersion = Package.Current.Id.Version;
+            if (!await coordinator.TryBecomePrimaryAsync(
+                    currentInstance,
+                    new Version(
+                        packageVersion.Major,
+                        packageVersion.Minor,
+                        packageVersion.Build,
+                        packageVersion.Revision),
+                    Package.Current.Id.Name,
+                    Package.Current.Id.PublisherId,
+                    RequestExitForUpdate))
             {
-                await mainInstance.RedirectActivationToAsync(currentInstance.GetActivatedEventArgs());
+                coordinator.Dispose();
+                _updateCoordinator = null;
                 Exit();
                 return;
             }
 
-            DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-            mainInstance.Activated += MainInstance_Activated;
+            currentInstance.Activated += MainInstance_Activated;
             PendingLaunchArgument = GetActivationArgument(currentInstance.GetActivatedEventArgs(), args);
             Window = new MainWindow();
             Window.Activate();
@@ -102,6 +116,8 @@ public partial class App : Application
         }
         catch (Exception exception)
         {
+            _updateCoordinator?.Dispose();
+            _updateCoordinator = null;
             WriteCrashLog(exception);
             throw;
         }
@@ -151,6 +167,15 @@ public partial class App : Application
             {
                 PendingLaunchArgument = argument;
             }
+        });
+    }
+
+    private void RequestExitForUpdate()
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            _updateCoordinator?.Dispose();
+            Exit();
         });
     }
 

@@ -5,7 +5,7 @@ namespace StorageLens.Services;
 
 public sealed class StorageRepository
 {
-    private const int CurrentSchemaVersion = 7;
+    private const int CurrentSchemaVersion = 8;
     private const long MinimumGrowthSampleBytes = 1L * 1024 * 1024 * 1024;
     private readonly string _connectionString;
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
@@ -246,6 +246,8 @@ public sealed class StorageRepository
                     ON FileNames (RunKey, ParentId);
                 CREATE INDEX IF NOT EXISTS IX_FileNames_Search
                     ON FileNames (RunKey, Name, Category);
+                CREATE INDEX IF NOT EXISTS IX_FileNames_PhysicalFile
+                    ON FileNames (PhysicalFileId);
 
                 CREATE TABLE IF NOT EXISTS NormalizedCleanupCandidates (
                     RunKey INTEGER NOT NULL REFERENCES ScanRuns(RunKey) ON DELETE CASCADE,
@@ -256,6 +258,8 @@ public sealed class StorageRepository
 
                 CREATE INDEX IF NOT EXISTS IX_NormalizedCleanupCandidates_Page
                     ON NormalizedCleanupCandidates (RunKey, PolicyId);
+                CREATE INDEX IF NOT EXISTS IX_NormalizedCleanupCandidates_FileName
+                    ON NormalizedCleanupCandidates (FileNameId);
 
                 CREATE TABLE IF NOT EXISTS FolderGrowthSamples (
                     VolumeKey TEXT NOT NULL,
@@ -5566,11 +5570,12 @@ public sealed class StorageRepository
         CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenConnectionAsync(cancellationToken);
-        var staleRuns = new List<(string ScanId, long RunKey, int Format)>();
+        var staleRuns =
+            new List<(string ScanId, long RunKey, int Format, bool RemoveRun)>();
         await using (var query = connection.CreateCommand())
         {
             query.CommandText = """
-                WITH Ranked AS (
+                WITH CompletedRanked AS (
                     SELECT Id, RunKey, ScanFormat,
                            ROW_NUMBER() OVER (
                                PARTITION BY COALESCE(
@@ -5580,21 +5585,51 @@ public sealed class StorageRepository
                            ) AS RowNumber
                     FROM ScanRuns
                     WHERE Status = $completed
+                ),
+                TerminalRanked AS (
+                    SELECT Id, RunKey, ScanFormat, Status, StartedUtc,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY COALESCE(
+                                   NULLIF(VolumeSerialNumber, ''),
+                                   DriveLetter)
+                               ORDER BY StartedUtc DESC
+                           ) AS RowNumber
+                    FROM ScanRuns
+                    WHERE Status <> $running
                 )
-                SELECT Id, RunKey, ScanFormat
-                FROM Ranked
-                WHERE RowNumber > 1
+                SELECT terminal.Id, terminal.RunKey, terminal.ScanFormat,
+                       terminal.RowNumber > $keep
+                           OR (terminal.Status <> $completed
+                               AND terminal.StartedUtc < $stale)
+                           AS RemoveRun
+                FROM TerminalRanked terminal
+                LEFT JOIN CompletedRanked completed
+                    ON completed.Id = terminal.Id
+                WHERE (completed.RowNumber > 1)
+                   OR terminal.RowNumber > $keep
+                   OR (terminal.Status <> $completed
+                       AND terminal.StartedUtc < $stale)
                 """;
             query.Parameters.AddWithValue(
                 "$completed",
                 (int)StorageScanStatus.Completed);
+            query.Parameters.AddWithValue("$keep", completedScansPerDrive);
+            query.Parameters.AddWithValue(
+                "$running",
+                (int)StorageScanStatus.Running);
+            query.Parameters.AddWithValue(
+                "$stale",
+                DateTimeOffset.UtcNow
+                    .AddDays(-14)
+                    .ToUnixTimeMilliseconds());
             await using var reader = await query.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
                 staleRuns.Add((
                     reader.GetString(0),
                     reader.IsDBNull(1) ? 0 : reader.GetInt64(1),
-                    reader.GetInt32(2)));
+                    reader.GetInt32(2),
+                    reader.GetBoolean(3)));
             }
         }
 
@@ -5603,6 +5638,19 @@ public sealed class StorageRepository
             cancellationToken.ThrowIfCancellationRequested();
             if (run.Format >= 4)
             {
+                await DeleteInChunksAsync(
+                    connection,
+                    """
+                    DELETE FROM NormalizedCleanupCandidates
+                    WHERE (RunKey, PolicyId, FileNameId) IN (
+                        SELECT RunKey, PolicyId, FileNameId
+                        FROM NormalizedCleanupCandidates
+                        WHERE RunKey = $run
+                        LIMIT $limit
+                    )
+                    """,
+                    ("$run", run.RunKey),
+                    cancellationToken);
                 await DeleteInChunksAsync(
                     connection,
                     """
@@ -5627,6 +5675,34 @@ public sealed class StorageRepository
                     """,
                     ("$run", run.RunKey),
                     cancellationToken);
+                if (run.RemoveRun)
+                {
+                    await DeleteInChunksAsync(
+                        connection,
+                        """
+                        DELETE FROM FolderNodes
+                        WHERE Id IN (
+                            SELECT Id FROM FolderNodes
+                            WHERE RunKey = $run
+                            LIMIT $limit
+                        )
+                        """,
+                        ("$run", run.RunKey),
+                        cancellationToken);
+                }
+                await DeleteInChunksAsync(
+                    connection,
+                    """
+                    DELETE FROM ScanWorkItems
+                    WHERE (RunKey, PathHash) IN (
+                        SELECT RunKey, PathHash
+                        FROM ScanWorkItems
+                        WHERE RunKey = $run
+                        LIMIT $limit
+                    )
+                    """,
+                    ("$run", run.RunKey),
+                    cancellationToken);
             }
             else
             {
@@ -5643,7 +5719,33 @@ public sealed class StorageRepository
                     """,
                     ("$scan", run.ScanId),
                     cancellationToken);
+                await DeleteInChunksAsync(
+                    connection,
+                    """
+                    DELETE FROM FolderEntries
+                    WHERE ScanId = $scan
+                      AND FullPath IN (
+                          SELECT FullPath FROM FolderEntries
+                          WHERE ScanId = $scan
+                          LIMIT $limit
+                      )
+                    """,
+                    ("$scan", run.ScanId),
+                    cancellationToken);
             }
+
+            await DeleteInChunksAsync(
+                connection,
+                """
+                DELETE FROM ScanIssues
+                WHERE Id IN (
+                    SELECT Id FROM ScanIssues
+                    WHERE ScanId = $scan
+                    LIMIT $limit
+                )
+                """,
+                ("$scan", run.ScanId),
+                cancellationToken);
         }
 
         await using var cleanupRuns = connection.CreateCommand();
@@ -5688,7 +5790,7 @@ public sealed class StorageRepository
         string commandText,
         (string Name, object Value) parameter,
         CancellationToken cancellationToken,
-        int chunkSize = 10_000)
+        int chunkSize = 500)
     {
         while (true)
         {
@@ -5702,6 +5804,8 @@ public sealed class StorageRepository
             {
                 return;
             }
+
+            await Task.Yield();
         }
     }
 
@@ -6094,6 +6198,13 @@ public sealed class StorageRepository
                         cancellationToken);
                     version = 7;
                     break;
+                case 7:
+                    await EnsureScanPruneIndexesAsync(
+                        connection,
+                        transaction,
+                        cancellationToken);
+                    version = 8;
+                    break;
                 default:
                     throw new InvalidDataException(
                         $"Storage index schema version {version} cannot be migrated.");
@@ -6463,6 +6574,22 @@ public sealed class StorageRepository
             WHERE ContentHash IS NOT NULL
               AND LENGTH(ContentHash) = 64
               AND IsHardLinkAlias = 0
+            """;
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task EnsureScanPruneIndexesAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            CREATE INDEX IF NOT EXISTS IX_FileNames_PhysicalFile
+                ON FileNames (PhysicalFileId);
+            CREATE INDEX IF NOT EXISTS IX_NormalizedCleanupCandidates_FileName
+                ON NormalizedCleanupCandidates (FileNameId);
             """;
         await command.ExecuteNonQueryAsync(cancellationToken);
     }

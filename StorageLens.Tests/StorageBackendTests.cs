@@ -29,6 +29,8 @@ public sealed class StorageBackendTests
 
             Assert.Contains("IX_FileEntries_ScanSize", names);
             Assert.Contains("IX_FileEntries_DuplicateHash", names);
+            Assert.Contains("IX_FileNames_PhysicalFile", names);
+            Assert.Contains("IX_NormalizedCleanupCandidates_FileName", names);
             Assert.DoesNotContain("IX_FileEntries_Path", names);
             Assert.DoesNotContain("IX_FileEntries_ScanModified", names);
             Assert.DoesNotContain("IX_FolderEntries_ScanPath", names);
@@ -2565,7 +2567,7 @@ public sealed class StorageBackendTests
                 await using var versionCommand = connection.CreateCommand();
                 versionCommand.CommandText =
                     "SELECT Version FROM SchemaVersion WHERE Id = 1";
-                Assert.Equal(7L, (long)(await versionCommand.ExecuteScalarAsync())!);
+                Assert.Equal(8L, (long)(await versionCommand.ExecuteScalarAsync())!);
 
                 await using var rowCommand = connection.CreateCommand();
                 rowCommand.CommandText = """
@@ -2584,6 +2586,207 @@ public sealed class StorageBackendTests
             SqliteConnection.ClearAllPools();
             Directory.Delete(root, true);
         }
+    }
+
+    [Fact]
+    public async Task Repository_MigratesVersionSevenWithPruneIndexes()
+        {
+            await using var fixture = await ScanFixture.CreateAsync();
+            await using (var connection = new SqliteConnection(
+                             $"Data Source={fixture.Repository.DatabasePath}"))
+            {
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                    DROP INDEX IF EXISTS IX_FileNames_PhysicalFile;
+                    DROP INDEX IF EXISTS IX_NormalizedCleanupCandidates_FileName;
+                    UPDATE SchemaVersion SET Version = 7 WHERE Id = 1;
+                    """;
+                await command.ExecuteNonQueryAsync();
+            }
+
+            SqliteConnection.ClearAllPools();
+            var migrated = new StorageRepository(
+                fixture.Repository.DatabasePath);
+            await migrated.InitializeAsync();
+            await using (var connection = new SqliteConnection(
+                             $"Data Source={migrated.DatabasePath}"))
+            {
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                    SELECT Version
+                    FROM SchemaVersion
+                    WHERE Id = 1;
+                    """;
+                Assert.Equal(8L, (long)(await command.ExecuteScalarAsync())!);
+                command.CommandText = """
+                    SELECT name
+                    FROM sqlite_master
+                    WHERE type = 'index'
+                    """;
+                var indexes = new List<string>();
+                await using var reader = await command.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    indexes.Add(reader.GetString(0));
+                }
+
+                Assert.Contains("IX_FileNames_PhysicalFile", indexes);
+                Assert.Contains(
+                    "IX_NormalizedCleanupCandidates_FileName",
+                    indexes);
+            }
+        }
+
+    [Fact]
+    public async Task Repository_PrunesStaleRunAcrossMultipleChunks()
+        {
+            await using var fixture = await ScanFixture.CreateAsync();
+            var first = await fixture.Repository.BeginScanAsync(fixture.Drive);
+            const int fileCount = 650;
+            var records = new List<StorageFileRecord>();
+            for (var index = 0; index < fileCount; index++)
+            {
+                var name = $"first-{index:D4}.bin";
+                records.Add(new StorageFileRecord
+                {
+                    ScanId = first.ScanId,
+                    Name = name,
+                    FullPath = Path.Combine(fixture.ScanRoot, name),
+                    ParentPath = fixture.ScanRoot,
+                    SizeBytes = index + 1,
+                    AllocatedSizeBytes = index + 1,
+                    CreatedUtc = DateTimeOffset.UtcNow,
+                    ModifiedUtc = DateTimeOffset.UtcNow,
+                    AccessedUtc = DateTimeOffset.UtcNow,
+                    Attributes = (long)FileAttributes.Normal,
+                    Extension = ".bin",
+                    Category = "Other",
+                    Tag = "Other",
+                });
+            }
+
+            await first.InsertFilesAsync(records, CancellationToken.None);
+            await first.CompleteAsync(
+                fileCount,
+                1,
+                fileCount,
+                0,
+                CancellationToken.None,
+                fileCount);
+            await first.DisposeAsync();
+            await using (var connection = new SqliteConnection(
+                             $"Data Source={fixture.Repository.DatabasePath}"))
+            {
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                    INSERT INTO NormalizedCleanupCandidates (
+                        RunKey, PolicyId, FileNameId
+                    )
+                    SELECT RunKey, 1, Id
+                    FROM FileNames
+                    WHERE RunKey = $run
+                    """;
+                command.Parameters.AddWithValue("$run", first.RunKey);
+                await command.ExecuteNonQueryAsync();
+            }
+
+            var latest = await fixture.Repository.BeginScanAsync(fixture.Drive);
+            await latest.InsertFilesAsync(
+                [
+                    new StorageFileRecord
+                    {
+                        ScanId = latest.ScanId,
+                        Name = "latest.bin",
+                        FullPath = Path.Combine(fixture.ScanRoot, "latest.bin"),
+                        ParentPath = fixture.ScanRoot,
+                        SizeBytes = 1,
+                        AllocatedSizeBytes = 1,
+                        CreatedUtc = DateTimeOffset.UtcNow,
+                        ModifiedUtc = DateTimeOffset.UtcNow,
+                        AccessedUtc = DateTimeOffset.UtcNow,
+                        Attributes = (long)FileAttributes.Normal,
+                        Extension = ".bin",
+                        Category = "Other",
+                        Tag = "Other",
+                    },
+                ],
+                CancellationToken.None);
+            await latest.CompleteAsync(
+                1,
+                1,
+                1,
+                0,
+                CancellationToken.None,
+                1);
+            await latest.DisposeAsync();
+
+            await fixture.Repository.PruneHistoryAsync(
+                completedScansPerDrive: 2);
+            await using (var connection = new SqliteConnection(
+                             $"Data Source={fixture.Repository.DatabasePath}"))
+            {
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                    SELECT
+                        (SELECT COUNT(*) FROM FileNames WHERE RunKey = $old),
+                        (SELECT COUNT(*) FROM PhysicalFiles WHERE RunKey = $old),
+                        (SELECT COUNT(*)
+                         FROM NormalizedCleanupCandidates
+                         WHERE RunKey = $old),
+                        (SELECT COUNT(*) FROM FileNames WHERE RunKey = $latest),
+                        (SELECT COUNT(*) FROM ScanRuns
+                         WHERE RunKey IN ($old, $latest))
+                    """;
+                command.Parameters.AddWithValue("$old", first.RunKey);
+                command.Parameters.AddWithValue("$latest", latest.RunKey);
+                await using var reader = await command.ExecuteReaderAsync();
+                Assert.True(await reader.ReadAsync());
+                Assert.Equal(0, reader.GetInt64(0));
+                Assert.Equal(0, reader.GetInt64(1));
+                Assert.Equal(0, reader.GetInt64(2));
+                Assert.Equal(1, reader.GetInt64(3));
+                Assert.Equal(2, reader.GetInt64(4));
+            }
+        }
+
+    [Fact]
+    public void AppUpdateCoordinator_VersionsAndLegacyInstanceKeys()
+    {
+        var oldKey = AppUpdateCoordinator.BuildMainInstanceKey(
+            new Version(1, 0, 10, 0));
+        var newKey = AppUpdateCoordinator.BuildMainInstanceKey(
+            new Version(1, 0, 11, 0));
+
+        Assert.NotEqual(oldKey, newKey);
+        Assert.True(AppUpdateCoordinator.TryGetInstanceVersion(
+            oldKey,
+            out var oldVersion));
+        Assert.True(AppUpdateCoordinator.TryGetInstanceVersion(
+            newKey,
+            out var newVersion));
+        Assert.True(oldVersion < newVersion);
+        Assert.True(AppUpdateCoordinator.TryGetInstanceVersion(
+            AppUpdateCoordinator.LegacyMainInstanceKey,
+            out var legacyVersion));
+        Assert.True(legacyVersion < oldVersion);
+        Assert.False(AppUpdateCoordinator.TryGetInstanceVersion(
+            "StorageLens.BackgroundTask",
+            out _));
+        Assert.True(AppUpdateCoordinator.TryGetPackageVersionFromPath(
+            @"C:\Program Files\WindowsApps\Contoso.StorageLens_1.0.10.0_x64__publisher\StorageLens\StorageLens.exe",
+            "Contoso.StorageLens",
+            "publisher",
+            out var packageVersion));
+        Assert.Equal(new Version(1, 0, 10, 0), packageVersion);
+        Assert.False(AppUpdateCoordinator.TryGetPackageVersionFromPath(
+            @"C:\Program Files\WindowsApps\Another.StorageLens_1.0.10.0_x64__publisher\StorageLens\StorageLens.exe",
+            "Contoso.StorageLens",
+            "publisher",
+            out _));
     }
 
     [Fact]
