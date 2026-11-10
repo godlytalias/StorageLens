@@ -32,6 +32,7 @@ public sealed class StorageBackendTests
             Assert.Contains("IX_FileEntries_DuplicateHash", names);
             Assert.Contains("IX_FileNames_PhysicalFile", names);
             Assert.Contains("IX_NormalizedCleanupCandidates_FileName", names);
+            Assert.Contains("IX_PhysicalFiles_AllocatedSize", names);
             Assert.DoesNotContain("IX_FileEntries_Path", names);
             Assert.DoesNotContain("IX_FileEntries_ScanModified", names);
             Assert.DoesNotContain("IX_FolderEntries_ScanPath", names);
@@ -2573,7 +2574,7 @@ public sealed class StorageBackendTests
                 await using var versionCommand = connection.CreateCommand();
                 versionCommand.CommandText =
                     "SELECT Version FROM SchemaVersion WHERE Id = 1";
-                Assert.Equal(8L, (long)(await versionCommand.ExecuteScalarAsync())!);
+                Assert.Equal(9L, (long)(await versionCommand.ExecuteScalarAsync())!);
 
                 await using var rowCommand = connection.CreateCommand();
                 rowCommand.CommandText = """
@@ -2625,7 +2626,7 @@ public sealed class StorageBackendTests
                     FROM SchemaVersion
                     WHERE Id = 1;
                     """;
-                Assert.Equal(8L, (long)(await command.ExecuteScalarAsync())!);
+                Assert.Equal(9L, (long)(await command.ExecuteScalarAsync())!);
                 command.CommandText = """
                     SELECT name
                     FROM sqlite_master
@@ -2642,8 +2643,63 @@ public sealed class StorageBackendTests
                 Assert.Contains(
                     "IX_NormalizedCleanupCandidates_FileName",
                     indexes);
+                Assert.Contains(
+                    "IX_PhysicalFiles_AllocatedSize",
+                    indexes);
             }
         }
+
+    [Fact]
+    public async Task Repository_MigratesVersionEightWithLargestFileIndex()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await using (var connection = new SqliteConnection(
+                         $"Data Source={fixture.Repository.DatabasePath}"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                DROP INDEX IF EXISTS IX_FileNames_PhysicalFile;
+                DROP INDEX IF EXISTS IX_PhysicalFiles_AllocatedSize;
+                UPDATE SchemaVersion SET Version = 8 WHERE Id = 1;
+                """;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        SqliteConnection.ClearAllPools();
+        var migrated = new StorageRepository(
+            fixture.Repository.DatabasePath);
+        await migrated.InitializeAsync();
+        await using (var connection = new SqliteConnection(
+                         $"Data Source={migrated.DatabasePath}"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                "SELECT Version FROM SchemaVersion WHERE Id = 1;";
+            Assert.Equal(
+                9L,
+                (long)(await command.ExecuteScalarAsync())!);
+            command.CommandText = """
+                SELECT COUNT(*)
+                FROM sqlite_master
+                WHERE type = 'index'
+                  AND name = 'IX_PhysicalFiles_AllocatedSize';
+                """;
+            Assert.Equal(
+                1L,
+                (long)(await command.ExecuteScalarAsync())!);
+            command.CommandText = """
+                SELECT COUNT(*)
+                FROM sqlite_master
+                WHERE type = 'index'
+                  AND name = 'IX_FileNames_PhysicalFile';
+                """;
+            Assert.Equal(
+                1L,
+                (long)(await command.ExecuteScalarAsync())!);
+        }
+    }
 
     [Fact]
     public async Task Repository_PrunesStaleRunAcrossMultipleChunks()

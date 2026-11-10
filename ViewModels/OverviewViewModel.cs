@@ -261,25 +261,23 @@ public sealed partial class OverviewViewModel : ObservableObject
             var issuesTask = Task.Run(() =>
                 AppServices.Repository.GetScanIssuesAsync(scan.Id));
 
-            await Task.WhenAll(
-                categoriesTask,
-                topFoldersTask,
-                largestFilesTask);
-
-            Categories.Clear();
-            foreach (var category in await categoriesTask)
-            {
-                Categories.Add(category);
-            }
-
+            var topFolders = await topFoldersTask;
             TopFolders.Clear();
-            foreach (var folder in await topFoldersTask)
+            foreach (var folder in topFolders)
             {
                 TopFolders.Add(folder);
             }
 
+            var categories = await categoriesTask;
+            Categories.Clear();
+            foreach (var category in categories)
+            {
+                Categories.Add(category);
+            }
+
+            var largestFiles = await largestFilesTask;
             LargestFiles.Clear();
-            foreach (var item in await largestFilesTask)
+            foreach (var item in largestFiles)
             {
                 LargestFiles.Add(item);
             }

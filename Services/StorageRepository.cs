@@ -5,7 +5,7 @@ namespace StorageLens.Services;
 
 public sealed class StorageRepository
 {
-    private const int CurrentSchemaVersion = 8;
+    private const int CurrentSchemaVersion = 9;
     private const long MinimumGrowthSampleBytes = 1L * 1024 * 1024 * 1024;
     private const long DefaultMinimumReclaimableBytes =
         256L * 1024 * 1024;
@@ -240,6 +240,8 @@ public sealed class StorageRepository
                 CREATE INDEX IF NOT EXISTS IX_PhysicalFiles_ContentHash
                     ON PhysicalFiles (RunKey, ContentHash)
                     WHERE ContentHash IS NOT NULL;
+                CREATE INDEX IF NOT EXISTS IX_PhysicalFiles_AllocatedSize
+                    ON PhysicalFiles (RunKey, AllocatedSize DESC);
 
                 CREATE TABLE IF NOT EXISTS FileNames (
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -3000,6 +3002,9 @@ public sealed class StorageRepository
     {
         await using var connection = await OpenConnectionAsync(cancellationToken);
         var items = new List<StorageItem>();
+        var candidateLimit = (int)Math.Min(
+            int.MaxValue,
+            Math.Max((long)limit, (long)limit * 4));
         var fileRows = new List<(long Id, long ParentId, string Name, string Ext,
             int Category, int Tag, bool Alias, long Logical, long Allocated,
             long Modified, long Attributes, long Reparse)>();
@@ -3009,13 +3014,15 @@ public sealed class StorageRepository
                 SELECT n.Id, n.ParentId, n.Name, n.Extension, n.Category, n.Tag,
                        n.IsHardLinkAlias, p.LogicalSize, p.AllocatedSize,
                        p.ModifiedUtc, p.Attributes, p.ReparseTag
-                FROM FileNames n
-                INNER JOIN PhysicalFiles p ON p.Id = n.PhysicalFileId
-                WHERE n.RunKey = $run
+                FROM PhysicalFiles p INDEXED BY IX_PhysicalFiles_AllocatedSize
+                INNER JOIN FileNames n INDEXED BY IX_FileNames_PhysicalFile
+                    ON n.PhysicalFileId = p.Id
+                WHERE p.RunKey = $run
+                  AND n.RunKey = $run
                   AND n.IsHardLinkAlias = 0
                   AND ($includeSystem = 1 OR n.Category <> $system)
                   AND ($includeHidden = 1 OR (p.Attributes & $hidden) = 0)
-                ORDER BY p.AllocatedSize DESC, n.Name, n.Id
+                ORDER BY p.AllocatedSize DESC
                 LIMIT $limit
                 """;
             files.Parameters.AddWithValue("$run", runKey);
@@ -3025,7 +3032,7 @@ public sealed class StorageRepository
                 StorageCategoryClassifier.CategoryId("System"));
             files.Parameters.AddWithValue("$includeHidden", includeHidden ? 1 : 0);
             files.Parameters.AddWithValue("$hidden", (long)FileAttributes.Hidden);
-            files.Parameters.AddWithValue("$limit", limit);
+            files.Parameters.AddWithValue("$limit", candidateLimit);
             await using var reader = await files.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
@@ -6353,6 +6360,13 @@ public sealed class StorageRepository
                         cancellationToken);
                     version = 8;
                     break;
+                case 8:
+                    await EnsureLargestFileIndexAsync(
+                        connection,
+                        transaction,
+                        cancellationToken);
+                    version = 9;
+                    break;
                 default:
                     throw new InvalidDataException(
                         $"Storage index schema version {version} cannot be migrated.");
@@ -6742,6 +6756,22 @@ public sealed class StorageRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    private static async Task EnsureLargestFileIndexAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            CREATE INDEX IF NOT EXISTS IX_FileNames_PhysicalFile
+                ON FileNames (PhysicalFileId);
+            CREATE INDEX IF NOT EXISTS IX_PhysicalFiles_AllocatedSize
+                ON PhysicalFiles (RunKey, AllocatedSize DESC);
+            """;
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static async Task EnsureFolderGrowthBaselineTableAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -6925,6 +6955,8 @@ public sealed class StorageRepository
         CREATE INDEX IX_PhysicalFiles_ContentHash
             ON PhysicalFiles (RunKey, ContentHash)
             WHERE ContentHash IS NOT NULL;
+        CREATE INDEX IX_PhysicalFiles_AllocatedSize
+            ON PhysicalFiles (RunKey, AllocatedSize DESC);
 
         CREATE TABLE FileNames (
             Id INTEGER PRIMARY KEY AUTOINCREMENT,
