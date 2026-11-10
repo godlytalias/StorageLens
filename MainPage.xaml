@@ -13,8 +13,7 @@
         IsBackEnabled="{x:Bind ContentFrame.CanGoBack, Mode=OneWay}"
         BackRequested="NavigationView_BackRequested"
         ItemInvoked="NavigationView_ItemInvoked"
-        OpenPaneLength="280"
-        PaneDisplayMode="Auto">
+        PaneDisplayMode="Top">
         <NavigationView.Resources>
             <ResourceDictionary>
                 <ResourceDictionary.ThemeDictionaries>

@@ -536,8 +536,8 @@
                                                 Style="{StaticResource CaptionTextBlockStyle}"
                                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                 TextTrimming="CharacterEllipsis"
-                                                MaxLines="2"
-                                                TextWrapping="Wrap" />
+                                                MaxLines="1"
+                                                TextWrapping="NoWrap" />
                                             <StackPanel
                                                 Grid.Row="2"
                                                 Orientation="Horizontal"
@@ -598,6 +598,12 @@
                                         AutomationProperties.Name="{x:Bind AccessibleSummary, Mode=OneWay}"
                                         Style="{StaticResource CardButtonStyle}"
                                         Click="CleanupRecommendation_Click">
+                                        <ToolTipService.ToolTip>
+                                            <TextBlock
+                                                MaxWidth="560"
+                                                Text="{x:Bind DisplayDescription}"
+                                                TextWrapping="Wrap" />
+                                        </ToolTipService.ToolTip>
                                         <controls:AcrylicCardGrid
                                             MinHeight="148"
                                             Style="{StaticResource TileGridStyle}"
@@ -757,8 +763,8 @@
                                         Style="{StaticResource CaptionTextBlockStyle}"
                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                         TextTrimming="CharacterEllipsis"
-                                        MaxLines="2"
-                                        TextWrapping="Wrap" />
+                                        MaxLines="1"
+                                        TextWrapping="NoWrap" />
                                     <Grid Grid.Row="2">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
