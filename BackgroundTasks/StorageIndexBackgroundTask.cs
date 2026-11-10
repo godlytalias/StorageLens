@@ -108,7 +108,9 @@ public sealed partial class StorageIndexBackgroundTask : IBackgroundTask
             }
 
             await AppServices.Repository.PruneHistoryAsync(
-                completedScansPerDrive: 2,
+                completedScansPerDrive: 1,
+                cancellationToken: _cancellation.Token);
+            await AppServices.Repository.CompactIfBeneficialAsync(
                 cancellationToken: _cancellation.Token);
             await AppServices.Repository.CheckpointAsync(_cancellation.Token);
             AutomationSettingsService.RecordBackgroundIndexResult(

@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.Windows.AppLifecycle;
+using System.Diagnostics;
 using System.Text;
 using StorageLens.BackgroundTasks;
 using StorageLens.Services;
@@ -196,6 +197,18 @@ public partial class App : Application
                     WriteCrashLog(exception);
                 }
             });
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2));
+                await AppServices.Repository.PruneHistoryAsync(
+                    completedScansPerDrive: 1);
+                await AppServices.Repository.CompactIfBeneficialAsync();
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceWarning(
+                    $"Storage index maintenance failed: {exception}");
+            }
         }
         catch (Exception exception)
         {

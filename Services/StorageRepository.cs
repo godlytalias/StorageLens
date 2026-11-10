@@ -7,8 +7,13 @@ public sealed class StorageRepository
 {
     private const int CurrentSchemaVersion = 8;
     private const long MinimumGrowthSampleBytes = 1L * 1024 * 1024 * 1024;
+    private const long DefaultMinimumReclaimableBytes =
+        256L * 1024 * 1024;
+    private const double DefaultMinimumReclaimableFraction = 0.20;
+    private const int IncrementalVacuumPageBatch = 8192;
     private readonly string _connectionString;
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
+    private readonly SemaphoreSlim _maintenanceLock = new(1, 1);
     private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, ScanFormatInfo>
         _scanFormats = [];
     private bool _initialized;
@@ -49,6 +54,14 @@ public sealed class StorageRepository
             await using var connection = new SqliteConnection(_connectionString);
             await connection.OpenAsync(cancellationToken);
             await ConfigureConnectionAsync(connection, cancellationToken);
+            if (databaseIsNew)
+            {
+                await using var pageSettings = connection.CreateCommand();
+                pageSettings.CommandText =
+                    "PRAGMA auto_vacuum=INCREMENTAL;";
+                await pageSettings.ExecuteNonQueryAsync(cancellationToken);
+            }
+
             await using var command = connection.CreateCommand();
             command.CommandText = """
                 PRAGMA journal_mode=WAL;
@@ -5566,49 +5579,64 @@ public sealed class StorageRepository
     }
 
     public async Task PruneHistoryAsync(
-        int completedScansPerDrive = 2,
+        int completedScansPerDrive = 1,
         CancellationToken cancellationToken = default)
     {
-        await using var connection = await OpenConnectionAsync(cancellationToken);
-        var staleRuns =
-            new List<(string ScanId, long RunKey, int Format, bool RemoveRun)>();
+        await _maintenanceLock.WaitAsync(cancellationToken);
+        try
+        {
+            await PruneHistoryCoreAsync(
+                Math.Max(1, completedScansPerDrive),
+                cancellationToken);
+        }
+        finally
+        {
+            _maintenanceLock.Release();
+        }
+    }
+
+    private async Task PruneHistoryCoreAsync(
+        int completedScansPerDrive,
+        CancellationToken cancellationToken)
+    {
+        await using var connection =
+            await OpenConnectionAsync(cancellationToken);
+        var staleRuns = new List<(string ScanId, long RunKey, int Format)>();
         await using (var query = connection.CreateCommand())
         {
             query.CommandText = """
-                WITH CompletedRanked AS (
-                    SELECT Id, RunKey, ScanFormat,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY COALESCE(
-                                   NULLIF(VolumeSerialNumber, ''),
-                                   DriveLetter)
-                               ORDER BY StartedUtc DESC
-                           ) AS RowNumber
-                    FROM ScanRuns
-                    WHERE Status = $completed
-                ),
-                TerminalRanked AS (
+                WITH VolumeRuns AS (
                     SELECT Id, RunKey, ScanFormat, Status, StartedUtc,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY COALESCE(
-                                   NULLIF(VolumeSerialNumber, ''),
-                                   DriveLetter)
-                               ORDER BY StartedUtc DESC
-                           ) AS RowNumber
+                           COALESCE(
+                               NULLIF(VolumeSerialNumber, ''),
+                               DriveLetter) AS VolumeKey
                     FROM ScanRuns
                     WHERE Status <> $running
+                ),
+                CompletedRanked AS (
+                    SELECT Id, RunKey, ScanFormat, VolumeKey,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY VolumeKey
+                               ORDER BY StartedUtc DESC
+                           ) AS RowNumber
+                    FROM VolumeRuns
+                    WHERE Status = $completed
                 )
-                SELECT terminal.Id, terminal.RunKey, terminal.ScanFormat,
-                       terminal.RowNumber > $keep
-                           OR (terminal.Status <> $completed
-                               AND terminal.StartedUtc < $stale)
-                           AS RemoveRun
-                FROM TerminalRanked terminal
-                LEFT JOIN CompletedRanked completed
-                    ON completed.Id = terminal.Id
-                WHERE (completed.RowNumber > 1)
-                   OR terminal.RowNumber > $keep
-                   OR (terminal.Status <> $completed
-                       AND terminal.StartedUtc < $stale)
+                SELECT Id, RunKey, ScanFormat
+                FROM CompletedRanked
+                WHERE RowNumber > $keep
+                UNION ALL
+                SELECT run.Id, run.RunKey, run.ScanFormat
+                FROM VolumeRuns run
+                WHERE run.Status <> $completed
+                  AND (
+                      EXISTS (
+                          SELECT 1
+                          FROM CompletedRanked completed
+                          WHERE completed.VolumeKey = run.VolumeKey
+                      )
+                      OR run.StartedUtc < $stale
+                  )
                 """;
             query.Parameters.AddWithValue(
                 "$completed",
@@ -5628,8 +5656,7 @@ public sealed class StorageRepository
                 staleRuns.Add((
                     reader.GetString(0),
                     reader.IsDBNull(1) ? 0 : reader.GetInt64(1),
-                    reader.GetInt32(2),
-                    reader.GetBoolean(3)));
+                    reader.GetInt32(2)));
             }
         }
 
@@ -5675,21 +5702,18 @@ public sealed class StorageRepository
                     """,
                     ("$run", run.RunKey),
                     cancellationToken);
-                if (run.RemoveRun)
-                {
-                    await DeleteInChunksAsync(
-                        connection,
-                        """
-                        DELETE FROM FolderNodes
-                        WHERE Id IN (
-                            SELECT Id FROM FolderNodes
-                            WHERE RunKey = $run
-                            LIMIT $limit
-                        )
-                        """,
-                        ("$run", run.RunKey),
-                        cancellationToken);
-                }
+                await DeleteInChunksAsync(
+                    connection,
+                    """
+                    DELETE FROM FolderNodes
+                    WHERE Id IN (
+                        SELECT Id FROM FolderNodes
+                        WHERE RunKey = $run
+                        LIMIT $limit
+                    )
+                    """,
+                    ("$run", run.RunKey),
+                    cancellationToken);
                 await DeleteInChunksAsync(
                     connection,
                     """
@@ -5746,43 +5770,19 @@ public sealed class StorageRepository
                 """,
                 ("$scan", run.ScanId),
                 cancellationToken);
+            await using (var deleteRun = connection.CreateCommand())
+            {
+                deleteRun.CommandText =
+                    "DELETE FROM ScanRuns WHERE Id = $scan";
+                deleteRun.Parameters.AddWithValue("$scan", run.ScanId);
+                await deleteRun.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await Task.Yield();
         }
 
-        await using var cleanupRuns = connection.CreateCommand();
-        cleanupRuns.CommandText = """
-            DELETE FROM ScanRuns
-            WHERE Id IN (
-                SELECT Id
-                FROM (
-                    SELECT Id,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY COALESCE(
-                                   NULLIF(VolumeSerialNumber, ''),
-                                   DriveLetter)
-                               ORDER BY StartedUtc DESC
-                           ) AS RowNumber
-                    FROM ScanRuns
-                    WHERE Status <> $running
-                )
-                WHERE RowNumber > $keep
-            );
-            DELETE FROM ScanRuns
-            WHERE StartedUtc < $stale
-              AND Status <> $completed
-              AND Status <> $running;
-            """;
-        cleanupRuns.Parameters.AddWithValue(
-            "$running",
-            (int)StorageScanStatus.Running);
-        cleanupRuns.Parameters.AddWithValue(
-            "$completed",
-            (int)StorageScanStatus.Completed);
-        cleanupRuns.Parameters.AddWithValue("$keep", completedScansPerDrive);
-        cleanupRuns.Parameters.AddWithValue(
-            "$stale",
-            DateTimeOffset.UtcNow.AddDays(-14).ToUnixTimeMilliseconds());
-        await cleanupRuns.ExecuteNonQueryAsync(cancellationToken);
-        await CheckpointAsync(cancellationToken);
+        await ReclaimPrunedPagesAsync(connection, cancellationToken);
+        await CheckpointConnectionAsync(connection, cancellationToken);
     }
 
     private static async Task DeleteInChunksAsync(
@@ -5844,27 +5844,81 @@ public sealed class StorageRepository
 
     public async Task CompactAsync(CancellationToken cancellationToken = default)
     {
-        using var executionLock = await ScanExecutionLock.AcquireAsync(
-            DatabasePath,
-            cancellationToken,
-            TimeSpan.FromSeconds(5));
-        await using var connection = await OpenConnectionAsync(cancellationToken);
-        await using (var checkpoint = connection.CreateCommand())
+        await _maintenanceLock.WaitAsync(cancellationToken);
+        try
         {
-            checkpoint.CommandText = "PRAGMA wal_checkpoint(TRUNCATE)";
-            await checkpoint.ExecuteNonQueryAsync(cancellationToken);
+            await PruneHistoryCoreAsync(
+                completedScansPerDrive: 1,
+                cancellationToken);
+            using var executionLock = await ScanExecutionLock.AcquireAsync(
+                DatabasePath,
+                cancellationToken,
+                TimeSpan.FromSeconds(5));
+            await using var connection =
+                await OpenConnectionAsync(cancellationToken);
+            await CompactConnectionAsync(connection, cancellationToken);
         }
-
-        await using (var vacuum = connection.CreateCommand())
+        finally
         {
-            vacuum.CommandText = "VACUUM; ANALYZE; PRAGMA optimize;";
-            await vacuum.ExecuteNonQueryAsync(cancellationToken);
+            _maintenanceLock.Release();
         }
+    }
 
-        await using (var checkpoint = connection.CreateCommand())
+    public async Task<bool> CompactIfBeneficialAsync(
+        long minimumReclaimableBytes = DefaultMinimumReclaimableBytes,
+        double minimumReclaimableFraction =
+            DefaultMinimumReclaimableFraction,
+        CancellationToken cancellationToken = default)
+    {
+        await _maintenanceLock.WaitAsync(cancellationToken);
+        try
         {
-            checkpoint.CommandText = "PRAGMA wal_checkpoint(TRUNCATE)";
-            await checkpoint.ExecuteNonQueryAsync(cancellationToken);
+            using var executionLock = await ScanExecutionLock.TryAcquireAsync(
+                DatabasePath,
+                cancellationToken);
+            if (executionLock is null)
+            {
+                return false;
+            }
+
+            await using var connection =
+                await OpenConnectionAsync(cancellationToken);
+            var pageSize = await ReadPragmaInt64Async(
+                connection,
+                "page_size",
+                cancellationToken);
+            var pageCount = await ReadPragmaInt64Async(
+                connection,
+                "page_count",
+                cancellationToken);
+            var freePageCount = await ReadPragmaInt64Async(
+                connection,
+                "freelist_count",
+                cancellationToken);
+            var reclaimableBytes = checked(
+                freePageCount * pageSize);
+            var reclaimableFraction = pageCount > 0
+                ? (double)freePageCount / pageCount
+                : 0;
+            if (reclaimableBytes < minimumReclaimableBytes &&
+                reclaimableFraction < minimumReclaimableFraction)
+            {
+                return false;
+            }
+
+            var liveBytes = checked(
+                (pageCount - freePageCount) * pageSize);
+            if (!HasSpaceForCompaction(liveBytes))
+            {
+                return false;
+            }
+
+            await CompactConnectionAsync(connection, cancellationToken);
+            return true;
+        }
+        finally
+        {
+            _maintenanceLock.Release();
         }
     }
 
@@ -5872,10 +5926,104 @@ public sealed class StorageRepository
         CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenConnectionAsync(cancellationToken);
+        await CheckpointConnectionAsync(connection, cancellationToken);
+    }
+
+    private static async Task<long> ReadPragmaInt64Async(
+        SqliteConnection connection,
+        string pragma,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA {pragma};";
+        return Convert.ToInt64(
+            await command.ExecuteScalarAsync(cancellationToken));
+    }
+
+    private static async Task ReclaimPrunedPagesAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        if (await ReadPragmaInt64Async(
+                connection,
+                "auto_vacuum",
+                cancellationToken) != 2)
+        {
+            return;
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            $"PRAGMA incremental_vacuum({IncrementalVacuumPageBatch});";
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task CheckpointConnectionAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
         await using var command = connection.CreateCommand();
         command.CommandText =
             "PRAGMA wal_checkpoint(PASSIVE); PRAGMA optimize;";
         await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private bool HasSpaceForCompaction(long liveBytes)
+    {
+        try
+        {
+            var root = Path.GetPathRoot(DatabasePath);
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                return false;
+            }
+
+            var requiredBytes = checked(
+                liveBytes + 512L * 1024 * 1024);
+            return new DriveInfo(root).AvailableFreeSpace >= requiredBytes;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
+    }
+
+    private static async Task CompactConnectionAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using (var checkpoint = connection.CreateCommand())
+        {
+            checkpoint.CommandText =
+                "PRAGMA wal_checkpoint(TRUNCATE)";
+            await checkpoint.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await using (var vacuum = connection.CreateCommand())
+        {
+            vacuum.CommandText = """
+                PRAGMA auto_vacuum=INCREMENTAL;
+                VACUUM;
+                ANALYZE;
+                PRAGMA optimize;
+                """;
+            await vacuum.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await using (var checkpoint = connection.CreateCommand())
+        {
+            checkpoint.CommandText =
+                "PRAGMA wal_checkpoint(TRUNCATE)";
+            await checkpoint.ExecuteNonQueryAsync(cancellationToken);
+        }
     }
 
     public async Task<IndexHealthResult> CheckHealthAsync(
@@ -7715,19 +7863,13 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             await using var complete = _connection.CreateCommand();
             complete.Transaction = transaction;
             complete.CommandText = """
-                UPDATE ScanWorkItems
-                SET State = 2,
-                    LastError = NULL,
-                    UpdatedUtc = $updated
+                DELETE FROM ScanWorkItems
                 WHERE RunKey = $run
                   AND PathHash = $hash
                   AND State = 1
                 """;
             complete.Parameters.AddWithValue("$run", _runKey);
             complete.Parameters.AddWithValue("$hash", string.Empty);
-            complete.Parameters.AddWithValue(
-                "$updated",
-                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
             complete.Prepare();
             foreach (var directory in directories)
             {
@@ -7738,6 +7880,37 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                         $"The scan work item '{directory.FullPath}' was no longer owned.");
                 }
             }
+
+            await using var phase = _connection.CreateCommand();
+            phase.Transaction = transaction;
+            phase.CommandText = """
+                UPDATE ScanRuns
+                SET ScanPhase = 'Finalizing',
+                    PhaseStartedUtc = $updated
+                WHERE Id = $scan
+                  AND Status = $running
+                  AND OwnerProcessId = $pid
+                  AND OwnerProcessStartedUtc = $started
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM ScanWorkItems
+                      WHERE RunKey = $run
+                        AND State IN (0, 1)
+                  );
+                """;
+            phase.Parameters.AddWithValue(
+                "$updated",
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            phase.Parameters.AddWithValue("$scan", ScanId.ToString("N"));
+            phase.Parameters.AddWithValue(
+                "$running",
+                (int)StorageScanStatus.Running);
+            phase.Parameters.AddWithValue("$pid", _owner.ProcessId);
+            phase.Parameters.AddWithValue(
+                "$started",
+                _owner.ProcessStartedUtc);
+            phase.Parameters.AddWithValue("$run", _runKey);
+            await phase.ExecuteNonQueryAsync(cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);
@@ -7803,10 +7976,10 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             """;
         command.Parameters.AddWithValue("$run", _runKey);
         command.Parameters.AddWithValue("$hash", item.PathHash);
-        command.Parameters.AddWithValue("$error", exception.Message);
-        command.Parameters.AddWithValue(
-            "$updated",
-            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            command.Parameters.AddWithValue("$error", exception.Message);
+            command.Parameters.AddWithValue(
+                "$updated",
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         command.Parameters.AddWithValue("$scan", ScanId.ToString("N"));
         command.Parameters.AddWithValue(
             "$running",

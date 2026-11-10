@@ -462,13 +462,11 @@ public sealed class StorageScanService
                 maxBytes: 2L * 1024 * 1024 * 1024,
                 maxDuration: TimeSpan.FromSeconds(8),
                 maximumFileSize: 256L * 1024 * 1024);
-            using var historyBudget =
-                CancellationTokenSource.CreateLinkedTokenSource(
-                    cancellationToken);
-            historyBudget.CancelAfter(TimeSpan.FromSeconds(5));
             await _repository.PruneHistoryAsync(
-                completedScansPerDrive: 2,
-                cancellationToken: historyBudget.Token);
+                completedScansPerDrive: 1,
+                cancellationToken: cancellationToken);
+            await _repository.CompactIfBeneficialAsync(
+                cancellationToken: cancellationToken);
         }
         catch (OperationCanceledException) when (
             !cancellationToken.IsCancellationRequested)
@@ -525,8 +523,16 @@ public sealed class StorageScanService
                 OwnerProcessId = NULL,
                 OwnerProcessStartedUtc = NULL,
                 LeaseHeartbeatUtc = NULL,
-                ScanPhase = $phase,
-                PhaseStartedUtc = $completed
+                ScanPhase = CASE
+                    WHEN ScanPhase IN ('Finalizing', 'Completing')
+                    THEN ScanPhase
+                    ELSE $phase
+                    END,
+                PhaseStartedUtc = CASE
+                    WHEN ScanPhase IN ('Finalizing', 'Completing')
+                    THEN PhaseStartedUtc
+                    ELSE $completed
+                    END
             WHERE Id = $scanId
               AND Status = $running
               AND OwnerProcessId = $pid

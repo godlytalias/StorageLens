@@ -417,7 +417,7 @@ public sealed partial class OverviewViewModel : ObservableObject
         {
             var drive = RefreshDriveSummary(SelectedDrive);
             var result = await Task.Run(
-                () => AppServices.Scanner.ScanDriveAsync(
+                () => AppServices.Sync.SyncDriveAsync(
                     drive,
                     progress,
                     _scanCancellation.Token));

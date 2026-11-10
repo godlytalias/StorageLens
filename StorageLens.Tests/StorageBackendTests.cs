@@ -26,6 +26,7 @@ public sealed class StorageBackendTests
             {
                 names.Add(reader.GetString(0));
             }
+            await reader.CloseAsync();
 
             Assert.Contains("IX_FileEntries_ScanSize", names);
             Assert.Contains("IX_FileEntries_DuplicateHash", names);
@@ -35,6 +36,11 @@ public sealed class StorageBackendTests
             Assert.DoesNotContain("IX_FileEntries_ScanModified", names);
             Assert.DoesNotContain("IX_FolderEntries_ScanPath", names);
             Assert.True(repository.GetStorageUsage().TotalBytes > 0);
+            await using var autoVacuum = connection.CreateCommand();
+            autoVacuum.CommandText = "PRAGMA auto_vacuum";
+            Assert.Equal(
+                2L,
+                (long)(await autoVacuum.ExecuteScalarAsync())!);
         }
         finally
         {
@@ -964,7 +970,7 @@ public sealed class StorageBackendTests
         await using var reader = await command.ExecuteReaderAsync();
         Assert.True(await reader.ReadAsync());
         Assert.Equal(1, reader.GetInt64(0));
-        Assert.Equal(2, reader.GetInt64(1));
+        Assert.Equal(1, reader.GetInt64(1));
     }
 
     [Fact]
@@ -2724,7 +2730,7 @@ public sealed class StorageBackendTests
             await latest.DisposeAsync();
 
             await fixture.Repository.PruneHistoryAsync(
-                completedScansPerDrive: 2);
+                completedScansPerDrive: 1);
             await using (var connection = new SqliteConnection(
                              $"Data Source={fixture.Repository.DatabasePath}"))
             {
@@ -2749,9 +2755,77 @@ public sealed class StorageBackendTests
                 Assert.Equal(0, reader.GetInt64(1));
                 Assert.Equal(0, reader.GetInt64(2));
                 Assert.Equal(1, reader.GetInt64(3));
-                Assert.Equal(2, reader.GetInt64(4));
+                Assert.Equal(1, reader.GetInt64(4));
             }
         }
+
+    [Fact]
+    public async Task Repository_PrunesInterruptedRunWhenCompletedIndexExists()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await fixture.WriteFileAsync("completed.bin", 10);
+        var completed = await fixture.Scanner.ScanTestRootAsync(
+            fixture.Drive,
+            fixture.ScanRoot);
+        await using (var interrupted =
+                     await fixture.Repository.BeginScanAsync(fixture.Drive))
+        {
+            await interrupted.EnqueueDirectoryAsync(
+                fixture.ScanRoot,
+                0,
+                new ScanFolderMetadata(
+                    (long)FileAttributes.Directory,
+                    0,
+                    DateTimeOffset.UtcNow,
+                    string.Empty,
+                    false),
+                CancellationToken.None);
+        }
+
+        await fixture.Repository.PruneHistoryAsync();
+
+        Assert.NotNull(
+            await fixture.Repository.GetScanAsync(completed.ScanId));
+        var scans = await fixture.Repository.GetLatestCompletedScanAsync(
+            fixture.Drive.Letter);
+        Assert.NotNull(scans);
+        Assert.Equal(completed.ScanId, scans.Id);
+        await using var connection = new SqliteConnection(
+            $"Data Source={fixture.Repository.DatabasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM ScanRuns
+            """;
+        Assert.Equal(
+            1,
+            Convert.ToInt64(
+                await command.ExecuteScalarAsync()));
+    }
+
+    [Fact]
+    public async Task Repository_CompactsAndEnablesIncrementalVacuum()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+
+        Assert.True(await fixture.Repository.CompactIfBeneficialAsync(
+            minimumReclaimableBytes: 0,
+            minimumReclaimableFraction: 0));
+
+        await using var connection = new SqliteConnection(
+            $"Data Source={fixture.Repository.DatabasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA auto_vacuum";
+        Assert.Equal(
+            2L,
+            (long)(await command.ExecuteScalarAsync())!);
+        command.CommandText = "PRAGMA freelist_count";
+        Assert.Equal(
+            0L,
+            (long)(await command.ExecuteScalarAsync())!);
+    }
 
     [Fact]
     public void AppUpdateCoordinator_VersionsAndLegacyInstanceKeys()
@@ -3165,6 +3239,31 @@ public sealed class StorageBackendTests
                 item,
                 CancellationToken.None);
         }
+
+        await using var connection = new SqliteConnection(
+            $"Data Source={fixture.Repository.DatabasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM ScanWorkItems
+            WHERE RunKey = $run
+            """;
+        command.Parameters.AddWithValue("$run", session.RunKey);
+        Assert.Equal(
+            0,
+            Convert.ToInt64(
+                await command.ExecuteScalarAsync()));
+        command.CommandText = """
+            SELECT ScanPhase
+            FROM ScanRuns
+            WHERE RunKey = $run
+            """;
+        command.Parameters["$run"].Value = session.RunKey;
+        Assert.Equal(
+            "Finalizing",
+            Convert.ToString(
+                await command.ExecuteScalarAsync()));
     }
 
     [Fact]
