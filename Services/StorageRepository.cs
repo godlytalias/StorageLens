@@ -5,7 +5,7 @@ namespace StorageLens.Services;
 
 public sealed class StorageRepository
 {
-    private const int CurrentSchemaVersion = 9;
+    private const int CurrentSchemaVersion = 10;
     private const long MinimumGrowthSampleBytes = 1L * 1024 * 1024 * 1024;
     private const long DefaultMinimumReclaimableBytes =
         256L * 1024 * 1024;
@@ -212,6 +212,8 @@ public sealed class StorageRepository
                     ON FolderNodes (RunKey, PathHash);
                 CREATE INDEX IF NOT EXISTS IX_FolderNodes_FileId
                     ON FolderNodes (RunKey, FileId64);
+                CREATE INDEX IF NOT EXISTS IX_FolderNodes_AllocatedSize
+                    ON FolderNodes (RunKey, AllocatedSize DESC);
 
                 CREATE TABLE IF NOT EXISTS PhysicalFiles (
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -3488,7 +3490,7 @@ public sealed class StorageRepository
                            NULLIF(baseline.BaselineAllocatedSize, 0) * 100,
                        MAX(1, CAST((run.CompletedUtc - baseline.FirstSeenUtc
                                     + 86399999) / 86400000 AS INTEGER))
-                FROM FolderNodes n
+                FROM FolderNodes n INDEXED BY IX_FolderNodes_AllocatedSize
                 INNER JOIN LatestRun run ON run.RunKey = n.RunKey
                 INNER JOIN FolderGrowthBaselines baseline
                     ON baseline.VolumeKey = run.VolumeKey
@@ -5602,6 +5604,32 @@ public sealed class StorageRepository
         }
     }
 
+    public async Task PruneHistoryWhenIdleAsync(
+        int completedScansPerDrive = 1,
+        CancellationToken cancellationToken = default)
+    {
+        await _maintenanceLock.WaitAsync(cancellationToken);
+        try
+        {
+            using var executionLock =
+                await ScanExecutionLock.TryAcquireAsync(
+                    DatabasePath,
+                    cancellationToken);
+            if (executionLock is null)
+            {
+                return;
+            }
+
+            await PruneHistoryCoreAsync(
+                Math.Max(1, completedScansPerDrive),
+                cancellationToken);
+        }
+        finally
+        {
+            _maintenanceLock.Release();
+        }
+    }
+
     private async Task PruneHistoryCoreAsync(
         int completedScansPerDrive,
         CancellationToken cancellationToken)
@@ -6367,6 +6395,13 @@ public sealed class StorageRepository
                         cancellationToken);
                     version = 9;
                     break;
+                case 9:
+                    await EnsureFolderAllocatedSizeIndexAsync(
+                        connection,
+                        transaction,
+                        cancellationToken);
+                    version = 10;
+                    break;
                 default:
                     throw new InvalidDataException(
                         $"Storage index schema version {version} cannot be migrated.");
@@ -6772,6 +6807,20 @@ public sealed class StorageRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    private static async Task EnsureFolderAllocatedSizeIndexAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            CREATE INDEX IF NOT EXISTS IX_FolderNodes_AllocatedSize
+                ON FolderNodes (RunKey, AllocatedSize DESC);
+            """;
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static async Task EnsureFolderGrowthBaselineTableAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -6928,6 +6977,8 @@ public sealed class StorageRepository
             ON FolderNodes (RunKey, PathHash);
         CREATE INDEX IX_FolderNodes_FileId
             ON FolderNodes (RunKey, FileId64);
+        CREATE INDEX IX_FolderNodes_AllocatedSize
+            ON FolderNodes (RunKey, AllocatedSize DESC);
 
         CREATE TABLE PhysicalFiles (
             Id INTEGER PRIMARY KEY AUTOINCREMENT,

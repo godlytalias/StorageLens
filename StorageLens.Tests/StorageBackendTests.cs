@@ -33,6 +33,7 @@ public sealed class StorageBackendTests
             Assert.Contains("IX_FileNames_PhysicalFile", names);
             Assert.Contains("IX_NormalizedCleanupCandidates_FileName", names);
             Assert.Contains("IX_PhysicalFiles_AllocatedSize", names);
+            Assert.Contains("IX_FolderNodes_AllocatedSize", names);
             Assert.DoesNotContain("IX_FileEntries_Path", names);
             Assert.DoesNotContain("IX_FileEntries_ScanModified", names);
             Assert.DoesNotContain("IX_FolderEntries_ScanPath", names);
@@ -2574,7 +2575,7 @@ public sealed class StorageBackendTests
                 await using var versionCommand = connection.CreateCommand();
                 versionCommand.CommandText =
                     "SELECT Version FROM SchemaVersion WHERE Id = 1";
-                Assert.Equal(9L, (long)(await versionCommand.ExecuteScalarAsync())!);
+                Assert.Equal(10L, (long)(await versionCommand.ExecuteScalarAsync())!);
 
                 await using var rowCommand = connection.CreateCommand();
                 rowCommand.CommandText = """
@@ -2626,7 +2627,7 @@ public sealed class StorageBackendTests
                     FROM SchemaVersion
                     WHERE Id = 1;
                     """;
-                Assert.Equal(9L, (long)(await command.ExecuteScalarAsync())!);
+                Assert.Equal(10L, (long)(await command.ExecuteScalarAsync())!);
                 command.CommandText = """
                     SELECT name
                     FROM sqlite_master
@@ -2678,7 +2679,7 @@ public sealed class StorageBackendTests
             command.CommandText =
                 "SELECT Version FROM SchemaVersion WHERE Id = 1;";
             Assert.Equal(
-                9L,
+                10L,
                 (long)(await command.ExecuteScalarAsync())!);
             command.CommandText = """
                 SELECT COUNT(*)
@@ -2694,6 +2695,48 @@ public sealed class StorageBackendTests
                 FROM sqlite_master
                 WHERE type = 'index'
                   AND name = 'IX_FileNames_PhysicalFile';
+                """;
+            Assert.Equal(
+                1L,
+                (long)(await command.ExecuteScalarAsync())!);
+        }
+    }
+
+    [Fact]
+    public async Task Repository_MigratesVersionNineWithFolderGrowthIndex()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await using (var connection = new SqliteConnection(
+                         $"Data Source={fixture.Repository.DatabasePath}"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                DROP INDEX IF EXISTS IX_FolderNodes_AllocatedSize;
+                UPDATE SchemaVersion SET Version = 9 WHERE Id = 1;
+                """;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        SqliteConnection.ClearAllPools();
+        var migrated = new StorageRepository(
+            fixture.Repository.DatabasePath);
+        await migrated.InitializeAsync();
+        await using (var connection = new SqliteConnection(
+                         $"Data Source={migrated.DatabasePath}"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                "SELECT Version FROM SchemaVersion WHERE Id = 1;";
+            Assert.Equal(
+                10L,
+                (long)(await command.ExecuteScalarAsync())!);
+            command.CommandText = """
+                SELECT COUNT(*)
+                FROM sqlite_master
+                WHERE type = 'index'
+                  AND name = 'IX_FolderNodes_AllocatedSize';
                 """;
             Assert.Equal(
                 1L,
@@ -2880,6 +2923,54 @@ public sealed class StorageBackendTests
         command.CommandText = "PRAGMA freelist_count";
         Assert.Equal(
             0L,
+            (long)(await command.ExecuteScalarAsync())!);
+    }
+
+    [Fact]
+    public async Task Repository_IdlePruneRespectsIndexingLock()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        var first = await fixture.Repository.BeginScanAsync(fixture.Drive);
+        await first.CompleteAsync(
+            0,
+            0,
+            0,
+            0,
+            CancellationToken.None,
+            0);
+        await first.DisposeAsync();
+        var second = await fixture.Repository.BeginScanAsync(fixture.Drive);
+        await second.CompleteAsync(
+            0,
+            0,
+            0,
+            0,
+            CancellationToken.None,
+            0);
+        await second.DisposeAsync();
+
+        await using var connection = new SqliteConnection(
+            $"Data Source={fixture.Repository.DatabasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM ScanRuns
+            WHERE Status = 1
+            """;
+        using (var scanLock = await ScanExecutionLock.AcquireAsync(
+                   fixture.Repository.DatabasePath,
+                   CancellationToken.None))
+        {
+            await fixture.Repository.PruneHistoryWhenIdleAsync();
+            Assert.Equal(
+                2L,
+                (long)(await command.ExecuteScalarAsync())!);
+        }
+
+        await fixture.Repository.PruneHistoryWhenIdleAsync();
+        Assert.Equal(
+            1L,
             (long)(await command.ExecuteScalarAsync())!);
     }
 

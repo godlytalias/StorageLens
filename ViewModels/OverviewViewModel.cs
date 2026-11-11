@@ -192,7 +192,7 @@ public sealed partial class OverviewViewModel : ObservableObject
         }
 
         _initialized = true;
-        await AppServices.InitializeAsync();
+        await Task.Run(() => AppServices.InitializeAsync());
         await RefreshDataAsync();
         if (HasAvailableDrive &&
             AppPreferencesService.Load().ScanOnLaunch)

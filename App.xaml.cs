@@ -23,9 +23,12 @@ namespace StorageLens;
 /// </summary>
 public partial class App : Application
 {
+    private static readonly TimeSpan StartupIndexMaintenanceDelay =
+        TimeSpan.FromSeconds(15);
     private static uint _comRegistrationToken;
     private static uint _indexComRegistrationToken;
     private AppUpdateCoordinator? _updateCoordinator;
+    private Task? _startupIndexMaintenanceTask;
 
     /// <summary>
     /// The main application window. Use <c>App.Window</c> from any class that needs
@@ -197,22 +200,39 @@ public partial class App : Application
                     WriteCrashLog(exception);
                 }
             });
-            try
-            {
-                await Task.Delay(TimeSpan.FromSeconds(2));
-                await AppServices.Repository.PruneHistoryAsync(
-                    completedScansPerDrive: 1);
-                await AppServices.Repository.CompactIfBeneficialAsync();
-            }
-            catch (Exception exception)
-            {
-                Trace.TraceWarning(
-                    $"Storage index maintenance failed: {exception}");
-            }
+            StartStartupIndexMaintenance();
         }
         catch (Exception exception)
         {
             WriteCrashLog(exception);
+        }
+    }
+
+    private void StartStartupIndexMaintenance()
+    {
+        if (_startupIndexMaintenanceTask is { IsCompleted: false })
+        {
+            return;
+        }
+
+        _startupIndexMaintenanceTask = Task.Run(
+            RunStartupIndexMaintenanceAsync);
+    }
+
+    private static async Task RunStartupIndexMaintenanceAsync()
+    {
+        try
+        {
+            await Task.Delay(StartupIndexMaintenanceDelay)
+                .ConfigureAwait(false);
+            await AppServices.Repository.PruneHistoryWhenIdleAsync(
+                    completedScansPerDrive: 1)
+                .ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            Trace.TraceWarning(
+                $"Storage index startup maintenance failed: {exception}");
         }
     }
 

@@ -204,7 +204,6 @@ public sealed partial class OverviewPage : Page
             }
         }
 
-        _ = ViewModel.RefreshGrowthInsightsAsync();
         base.OnNavigatedTo(e);
     }
 
