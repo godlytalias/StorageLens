@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07101f">
+  <meta name="description" content="StorageLens helps you understand drive usage, track cumulative folder growth, explore storage, and review safe cleanup opportunities on Windows 11.">
+  <meta name="robots" content="index,follow">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="StorageLens">
+  <meta property="og:title" content="StorageLens — Know what is growing on your drive">
+  <meta property="og:description" content="Track folder growth from the first index, find the largest space consumers, and review cleanup safely on Windows 11.">
+  <meta property="og:url" content="https://godlytalias.github.io/StorageLens/">
+  <meta property="og:image" content="https://godlytalias.github.io/StorageLens/assets/screenshots/overview.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="StorageLens — Know what is growing on your drive">
+  <meta name="twitter:description" content="Windows 11 storage clarity with cumulative folder-growth tracking and review-first cleanup.">
+  <meta name="twitter:image" content="https://godlytalias.github.io/StorageLens/assets/screenshots/overview.png">
+  <link rel="canonical" href="https://godlytalias.github.io/StorageLens/">
+  <link rel="icon" type="image/png" href="./assets/storagelens-logo.png">
+  <link rel="stylesheet" href="./styles.css">
+  <title>StorageLens — See what is growing on your Windows drive</title>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "StorageLens",
+    "operatingSystem": "Windows 11 21H2 or later",
+    "applicationCategory": "UtilitiesApplication",
+    "downloadUrl": "https://apps.microsoft.com/detail/9N4SW9S0NZKS?hl=en-us&gl=US&ocid=pdpshare",
+    "sameAs": [
+      "https://github.com/godlytalias/StorageLens",
+      "https://apps.microsoft.com/detail/9N4SW9S0NZKS"
+    ],
+    "image": "https://godlytalias.github.io/StorageLens/assets/storagelens-logo.png",
+    "description": "A Windows 11 storage companion for visualizing usage, tracking cumulative folder growth, and reviewing safe cleanup opportunities.",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+  <script defer src="./script.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#top" aria-label="StorageLens home">
+        <img src="./assets/storagelens-logo.png" alt="" width="40" height="40">
+        <span>StorageLens</span>
+      </a>
+
+      <button
+        class="menu-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="primary-navigation"
+        data-menu-toggle>
+        <span class="menu-toggle__icon" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </span>
+        <span class="sr-only">Toggle navigation</span>
+      </button>
+
+      <nav id="primary-navigation" class="site-nav" aria-label="Primary navigation" data-menu>
+        <a href="#growth">Growth tracking</a>
+        <a href="#features">Features</a>
+        <a href="#screenshots">Screenshots</a>
+        <a href="#safety">Privacy &amp; safety</a>
+        <a class="button button--small button--accent" href="https://apps.microsoft.com/detail/9N4SW9S0NZKS?hl=en-us&amp;gl=US&amp;ocid=pdpshare" target="_blank" rel="noopener noreferrer">
+          Get StorageLens
+          <svg aria-hidden="true" viewBox="0 0 16 16">
+            <path d="M3 3h4v4H3zM9 3h4v4H9zM3 9h4v4H3zM9 9h4v4H9z" fill="currentColor"/>
+          </svg>
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero section" id="top">
+      <div class="hero-glow hero-glow--one" aria-hidden="true"></div>
+      <div class="hero-glow hero-glow--two" aria-hidden="true"></div>
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <div class="eyebrow">
+            <span class="eyebrow__dot" aria-hidden="true"></span>
+            Built for Windows 11
+          </div>
+          <h1>See what is taking space.<br><span>Know what is growing.</span></h1>
+          <p class="hero-lead">
+            StorageLens turns drive usage into a clear, explorable map. Track cumulative folder growth, find large files, and review cleanup opportunities before moving anything to the Recycle Bin.
+          </p>
+          <div class="hero-actions">
+            <a class="button button--accent button--large" href="https://apps.microsoft.com/detail/9N4SW9S0NZKS?hl=en-us&amp;gl=US&amp;ocid=pdpshare" target="_blank" rel="noopener noreferrer">
+              <svg aria-hidden="true" viewBox="0 0 16 16">
+                <path d="M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z" fill="currentColor"/>
+              </svg>
+              Get it from Microsoft Store
+            </a>
+            <a class="button button--ghost button--large" href="#growth">
+              Explore growth tracking
+              <span aria-hidden="true">→</span>
+            </a>
+          </div>
+          <ul class="hero-trust" aria-label="StorageLens product principles">
+            <li><span aria-hidden="true">✓</span> Index stays on your device</li>
+            <li><span aria-hidden="true">✓</span> Review-first cleanup</li>
+            <li><span aria-hidden="true">✓</span> No account required</li>
+          </ul>
+        </div>
+
+        <div class="hero-visual">
+          <div class="window-frame">
+            <div class="window-frame__bar" aria-hidden="true">
+              <span></span><span></span><span></span>
+              <small>StorageLens</small>
+            </div>
+            <img
+              src="./assets/screenshots/overview.png"
+              alt="StorageLens overview showing drive capacity, category usage, and recommendations"
+              width="2160"
+              height="1350"
+              fetchpriority="high">
+          </div>
+          <div class="hero-float hero-float--growth">
+            <div class="float-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="m5 16 5-5 3 3 6-7M15 7h4v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div>
+              <strong>First-index baseline</strong>
+              <span>Growth that does not disappear when yesterday had no change</span>
+            </div>
+          </div>
+          <div class="hero-float hero-float--safe">
+            <span class="status-dot" aria-hidden="true"></span>
+            Cleanup moves eligible files to the Recycle Bin
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="proof-strip" aria-label="StorageLens at a glance">
+      <div class="container proof-grid">
+        <div>
+          <strong>Visual</strong>
+          <span>Storage breakdown by category</span>
+        </div>
+        <div>
+          <strong>Cumulative</strong>
+          <span>Growth from each folder’s first index</span>
+        </div>
+        <div>
+          <strong>Explorable</strong>
+          <span>Drive, folder tree, filters, and search</span>
+        </div>
+        <div>
+          <strong>Local</strong>
+          <span>Index and preferences stay on-device</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--glow" id="growth">
+      <div class="container section-heading section-heading--split">
+        <div>
+          <p class="eyebrow">Folder growth, measured properly</p>
+          <h2>Don’t lose slow growth<br>between two scans.</h2>
+        </div>
+        <p>
+          Comparing only the latest scan with the previous one can hide a problem. StorageLens remembers the first time each folder appeared, so cumulative growth stays visible even after a quiet day.
+        </p>
+      </div>
+
+      <div class="container growth-layout">
+        <div class="growth-story">
+          <figure class="growth-screenshot">
+            <img
+              src="./assets/screenshots/folder-growth.png"
+              alt="StorageLens Folders growing quickly cards showing cumulative added size and growth duration"
+              width="2040"
+              height="455"
+              loading="lazy">
+            <figcaption>
+              <strong>Largest non-overlapping growth contributors</strong>
+              <span>User paths are anonymized in this public screenshot.</span>
+            </figcaption>
+          </figure>
+        </div>
+
+        <div class="growth-copy">
+          <article class="check-item">
+            <span class="check-item__number">01</span>
+            <div>
+              <h3>Starts at first appearance</h3>
+              <p>When a folder is first indexed, StorageLens records its starting size and identity as the baseline.</p>
+            </div>
+          </article>
+          <article class="check-item">
+            <span class="check-item__number">02</span>
+            <div>
+              <h3>Tracks cumulative change</h3>
+              <p>Growth remains visible across quiet days, so a folder that gradually gained tens of gigabytes does not vanish from the list.</p>
+            </div>
+          </article>
+          <article class="check-item">
+            <span class="check-item__number">03</span>
+            <div>
+              <h3>Handles real folder lifecycles</h3>
+              <p>Deleted baselines are removed. If the same path is recreated as a different folder, a new baseline is created.</p>
+            </div>
+          </article>
+          <article class="check-item">
+            <span class="check-item__number">04</span>
+            <div>
+              <h3>Surfaces the answer where you work</h3>
+              <p>See growth on Overview and in Storage Explorer, with optional thresholds and local notifications.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="container section-heading">
+        <p class="eyebrow">Everything needed to organize storage</p>
+        <h2>One app. A clear path from “full drive” to “this is safe to clean.”</h2>
+      </div>
+
+      <div class="container feature-grid">
+        <article class="feature-card feature-card--wide">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 5h16v4H4zM4 11h10v8H4zM16 11h4v8h-4z" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>
+          </div>
+          <h3>Storage overview</h3>
+          <p>See used and free capacity, category totals, reclaimable space, largest folders, and largest files in one glance.</p>
+          <span class="feature-tag">Drive clarity</span>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 5h6l2 2h8v12H4zM7 11h4M7 15h7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>Storage Explorer</h3>
+          <p>Navigate the full folder tree, filter by category, search, sort, and inspect each item’s path, size, type, and growth.</p>
+          <span class="feature-tag">Full drill-down</span>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M8 7V4h8v3M6 7l1 13h10l1-13M10 11v5M14 11v5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>Review-first cleanup</h3>
+          <p>Review temporary files, old downloads, package caches, duplicates, and larger candidates with explicit safety labels.</p>
+          <span class="feature-tag">Recycle Bin</span>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 7v5l3 2M6 3v4H2M18 21v-4h4M5 11a7 7 0 0 0 12 5M19 13A7 7 0 0 0 7 8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>Background awareness</h3>
+          <p>Enable idle indexing, low-space checks, folder-growth alerts, and scheduled cleanup review reminders.</p>
+          <span class="feature-tag">Optional automation</span>
+        </article>
+
+        <article class="feature-card feature-card--accent">
+          <div class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.4 3.3 7.8 8 9 4.7-1.2 8-4.6 8-9V6l-8-3zM8.5 12l2.2 2.2 4.8-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h3>Safe by default</h3>
+          <p>Files are revalidated before cleanup. Protected, cloud-only, changed, and reparse-point items are excluded from eligible choices.</p>
+          <span class="feature-tag">No permanent-delete workflow</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="section gallery-section" id="screenshots">
+      <div class="container section-heading">
+        <p class="eyebrow">A Windows-native workflow</p>
+        <h2>From drive overview to a decision you can explain.</h2>
+      </div>
+
+      <div class="container gallery">
+        <figure class="gallery-stage">
+          <div class="gallery-controls">
+            <button type="button" class="icon-button" data-gallery-prev aria-label="Previous screenshot">
+              <span aria-hidden="true">←</span>
+            </button>
+            <button type="button" class="icon-button" data-gallery-next aria-label="Next screenshot">
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
+          <img
+            data-gallery-image
+            src="./assets/screenshots/overview.png"
+            alt="StorageLens storage overview"
+            width="2160"
+            height="1350">
+          <figcaption aria-live="polite">
+            <div>
+              <span data-gallery-index>01 / 04</span>
+              <h3 data-gallery-title>See the whole drive</h3>
+            </div>
+            <p data-gallery-copy>Capacity, category breakdown, reclaimable space, growth insights, and the largest consumers in one overview.</p>
+          </figcaption>
+        </figure>
+
+        <div class="gallery-tabs" role="list" aria-label="StorageLens screenshots">
+          <button
+            class="gallery-tab is-active"
+            type="button"
+            role="listitem"
+            aria-current="true"
+            data-gallery-tab
+            data-src="./assets/screenshots/overview.png"
+            data-alt="StorageLens storage overview"
+            data-title="See the whole drive"
+            data-copy="Capacity, category breakdown, reclaimable space, growth insights, and the largest consumers in one overview.">
+            <img src="./assets/screenshots/overview.png" alt="" width="2160" height="1350" loading="lazy">
+            <span>Overview</span>
+          </button>
+          <button
+            class="gallery-tab"
+            type="button"
+            role="listitem"
+            data-gallery-tab
+            data-src="./assets/screenshots/storage-explorer.png"
+            data-alt="StorageLens Storage Explorer"
+            data-title="Drill into the reason"
+            data-copy="Follow the folder tree, filter categories, search names, sort results, and inspect growth on each folder.">
+            <img src="./assets/screenshots/storage-explorer.png" alt="" width="2160" height="1350" loading="lazy">
+            <span>Explorer</span>
+          </button>
+          <button
+            class="gallery-tab"
+            type="button"
+            role="listitem"
+            data-gallery-tab
+            data-src="./assets/screenshots/cleanup-review.png"
+            data-alt="StorageLens cleanup review"
+            data-title="Review before cleanup"
+            data-copy="Compare recommendations, inspect exact candidates, confirm selection totals, and route eligible files to the Recycle Bin.">
+            <img src="./assets/screenshots/cleanup-review.png" alt="" width="2160" height="1350" loading="lazy">
+            <span>Cleanup</span>
+          </button>
+          <button
+            class="gallery-tab"
+            type="button"
+            role="listitem"
+            data-gallery-tab
+            data-src="./assets/screenshots/automation.png"
+            data-alt="StorageLens automation settings"
+            data-title="Keep insights current"
+            data-copy="Choose idle indexing, low-space monitoring, folder-growth alerts, and cleanup review schedules.">
+            <img src="./assets/screenshots/automation.png" alt="" width="2160" height="1350" loading="lazy">
+            <span>Automation</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="how-it-works">
+      <div class="container section-heading">
+        <p class="eyebrow">A practical workflow</p>
+        <h2>Turn a full drive into an organized next step.</h2>
+      </div>
+
+      <ol class="container workflow">
+        <li>
+          <span class="workflow__number">1</span>
+          <div>
+            <h3>Scan a drive</h3>
+            <p>Build a local index of files, folders, identities, categories, and allocated size.</p>
+          </div>
+        </li>
+        <li>
+          <span class="workflow__number">2</span>
+          <div>
+            <h3>Understand growth</h3>
+            <p>Compare each folder with its first-index baseline and spot cumulative increases.</p>
+          </div>
+        </li>
+        <li>
+          <span class="workflow__number">3</span>
+          <div>
+            <h3>Review candidates</h3>
+            <p>Open exact files, inspect safety labels, and choose only what should be reclaimed.</p>
+          </div>
+        </li>
+        <li>
+          <span class="workflow__number">4</span>
+          <div>
+            <h3>Move safely</h3>
+            <p>Eligible selections move to the Windows Recycle Bin—not a permanent-delete path.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <section class="section safety-section" id="safety">
+      <div class="container safety-grid">
+        <div>
+          <p class="eyebrow">Privacy and cleanup safety</p>
+          <h2>Your storage map stays yours.</h2>
+          <p class="safety-intro">StorageLens is designed around local processing and explicit user review.</p>
+        </div>
+        <div class="safety-points">
+          <article>
+            <span class="safety-mark" aria-hidden="true">✓</span>
+            <div>
+              <h3>On-device index</h3>
+              <p>File names, paths, sizes, identities, hashes, scan history, and settings remain in the app’s local data.</p>
+            </div>
+          </article>
+          <article>
+            <span class="safety-mark" aria-hidden="true">✓</span>
+            <div>
+              <h3>No analytics or advertising SDK</h3>
+              <p>StorageLens does not upload the indexed inventory or add an external usage-tracking service.</p>
+            </div>
+          </article>
+          <article>
+            <span class="safety-mark" aria-hidden="true">✓</span>
+            <div>
+              <h3>Recheck before cleanup</h3>
+              <p>Identity and metadata are validated again before selected eligible items move to the Recycle Bin.</p>
+            </div>
+          </article>
+          <article>
+            <span class="safety-mark" aria-hidden="true">✓</span>
+            <div>
+              <h3>Windows remains in control</h3>
+              <p>You decide which items to move and can restore them later with the Windows Recycle Bin.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+      <div class="container privacy-link">
+        <a href="https://github.com/godlytalias/StorageLens/blob/main/PRIVACY_POLICY.md" target="_blank" rel="noopener noreferrer">Read the full privacy policy <span aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+
+    <section class="section faq-section" id="faq">
+      <div class="container faq-grid">
+        <div>
+          <p class="eyebrow">Questions, answered</p>
+          <h2>Useful details before your first scan.</h2>
+        </div>
+        <div class="faq-list">
+          <details>
+            <summary>How is folder growth different from comparing two recent scans?</summary>
+            <p>StorageLens keeps a first-seen baseline for each folder. It compares current size with that original baseline, so gradual growth remains visible even when the previous scan shows no change.</p>
+          </details>
+          <details>
+            <summary>What happens when a folder is deleted or recreated?</summary>
+            <p>Deleted folder baselines are removed. When the same path is recreated with a different folder identity, StorageLens starts a fresh baseline for that new folder.</p>
+          </details>
+          <details>
+            <summary>Does StorageLens delete files automatically?</summary>
+            <p>No. Cleanup is review-first. You choose candidates, StorageLens rechecks eligibility, and selected items are moved to the Windows Recycle Bin.</p>
+          </details>
+          <details>
+            <summary>Does the storage index leave my PC?</summary>
+            <p>No. File and folder names, paths, sizes, hashes, scan history, settings, and cleanup records stay in the app’s local Windows data.</p>
+          </details>
+          <details>
+            <summary>Which Windows versions are supported?</summary>
+            <p>StorageLens requires Windows 11, version 21H2 or later.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="section final-cta">
+      <div class="container cta-panel">
+        <div class="cta-copy">
+          <img src="./assets/storagelens-logo.png" alt="" width="72" height="72">
+          <div>
+            <p class="eyebrow">Free on Microsoft Store</p>
+            <h2>Find what grew.<br>Decide what can go.</h2>
+            <p>Install StorageLens for a clearer, safer way to organize Windows storage.</p>
+          </div>
+        </div>
+        <a class="button button--accent button--large" href="https://apps.microsoft.com/detail/9N4SW9S0NZKS?hl=en-us&amp;gl=US&amp;ocid=pdpshare" target="_blank" rel="noopener noreferrer">
+          <svg aria-hidden="true" viewBox="0 0 16 16">
+            <path d="M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z" fill="currentColor"/>
+          </svg>
+          Get StorageLens
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <a class="brand brand--footer" href="#top">
+        <img src="./assets/storagelens-logo.png" alt="" width="32" height="32">
+        <span>StorageLens</span>
+      </a>
+      <p>Storage clarity for Windows 11.</p>
+      <nav aria-label="Footer navigation">
+        <a href="https://apps.microsoft.com/detail/9N4SW9S0NZKS?hl=en-us&amp;gl=US&amp;ocid=pdpshare" target="_blank" rel="noopener noreferrer">Microsoft Store</a>
+        <a href="https://github.com/godlytalias/StorageLens" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="https://github.com/godlytalias/StorageLens/blob/main/PRIVACY_POLICY.md" target="_blank" rel="noopener noreferrer">Privacy</a>
+      </nav>
+      <small>© <span data-current-year>2026</span> StorageLens. Screenshots show the app interface.</small>
+    </div>
+  </footer>
+</body>
+</html>

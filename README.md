@@ -2,6 +2,8 @@
 
 Storage Lens is a packaged C# WinUI 3 application for visualizing storage usage, tracing folder trees, classifying large items, and reviewing cleanup suggestions.
 
+[Product website](https://godlytalias.github.io/StorageLens/) · [Microsoft Store](https://apps.microsoft.com/detail/9N4SW9S0NZKS?hl=en-us&gl=US&ocid=pdpshare) · [Privacy policy](PRIVACY_POLICY.md)
+
 Storage indexes and preferences stay on the local device. User-authorized cleanup moves eligible files to the Windows Recycle Bin; Storage Lens does not provide a permanent-delete path.
 
 ## Included UI
