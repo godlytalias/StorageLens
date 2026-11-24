@@ -1036,6 +1036,169 @@ public sealed class StorageBackendTests
     }
 
     [Fact]
+    public async Task GrowthSamples_KeepOneRowPerFolderPerDay()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await fixture.WriteFileAsync(
+            "DailyGrowth\\file.bin",
+            10);
+        var scan = await fixture.Scanner.ScanTestRootAsync(
+            fixture.Drive,
+            fixture.ScanRoot);
+
+        await using (var preparation = new SqliteConnection(
+                         $"Data Source={fixture.Repository.DatabasePath}"))
+        {
+            await preparation.OpenAsync();
+                         await using var preparationCommand = preparation.CreateCommand();
+                         preparationCommand.CommandText = """
+                UPDATE FolderNodes
+                SET LogicalSize = 1073741824,
+                    AllocatedSize = 1073741824
+                WHERE RunKey = (
+                    SELECT RunKey FROM ScanRuns WHERE Id = $scan
+                )
+                  AND Name = 'DailyGrowth'
+                """;
+            preparationCommand.Parameters.AddWithValue(
+                "$scan",
+                scan.ScanId.ToString("N"));
+            Assert.Equal(
+                1,
+                await preparationCommand.ExecuteNonQueryAsync());
+        }
+
+        await fixture.Repository.RecordFolderGrowthSamplesAsync(scan.ScanId);
+        await fixture.Repository.RecordFolderGrowthSamplesAsync(scan.ScanId);
+
+        await using var connection = new SqliteConnection(
+            $"Data Source={fixture.Repository.DatabasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT COUNT(DISTINCT SampleUtc / 86400000)
+            FROM FolderGrowthSamples
+            WHERE PathHash = (
+                SELECT CASE
+                           WHEN TYPEOF(PathHash) = 'blob'
+                           THEN HEX(PathHash)
+                           ELSE PathHash
+                       END
+                FROM FolderNodes
+                WHERE RunKey = (
+                    SELECT RunKey FROM ScanRuns WHERE Id = $scan
+                )
+                  AND Name = 'DailyGrowth'
+            )
+            """;
+        command.Parameters.AddWithValue("$scan", scan.ScanId.ToString("N"));
+        Assert.Equal(
+            1,
+            Convert.ToInt64(await command.ExecuteScalarAsync()));
+    }
+
+    [Fact]
+    public async Task GrowthReconcile_QueryUsesPathHashIndex()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await fixture.WriteFileAsync(
+            "PlanFolder\\file.bin",
+            10);
+        var scan = await fixture.Scanner.ScanTestRootAsync(
+            fixture.Drive,
+            fixture.ScanRoot);
+        await using var connection = new SqliteConnection(
+            $"Data Source={fixture.Repository.DatabasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            EXPLAIN QUERY PLAN
+            SELECT 1
+            FROM FolderNodes f
+            WHERE f.RunKey = $run
+              AND f.PathHash IN (
+                  (SELECT PathHash
+                   FROM FolderGrowthBaselines
+                   LIMIT 1),
+                  unhex((
+                      SELECT PathHash
+                      FROM FolderGrowthBaselines
+                      LIMIT 1))
+              )
+            LIMIT 1
+            """;
+        command.Parameters.AddWithValue(
+            "$run",
+            (await fixture.Repository.GetScanAsync(scan.ScanId))!.RunKey);
+        var details = new List<string>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            details.Add(reader.GetString(3));
+        }
+
+        Assert.Contains(
+            details,
+            detail => detail.Contains(
+                "IX_FolderNodes_PathHash",
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task GrowthRead_QueryUsesBaselinePrimaryKey()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await fixture.WriteFileAsync(
+            "ReadPlanFolder\\file.bin",
+            10);
+        var scan = await fixture.Scanner.ScanTestRootAsync(
+            fixture.Drive,
+            fixture.ScanRoot);
+        await using var connection = new SqliteConnection(
+            $"Data Source={fixture.Repository.DatabasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            EXPLAIN QUERY PLAN
+            SELECT f.Id, baseline.BaselineAllocatedSize
+            FROM FolderNodes f
+            INNER JOIN ScanRuns run ON run.RunKey = f.RunKey
+            LEFT JOIN FolderGrowthBaselines baseline
+                ON baseline.VolumeKey = COALESCE(
+                       NULLIF(run.VolumeSerialNumber, ''),
+                       run.DriveLetter
+                   )
+               AND baseline.PathHash = CASE
+                       WHEN TYPEOF(f.PathHash) = 'blob'
+                       THEN HEX(f.PathHash)
+                       ELSE f.PathHash
+                   END
+            WHERE f.RunKey = (
+                SELECT RunKey FROM ScanRuns WHERE Id = $scan
+            )
+            """;
+        command.Parameters.AddWithValue(
+            "$scan",
+            scan.ScanId.ToString("N"));
+        var details = new List<string>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            details.Add(reader.GetString(3));
+        }
+
+        Assert.Contains(
+            details,
+            detail =>
+                detail.Contains(
+                    "SEARCH baseline USING PRIMARY KEY",
+                    StringComparison.OrdinalIgnoreCase) &&
+                detail.Contains(
+                    "VolumeKey=?",
+                    StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task ExplorerQueries_ExposePositiveFolderGrowth()
     {
         await using var fixture = await ScanFixture.CreateAsync();
@@ -2430,7 +2593,8 @@ public sealed class StorageBackendTests
         var notYetDue = await BackgroundIndexPolicy.IsDueAsync(
             settings,
             currentDrives,
-            (_, _) => Task.FromResult<int?>(4),
+            (_, _) => Task.FromResult<int?>(
+                StorageRepository.CurrentScanFormat),
             now,
             CancellationToken.None);
         var legacyIndexDue = await BackgroundIndexPolicy.IsDueAsync(
@@ -2444,13 +2608,37 @@ public sealed class StorageBackendTests
         var cadenceDue = await BackgroundIndexPolicy.IsDueAsync(
             settings,
             currentDrives,
-            (_, _) => Task.FromResult<int?>(4),
+            (_, _) => Task.FromResult<int?>(
+                StorageRepository.CurrentScanFormat),
             now,
             CancellationToken.None);
 
         Assert.False(notYetDue);
         Assert.True(legacyIndexDue);
         Assert.True(cadenceDue);
+    }
+
+    [Fact]
+    public async Task IdleIndexAttempt_DoesNotAdvanceCompletionCadence()
+    {
+        var now = DateTimeOffset.Parse("2026-11-09T12:00:00Z");
+        var settings = new AutomationSettings
+        {
+            BackgroundIndexEnabled = true,
+            BackgroundIndexIntervalDays = 1,
+            LastBackgroundIndexUtc = now.AddDays(-2),
+            LastBackgroundIndexAttemptUtc = now.AddMinutes(-1),
+        };
+
+        var isDue = await BackgroundIndexPolicy.IsDueAsync(
+            settings,
+            [CreateIndexDrive("C:")],
+            (_, _) => Task.FromResult<int?>(
+                StorageRepository.CurrentScanFormat),
+            now,
+            CancellationToken.None);
+
+        Assert.True(isDue);
     }
 
     [Fact]
@@ -2575,7 +2763,7 @@ public sealed class StorageBackendTests
                 await using var versionCommand = connection.CreateCommand();
                 versionCommand.CommandText =
                     "SELECT Version FROM SchemaVersion WHERE Id = 1";
-                Assert.Equal(10L, (long)(await versionCommand.ExecuteScalarAsync())!);
+                Assert.Equal(11L, (long)(await versionCommand.ExecuteScalarAsync())!);
 
                 await using var rowCommand = connection.CreateCommand();
                 rowCommand.CommandText = """
@@ -2627,7 +2815,7 @@ public sealed class StorageBackendTests
                     FROM SchemaVersion
                     WHERE Id = 1;
                     """;
-                Assert.Equal(10L, (long)(await command.ExecuteScalarAsync())!);
+                Assert.Equal(11L, (long)(await command.ExecuteScalarAsync())!);
                 command.CommandText = """
                     SELECT name
                     FROM sqlite_master
@@ -2646,6 +2834,9 @@ public sealed class StorageBackendTests
                     indexes);
                 Assert.Contains(
                     "IX_PhysicalFiles_AllocatedSize",
+                    indexes);
+                Assert.Contains(
+                    "IX_FolderNodes_Depth",
                     indexes);
             }
         }
@@ -2679,7 +2870,7 @@ public sealed class StorageBackendTests
             command.CommandText =
                 "SELECT Version FROM SchemaVersion WHERE Id = 1;";
             Assert.Equal(
-                10L,
+                11L,
                 (long)(await command.ExecuteScalarAsync())!);
             command.CommandText = """
                 SELECT COUNT(*)
@@ -2730,7 +2921,7 @@ public sealed class StorageBackendTests
             command.CommandText =
                 "SELECT Version FROM SchemaVersion WHERE Id = 1;";
             Assert.Equal(
-                10L,
+                11L,
                 (long)(await command.ExecuteScalarAsync())!);
             command.CommandText = """
                 SELECT COUNT(*)
@@ -2749,7 +2940,7 @@ public sealed class StorageBackendTests
         {
             await using var fixture = await ScanFixture.CreateAsync();
             var first = await fixture.Repository.BeginScanAsync(fixture.Drive);
-            const int fileCount = 650;
+            const int fileCount = 10_050;
             var records = new List<StorageFileRecord>();
             for (var index = 0; index < fileCount; index++)
             {
@@ -2898,9 +3089,72 @@ public sealed class StorageBackendTests
             FROM ScanRuns
             """;
         Assert.Equal(
+            2,
+            Convert.ToInt64(
+                await command.ExecuteScalarAsync()));
+        command.CommandText = """
+            SELECT COUNT(*)
+            FROM ScanRuns
+            WHERE Status IN ($cancelled, $failed)
+            """;
+        command.Parameters.AddWithValue(
+            "$cancelled",
+            (int)StorageScanStatus.Cancelled);
+        command.Parameters.AddWithValue(
+            "$failed",
+            (int)StorageScanStatus.Failed);
+        Assert.Equal(
             1,
             Convert.ToInt64(
                 await command.ExecuteScalarAsync()));
+    }
+
+    [Fact]
+    public async Task Repository_DoesNotResumeRunMarkedForPruning()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        Guid pruningId;
+        await using (var interrupted =
+                     await fixture.Repository.BeginScanAsync(fixture.Drive))
+        {
+            pruningId = interrupted.ScanId;
+            await interrupted.EnqueueDirectoryAsync(
+                fixture.ScanRoot,
+                0,
+                new ScanFolderMetadata(
+                    (long)FileAttributes.Directory,
+                    0,
+                    DateTimeOffset.UtcNow,
+                    string.Empty,
+                    false),
+                CancellationToken.None);
+        }
+
+        await using (var connection = new SqliteConnection(
+                         $"Data Source={fixture.Repository.DatabasePath}"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                UPDATE ScanRuns
+                SET Status = $pruning,
+                    PruneStage = 0,
+                    PruneCursor = 0
+                WHERE Id = $id
+                """;
+            command.Parameters.AddWithValue(
+                "$pruning",
+                (int)StorageScanStatus.Pruning);
+            command.Parameters.AddWithValue("$id", pruningId.ToString("N"));
+            Assert.Equal(1, await command.ExecuteNonQueryAsync());
+        }
+
+        await using var next =
+            await fixture.Repository.BeginScanAsync(fixture.Drive);
+        Assert.NotEqual(pruningId, next.ScanId);
+        var old = await fixture.Repository.GetScanAsync(pruningId);
+        Assert.NotNull(old);
+        Assert.Equal(StorageScanStatus.Pruning, old.Status);
     }
 
     [Fact]
@@ -2948,6 +3202,15 @@ public sealed class StorageBackendTests
             CancellationToken.None,
             0);
         await second.DisposeAsync();
+        var third = await fixture.Repository.BeginScanAsync(fixture.Drive);
+        await third.CompleteAsync(
+            0,
+            0,
+            0,
+            0,
+            CancellationToken.None,
+            0);
+        await third.DisposeAsync();
 
         await using var connection = new SqliteConnection(
             $"Data Source={fixture.Repository.DatabasePath}");
@@ -2964,14 +3227,293 @@ public sealed class StorageBackendTests
         {
             await fixture.Repository.PruneHistoryWhenIdleAsync();
             Assert.Equal(
-                2L,
+                3L,
                 (long)(await command.ExecuteScalarAsync())!);
         }
 
         await fixture.Repository.PruneHistoryWhenIdleAsync();
         Assert.Equal(
+            2L,
+            (long)(await command.ExecuteScalarAsync())!);
+        await fixture.Repository.PruneHistoryWhenIdleAsync();
+        Assert.Equal(
             1L,
             (long)(await command.ExecuteScalarAsync())!);
+    }
+
+    [Fact]
+    public async Task Repository_ExplicitCompactUpgradesAutoVacuumMode()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await using (var first =
+                     await fixture.Repository.BeginScanAsync(fixture.Drive))
+        {
+            var records = Enumerable.Range(0, 5_000)
+                .Select(index => CreateRecord(
+                    first.ScanId,
+                    fixture.ScanRoot,
+                    Path.Combine(
+                        fixture.ScanRoot,
+                        $"old-{index:D4}.bin"),
+                    index + 1,
+                    DateTimeOffset.UtcNow))
+                .ToArray();
+            await first.InsertFilesAsync(
+                records,
+                CancellationToken.None);
+            await first.CompleteAsync(
+                records.Length,
+                1,
+                records.Length,
+                0,
+                CancellationToken.None,
+                records.Length);
+        }
+
+        await using (var latest =
+                     await fixture.Repository.BeginScanAsync(fixture.Drive))
+        {
+            await latest.CompleteAsync(
+                0,
+                1,
+                0,
+                0,
+                CancellationToken.None,
+                0);
+        }
+
+        await using (var connection = new SqliteConnection(
+                         $"Data Source={fixture.Repository.DatabasePath}"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                PRAGMA auto_vacuum=NONE;
+                VACUUM;
+                """;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        SqliteConnection.ClearAllPools();
+        await fixture.Repository.PruneHistoryAsync();
+        var routineReclaimed =
+            await fixture.Repository.ReclaimPrunedPagesWhenIdleAsync();
+        Assert.Equal(0, routineReclaimed);
+        await fixture.Repository.CompactAsync();
+
+        await using var verificationConnection = new SqliteConnection(
+            $"Data Source={fixture.Repository.DatabasePath}");
+        await verificationConnection.OpenAsync();
+        await using var verificationCommand =
+            verificationConnection.CreateCommand();
+        verificationCommand.CommandText = "PRAGMA auto_vacuum";
+        Assert.Equal(
+            2L,
+            Convert.ToInt64(
+                await verificationCommand.ExecuteScalarAsync()));
+        verificationCommand.CommandText = "PRAGMA freelist_count";
+        Assert.Equal(
+            0L,
+            Convert.ToInt64(
+                await verificationCommand.ExecuteScalarAsync()));
+    }
+
+    [Fact]
+    public async Task Repository_UsesCompactFormatForNewScans()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        var path = await fixture.WriteFileAsync(
+            "compact.bin",
+            10);
+        var folderPath = Path.Combine(fixture.ScanRoot, "IdentityFolder");
+        Directory.CreateDirectory(folderPath);
+        var folderIdentity = FileIdentityService.TryGetIdentity(folderPath);
+        Assert.NotNull(folderIdentity);
+        var scan = await fixture.Scanner.ScanTestRootAsync(
+            fixture.Drive,
+            fixture.ScanRoot);
+        var hash = Convert.ToHexString(Enumerable.Repeat(
+            (byte)0xA5,
+            32).ToArray());
+        await fixture.Repository.SetFileHashAsync(
+            scan.ScanId,
+            path,
+            hash);
+
+        await using var connection = new SqliteConnection(
+            $"Data Source={fixture.Repository.DatabasePath}");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT run.ScanFormat,
+                   TYPEOF(folder.PathHash),
+                   TYPEOF(file.FileIdentityKey),
+                   TYPEOF(file.FileId128),
+                   file.VolumeSerialNumber,
+                   name.Extension,
+                   TYPEOF(file.ContentHash),
+                   LENGTH(file.ContentHash)
+            FROM ScanRuns run
+            INNER JOIN FileNames name ON name.RunKey = run.RunKey
+            INNER JOIN PhysicalFiles file ON file.Id = name.PhysicalFileId
+            INNER JOIN FolderNodes folder ON folder.Id = name.ParentId
+            WHERE run.Id = $scan
+            LIMIT 1
+            """;
+        command.Parameters.AddWithValue("$scan", scan.ScanId.ToString("N"));
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        Assert.Equal(StorageRepository.CurrentScanFormat, reader.GetInt32(0));
+        Assert.Equal("blob", reader.GetString(1));
+        Assert.Equal("blob", reader.GetString(2));
+        Assert.Equal("blob", reader.GetString(3));
+        Assert.Equal(0, reader.GetInt64(4));
+        Assert.Equal(string.Empty, reader.GetString(5));
+        Assert.Equal("blob", reader.GetString(6));
+        Assert.Equal(32, reader.GetInt64(7));
+
+        var item = await fixture.Repository.GetItemByPathAsync(
+            scan.ScanId,
+            path);
+        Assert.NotNull(item);
+        Assert.Equal("BIN file", item.Kind);
+        var scanRun = await fixture.Repository.GetScanAsync(scan.ScanId);
+        Assert.NotNull(scanRun);
+        Assert.Equal(
+            folderPath,
+            await fixture.Repository.GetFolderPathByFileIdAsync(
+                scanRun.RunKey,
+                folderIdentity.FileIdPart0));
+    }
+
+    [Fact]
+    public async Task Repository_BoundsCleanupHistoryWithoutDeletingPending()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        await using (var connection = new SqliteConnection(
+                         $"Data Source={fixture.Repository.DatabasePath}"))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                WITH RECURSIVE Rows(Value) AS (
+                    SELECT 1
+                    UNION ALL
+                    SELECT Value + 1 FROM Rows WHERE Value < 10005
+                )
+                INSERT INTO CleanupHistory (
+                    TimestampUtc, ScanId, PolicyId, OriginalPath, SizeBytes,
+                    Automatic, Result, Error
+                )
+                SELECT 1, NULL, 0, 'C:\old-' || Value, 1, 0, 'Recycled', NULL
+                FROM Rows;
+                INSERT INTO CleanupHistory (
+                    TimestampUtc, ScanId, PolicyId, OriginalPath, SizeBytes,
+                    Automatic, Result, Error
+                )
+                VALUES (
+                    1, NULL, 0, 'C:\pending', 1, 0, 'Pending', NULL
+                );
+                """;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await fixture.Repository.PruneHistoryAsync();
+
+        await using var connectionAfter = new SqliteConnection(
+            $"Data Source={fixture.Repository.DatabasePath}");
+        await connectionAfter.OpenAsync();
+        await using var commandAfter = connectionAfter.CreateCommand();
+        commandAfter.CommandText = """
+            SELECT
+                (SELECT COUNT(*) FROM CleanupHistory WHERE Result <> 'Pending'),
+                (SELECT COUNT(*) FROM CleanupHistory WHERE Result = 'Pending')
+            """;
+        await using var readerAfter = await commandAfter.ExecuteReaderAsync();
+        Assert.True(await readerAfter.ReadAsync());
+        Assert.True(readerAfter.GetInt64(0) <= 10_000);
+        Assert.Equal(1, readerAfter.GetInt64(1));
+    }
+
+    [Fact]
+    public void UsnJournal_VolumeHandlePathPreservesTrailingSlash()
+    {
+        Assert.Equal(
+            @"\\?\C:\",
+            UsnJournalService.GetVolumeHandlePath(@"C:\"));
+        Assert.Equal(
+            @"\\?\Q:\",
+            UsnJournalService.GetVolumeHandlePath(@"Q:\"));
+    }
+
+    [Fact]
+    public void UsnJournal_MoveReturnsOldAndNewParentDirectories()
+    {
+        var temp = Path.Combine(
+            Path.GetTempPath(),
+            "StorageLens-USN-" + Guid.NewGuid().ToString("N"));
+        var from = Path.Combine(temp, "from");
+        var to = Path.Combine(temp, "to");
+        Directory.CreateDirectory(from);
+        Directory.CreateDirectory(to);
+        try
+        {
+            var volumeRoot = Path.GetPathRoot(temp)!;
+            var journalInfo = UsnJournalService.TryGetInfo(volumeRoot);
+            if (journalInfo is null)
+            {
+                return;
+            }
+
+            var source = Path.Combine(from, "moved.bin");
+            var destination = Path.Combine(to, "moved.bin");
+            File.WriteAllText(source, "Storage Lens");
+            File.Move(source, destination);
+            var fromIdentity = FileIdentityService.TryGetIdentity(from);
+            var toIdentity = FileIdentityService.TryGetIdentity(to);
+            Assert.NotNull(fromIdentity);
+            Assert.NotNull(toIdentity);
+
+            var result = UsnJournalService.TryReadChanges(
+                volumeRoot,
+                unchecked((long)journalInfo.JournalId),
+                journalInfo.NextUsn);
+            var parentIds = result.Directories
+                .Select(directory => directory.ParentReference)
+                .ToHashSet();
+            Assert.Contains(fromIdentity.FileIdPart0, parentIds);
+            Assert.Contains(toIdentity.FileIdPart0, parentIds);
+        }
+        finally
+        {
+            Directory.Delete(temp, true);
+        }
+    }
+
+    [Fact]
+    public async Task IncrementalScan_RecognizesOwnStorageIndexDirectory()
+    {
+        await using var fixture = await ScanFixture.CreateAsync();
+        var path = Path.GetDirectoryName(
+            fixture.Repository.DatabasePath)!;
+        var identity = FileIdentityService.TryGetIdentity(path);
+        Assert.NotNull(identity);
+        Assert.True(fixture.Scanner.IsIgnoredDirectoryReference(
+            fixture.Drive.Letter + "\\",
+            identity.FileIdPart0));
+        Assert.True(fixture.Scanner.ShouldSkipPath(
+            Path.Combine(path, "storage-scan.lock")));
+        Assert.True(fixture.Scanner.ShouldSkipPath(
+            @"C:\$RECYCLE.BIN\S-1-5-21"));
+        Assert.True(fixture.Scanner.ShouldSkipPath(
+            @"C:\System Volume Information\Tracking.log"));
+        var resolved = UsnJournalService.TryGetPathByFileId(
+            fixture.Drive.Letter + "\\",
+            identity.FileIdPart0);
+        Assert.Equal(
+            path.TrimEnd('\\'),
+            resolved?.TrimEnd('\\'),
+            ignoreCase: true);
     }
 
     [Fact]
@@ -3041,7 +3583,7 @@ public sealed class StorageBackendTests
             await using var reader = await command.ExecuteReaderAsync();
             Assert.True(await reader.ReadAsync());
             volumeKey = reader.GetString(0);
-            pathHash = reader.GetString(1);
+            pathHash = ReadTextOrHex(reader, 1);
             await reader.CloseAsync();
         }
 
@@ -3096,7 +3638,11 @@ public sealed class StorageBackendTests
                        ) = b.VolumeKey
                 INNER JOIN FolderNodes f
                     ON f.RunKey = run.RunKey
-                   AND f.PathHash = b.PathHash
+                   AND CASE
+                           WHEN TYPEOF(f.PathHash) = 'blob'
+                           THEN HEX(f.PathHash)
+                           ELSE f.PathHash
+                       END = b.PathHash
                 WHERE run.Id = $scan
                   AND f.Name = 'MigrationFolder'
                 ORDER BY run.CompletedUtc DESC
@@ -3107,7 +3653,9 @@ public sealed class StorageBackendTests
             Assert.True(await reader.ReadAsync());
             Assert.Equal(earliest, reader.GetInt64(0));
             Assert.Equal(128, reader.GetInt64(1));
-            Assert.Equal(reader.GetString(3), reader.GetString(2));
+            Assert.Equal(
+                ReadTextOrHex(reader, 3),
+                ReadTextOrHex(reader, 2));
         }
     }
 
@@ -4126,7 +4674,11 @@ public sealed class StorageBackendTests
                        NULLIF(run.VolumeSerialNumber, ''),
                        run.DriveLetter
                    )
-               AND baseline.PathHash = folder.PathHash
+               AND baseline.PathHash = CASE
+                       WHEN TYPEOF(folder.PathHash) = 'blob'
+                       THEN HEX(folder.PathHash)
+                       ELSE folder.PathHash
+                   END
             WHERE run.Id = $scan AND folder.Name = $name
             LIMIT 1
             """;
@@ -4135,7 +4687,9 @@ public sealed class StorageBackendTests
         await using var reader = await command.ExecuteReaderAsync();
         return await reader.ReadAsync()
             ? new FolderBaselineState(
-                reader.GetString(0),
+                reader.GetValue(0) is byte[] pathHash
+                    ? Convert.ToHexString(pathHash)
+                    : reader.GetString(0),
                 reader.GetInt64(1),
                 reader.GetInt64(2),
                 reader.GetInt64(3))
@@ -4147,6 +4701,16 @@ public sealed class StorageBackendTests
         long FirstSeenUtc,
         long BaselineAllocatedSize,
         long AllocatedSize);
+
+    private static string ReadTextOrHex(
+        SqliteDataReader reader,
+        int ordinal) =>
+        reader.GetValue(ordinal) switch
+        {
+            string text => text,
+            byte[] bytes => Convert.ToHexString(bytes),
+            var value => Convert.ToString(value) ?? string.Empty,
+        };
 
     private sealed class CallbackProgress<T>(Action<T> callback) : IProgress<T>
     {

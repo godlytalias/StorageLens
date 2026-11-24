@@ -60,6 +60,14 @@ public sealed partial class StorageIndexBackgroundTask : IBackgroundTask
                         cancellationToken))?.ScanFormat,
                 DateTimeOffset.UtcNow,
                 _cancellation.Token);
+            if (isDue)
+            {
+                AutomationSettingsService.RecordBackgroundIndexAttempt(
+                    DateTimeOffset.UtcNow,
+                    "Idle indexing started.");
+            }
+
+            await RunIndexMaintenanceAsync(_cancellation.Token);
             if (!isDue)
             {
                 return;
@@ -107,35 +115,32 @@ public sealed partial class StorageIndexBackgroundTask : IBackgroundTask
                 }
             }
 
-            await AppServices.Repository.PruneHistoryAsync(
-                completedScansPerDrive: 1,
-                cancellationToken: _cancellation.Token);
-            await AppServices.Repository.CompactIfBeneficialAsync(
-                cancellationToken: _cancellation.Token);
+            await RunIndexMaintenanceAsync(_cancellation.Token);
             await AppServices.Repository.CheckpointAsync(_cancellation.Token);
-            AutomationSettingsService.RecordBackgroundIndexResult(
-                DateTimeOffset.UtcNow,
-                failures.Count == 0
-                    ? $"Synced {indexedFiles:N0} files across {completedDrives} drive(s)."
-                    : $"Synced {completedDrives} drive(s). {string.Join(" ", failures)}");
             if (failures.Count > 0)
             {
+                AutomationSettingsService.RecordBackgroundIndexStatus(
+                    $"Synced {completedDrives} drive(s). {string.Join(" ", failures)}");
                 NotificationService.ShowGrowthAlert(
                     "Storage Lens skipped a drive",
                     string.Join(" ", failures),
                     "storagelens://automation");
             }
+            else
+            {
+                AutomationSettingsService.RecordBackgroundIndexResult(
+                    DateTimeOffset.UtcNow,
+                    $"Synced {indexedFiles:N0} files across {completedDrives} drive(s).");
+            }
         }
         catch (OperationCanceledException)
         {
-            AutomationSettingsService.RecordBackgroundIndexResult(
-                DateTimeOffset.UtcNow,
+            AutomationSettingsService.RecordBackgroundIndexStatus(
                 $"Cancelled after {completedDrives} drive(s); completed scans were retained.");
         }
         catch (Exception exception)
         {
-            AutomationSettingsService.RecordBackgroundIndexResult(
-                DateTimeOffset.UtcNow,
+            AutomationSettingsService.RecordBackgroundIndexStatus(
                 $"Failed: {exception.Message}");
             NotificationService.ShowGrowthAlert(
                 "Storage Lens idle indexing paused",
@@ -146,6 +151,33 @@ public sealed partial class StorageIndexBackgroundTask : IBackgroundTask
         {
             _cancellation.Dispose();
             deferral.Complete();
+        }
+    }
+
+    private static async Task RunIndexMaintenanceAsync(
+        CancellationToken cancellationToken)
+    {
+        using var maintenanceBudget =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken);
+        maintenanceBudget.CancelAfter(TimeSpan.FromMinutes(2));
+        try
+        {
+            await AppServices.Repository.PruneHistoryWhenIdleAsync(
+                completedScansPerDrive: 1,
+                maximumRuns: 1,
+                cancellationToken: maintenanceBudget.Token);
+            if (maintenanceBudget.IsCancellationRequested)
+            {
+                return;
+            }
+
+            await AppServices.Repository.ReclaimPrunedPagesWhenIdleAsync(
+                cancellationToken: maintenanceBudget.Token);
+        }
+        catch (OperationCanceledException) when (
+            !cancellationToken.IsCancellationRequested)
+        {
         }
     }
 }

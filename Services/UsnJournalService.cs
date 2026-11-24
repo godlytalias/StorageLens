@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Text;
 using Microsoft.Win32.SafeHandles;
 
 namespace StorageLens.Services;
@@ -11,11 +12,12 @@ public static partial class UsnJournalService
     private const uint OpenExisting = 3;
     private const uint FileFlagBackupSemantics = 0x02000000;
     private const uint FsctlQueryUsnJournal = 0x000900F4;
-    private const uint FsctlReadUsnJournal = 0x000900BB;
+    private const uint FsctlReadUsnJournal = 0x000903AB;
     private const int BufferSize = 1024 * 1024;
     private const uint ReasonMask = 0xFFFFFFFF;
     private const int ErrorHandleEof = 38;
-    private const int MaximumReturnedChanges = 250_000;
+    internal const int MaximumChangedDirectories = 25_000;
+    private const int MaximumReturnedChanges = 1_000_000;
 
     public static UsnJournalInfo? TryGetInfo(string volumeRoot)
     {
@@ -53,7 +55,7 @@ public static partial class UsnJournalService
         long journalId,
         long startUsn,
         CancellationToken cancellationToken = default,
-        int maximumReturnedChanges = MaximumReturnedChanges)
+        int maximumChangedDirectories = MaximumChangedDirectories)
     {
         var info = TryGetInfo(volumeRoot);
         if (info is null ||
@@ -85,7 +87,7 @@ public static partial class UsnJournalService
             try
             {
                 Marshal.StructureToPtr(request, input, false);
-                var changes = new Dictionary<ulong, UsnChangeAccumulator>();
+                var changedDirectories = new HashSet<ulong>();
                 var nextUsn = startUsn;
                 var returnedChanges = 0;
                 while (nextUsn < info.NextUsn)
@@ -120,6 +122,17 @@ public static partial class UsnJournalService
                     var offset = 8;
                     while (offset + 60 <= bytesReturned)
                     {
+                        returnedChanges++;
+                        if (returnedChanges > MaximumReturnedChanges)
+                        {
+                            return new UsnReadResult(
+                                false,
+                                info.NextUsn,
+                                info.JournalId,
+                                [],
+                                "The USN delta contains too many records; a verification scan is required.");
+                        }
+
                         var recordLength = Marshal.ReadInt32(output, offset);
                         if (recordLength < 60 ||
                             offset + recordLength > bytesReturned)
@@ -139,54 +152,21 @@ public static partial class UsnJournalService
                                 $"USN record version {majorVersion} requires a verification scan.");
                         }
 
-                        var fileReference =
-                            unchecked((ulong)Marshal.ReadInt64(
-                                output,
-                                offset + 8));
                         var parentReference =
                             unchecked((ulong)Marshal.ReadInt64(
                                 output,
                                 offset + 16));
-                        var reason = unchecked((uint)Marshal.ReadInt32(
-                            output,
-                            offset + 40));
-                        var attributes = unchecked((uint)Marshal.ReadInt32(
-                            output,
-                            offset + 52));
-                        var nameLength =
-                            Marshal.ReadInt16(output, offset + 56) &
-                            0xFFFF;
-                        var nameOffset =
-                            Marshal.ReadInt16(output, offset + 58) &
-                            0xFFFF;
-                        var name = nameLength >= 2
-                            ? Marshal.PtrToStringUni(
-                                output + offset + nameOffset,
-                                nameLength / 2)
-                            : string.Empty;
-                        returnedChanges++;
-                        if (returnedChanges > maximumReturnedChanges)
+                        if (changedDirectories.Add(parentReference) &&
+                            changedDirectories.Count >
+                            maximumChangedDirectories)
                         {
                             return new UsnReadResult(
                                 false,
                                 info.NextUsn,
                                 info.JournalId,
                                 [],
-                                "The USN delta is too large; a verification scan is required.");
+                                "The USN delta changed too many directories; a verification scan is required.");
                         }
-
-                        if (!changes.TryGetValue(parentReference, out var change))
-                        {
-                            change = new UsnChangeAccumulator(
-                                parentReference);
-                            changes.Add(parentReference, change);
-                        }
-
-                        change.Files.Add(new UsnFileChange(
-                            fileReference,
-                            name,
-                            reason,
-                            attributes));
                         offset += recordLength;
                     }
                 }
@@ -195,11 +175,9 @@ public static partial class UsnJournalService
                     true,
                     nextUsn,
                     info.JournalId,
-                    changes.Values
-                        .OrderBy(item => item.ParentReference)
-                        .Select(item => new UsnDirectoryChange(
-                            item.ParentReference,
-                            item.Files))
+                    changedDirectories
+                        .Order()
+                        .Select(item => new UsnDirectoryChange(item))
                         .ToList(),
                     string.Empty);
             }
@@ -226,10 +204,8 @@ public static partial class UsnJournalService
 
     private static SafeFileHandle OpenVolume(string volumeRoot)
     {
-        var root = FileIdentityService.ToExtendedPath(
-            StorageRepository.NormalizeFolderPath(volumeRoot));
         var handle = CreateFile(
-            root.TrimEnd('\\'),
+            GetVolumeHandlePath(volumeRoot),
             FileReadAttributes,
             FileShareAll,
             IntPtr.Zero,
@@ -242,6 +218,86 @@ public static partial class UsnJournalService
         }
 
         return handle;
+    }
+
+    internal static string GetVolumeHandlePath(string volumeRoot)
+    {
+        var root = FileIdentityService.ToExtendedPath(
+            StorageRepository.NormalizeFolderPath(volumeRoot));
+        return root.EndsWith('\\') ? root : root + "\\";
+    }
+
+    internal static string? TryGetPathByFileId(
+        string volumeRoot,
+        ulong fileReference) =>
+        TryResolvePathByFileId(
+            volumeRoot,
+            fileReference).Path;
+
+    internal static UsnPathResolution TryResolvePathByFileId(
+        string volumeRoot,
+        ulong fileReference)
+    {
+        try
+        {
+            using var volume = OpenVolume(volumeRoot);
+            var descriptor = new FileIdDescriptor
+            {
+                Size = (uint)Marshal.SizeOf<FileIdDescriptor>(),
+                Type = 0,
+                FileId = fileReference,
+            };
+            using var handle = OpenFileById(
+                volume,
+                ref descriptor,
+                FileReadAttributes,
+                FileShareAll,
+                IntPtr.Zero,
+                FileFlagBackupSemantics);
+            if (handle.IsInvalid)
+            {
+                return new UsnPathResolution(
+                    null,
+                    Marshal.GetLastWin32Error());
+            }
+
+            var buffer = new StringBuilder(32768);
+            var length = GetFinalPathNameByHandle(
+                handle,
+                buffer,
+                (uint)buffer.Capacity,
+                0);
+            if (length == 0)
+            {
+                return new UsnPathResolution(
+                    null,
+                    Marshal.GetLastWin32Error());
+            }
+
+            var path = buffer.ToString(0, checked((int)length));
+            if (path.StartsWith(
+                    @"\\?\UNC\",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return new UsnPathResolution(
+                    @"\\" + path[8..],
+                    0);
+            }
+
+            return new UsnPathResolution(
+                path.StartsWith(
+                        @"\\?\",
+                        StringComparison.OrdinalIgnoreCase)
+                    ? path[4..]
+                    : path,
+                0);
+        }
+        catch (Win32Exception exception)
+        {
+            return new UsnPathResolution(
+                null,
+                exception.NativeErrorCode);
+        }
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -265,6 +321,19 @@ public static partial class UsnJournalService
         public ulong Timeout;
         public ulong BytesToWaitFor;
         public ulong UsnJournalId;
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size = 24)]
+    private struct FileIdDescriptor
+    {
+        [FieldOffset(0)]
+        public uint Size;
+
+        [FieldOffset(4)]
+        public int Type;
+
+        [FieldOffset(8)]
+        public ulong FileId;
     }
 
     [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
@@ -301,17 +370,26 @@ public static partial class UsnJournalService
         out uint bytesReturned,
         IntPtr overlapped);
 
-    private sealed class UsnChangeAccumulator
-    {
-        public UsnChangeAccumulator(ulong parentReference)
-        {
-            ParentReference = parentReference;
-        }
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern SafeFileHandle OpenFileById(
+        SafeFileHandle volumeHint,
+        ref FileIdDescriptor fileId,
+        uint desiredAccess,
+        uint shareMode,
+        IntPtr securityAttributes,
+        uint flagsAndAttributes);
 
-        public ulong ParentReference { get; }
+    [DllImport(
+        "kernel32.dll",
+        EntryPoint = "GetFinalPathNameByHandleW",
+        SetLastError = true,
+        CharSet = CharSet.Unicode)]
+    private static extern uint GetFinalPathNameByHandle(
+        SafeFileHandle file,
+        [Out] StringBuilder filePath,
+        uint filePathLength,
+        uint flags);
 
-        public List<UsnFileChange> Files { get; } = [];
-    }
 }
 
 public sealed record UsnJournalInfo(
@@ -329,11 +407,8 @@ public sealed record UsnReadResult(
     string Reason);
 
 public sealed record UsnDirectoryChange(
-    ulong ParentReference,
-    IReadOnlyList<UsnFileChange> Files);
+    ulong ParentReference);
 
-public sealed record UsnFileChange(
-    ulong FileReference,
-    string FileName,
-    uint Reason,
-    uint FileAttributes);
+internal sealed record UsnPathResolution(
+    string? Path,
+    int ErrorCode);

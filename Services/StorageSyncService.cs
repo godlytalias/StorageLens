@@ -1,4 +1,5 @@
 using StorageLens.Models;
+using System.ComponentModel;
 
 namespace StorageLens.Services;
 
@@ -23,7 +24,8 @@ public sealed class StorageSyncService
         var latest = await _repository.GetLatestCompletedScanAsync(
             drive.Letter,
             cancellationToken);
-        if (latest is null || latest.ScanFormat < 4)
+        if (latest is null ||
+            latest.ScanFormat < StorageRepository.CurrentScanFormat)
         {
             return await _scanner.ScanDriveAsync(
                 drive,
@@ -89,6 +91,50 @@ public sealed class StorageSyncService
                     cancellationToken);
                 if (path is null)
                 {
+                    if (_scanner.IsIgnoredDirectoryReference(
+                            drive.Letter + "\\",
+                            directory.ParentReference))
+                    {
+                        continue;
+                    }
+
+                    var resolution =
+                        UsnJournalService.TryResolvePathByFileId(
+                            drive.Letter + "\\",
+                            directory.ParentReference);
+                    if (resolution.Path is not null &&
+                        _scanner.ShouldSkipPath(resolution.Path))
+                    {
+                        continue;
+                    }
+
+                    if (latest.ScanFormat >=
+                        StorageRepository.CurrentScanFormat &&
+                        resolution.ErrorCode is 2 or 3 or 5 or 87)
+                    {
+                        continue;
+                    }
+
+                    if (latest.ScanFormat >=
+                            StorageRepository.CurrentScanFormat &&
+                        resolution.Path is not null)
+                    {
+                        var ancestor =
+                            await _repository.FindNearestIndexedFolderAsync(
+                                checkpoint.RunKey,
+                                resolution.Path,
+                                cancellationToken);
+                        if (ancestor is not null)
+                        {
+                            if (!ancestor.IsIncomplete)
+                            {
+                                paths.Add(ancestor.Path);
+                            }
+
+                            continue;
+                        }
+                    }
+
                     executionLock.Dispose();
                     executionLock = null;
                     return await _scanner.ScanDriveAsync(
@@ -98,6 +144,20 @@ public sealed class StorageSyncService
                 }
 
                 paths.Add(path);
+            }
+
+            if (paths.Count == 0)
+            {
+                await _repository.SaveJournalCheckpointAsync(
+                    latest.Id,
+                    unchecked((long)journal.JournalId),
+                    journal.NextUsn,
+                    cancellationToken);
+                await _repository.CheckpointAsync(cancellationToken);
+                return CompletedResult(
+                    latest,
+                    started,
+                    "No indexed directories changed.");
             }
 
             var orderedPaths = paths
@@ -122,7 +182,33 @@ public sealed class StorageSyncService
                 IReadOnlyList<NativeDirectoryEntry> entries;
                 try
                 {
-                    entries = NativeDirectoryReader.Enumerate(path);
+                    entries = NativeDirectoryReader.Enumerate(path)
+                        .Where(entry => !_scanner.ShouldSkipPath(
+                            Path.Combine(path, entry.Name)))
+                        .ToArray();
+                }
+                catch (Exception exception) when (
+                    exception is UnauthorizedAccessException ||
+                    exception is Win32Exception
+                    {
+                        NativeErrorCode: 5
+                    })
+                {
+                    if (await _repository.IsIncompleteEmptyFolderAsync(
+                            checkpoint.RunKey,
+                            path,
+                            cancellationToken))
+                    {
+                        refreshed++;
+                        continue;
+                    }
+
+                    executionLock.Dispose();
+                    executionLock = null;
+                    return await _scanner.ScanDriveAsync(
+                        drive,
+                        progress,
+                        cancellationToken);
                 }
                 catch (Exception)
                 {

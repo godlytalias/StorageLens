@@ -54,6 +54,19 @@ public static class AutomationSettingsService
                 settings.LastBackgroundIndexUtc = current.LastBackgroundIndexUtc;
                 settings.LastBackgroundIndexStatus = current.LastBackgroundIndexStatus;
             }
+            if (current.LastBackgroundIndexAttemptUtc >
+                settings.LastBackgroundIndexAttemptUtc)
+            {
+                settings.LastBackgroundIndexAttemptUtc =
+                    current.LastBackgroundIndexAttemptUtc;
+                if (!current.LastBackgroundIndexUtc.HasValue ||
+                    current.LastBackgroundIndexAttemptUtc >
+                    current.LastBackgroundIndexUtc)
+                {
+                    settings.LastBackgroundIndexStatus =
+                        current.LastBackgroundIndexStatus;
+                }
+            }
 
             SaveUnlocked(settings);
             ApplicationData.Current.LocalSettings.Values.Remove(LoadWarningKey);
@@ -111,6 +124,19 @@ public static class AutomationSettingsService
         });
     }
 
+    public static void RecordBackgroundIndexAttempt(
+        DateTimeOffset startedUtc,
+        string status)
+    {
+        RunExclusive(() =>
+        {
+            var settings = LoadUnlocked();
+            settings.LastBackgroundIndexAttemptUtc = startedUtc;
+            settings.LastBackgroundIndexStatus = status;
+            SaveUnlocked(settings);
+        });
+    }
+
     public static void RecordBackgroundIndexResult(
         DateTimeOffset completedUtc,
         string status)
@@ -119,6 +145,16 @@ public static class AutomationSettingsService
         {
             var settings = LoadUnlocked();
             settings.LastBackgroundIndexUtc = completedUtc;
+            settings.LastBackgroundIndexStatus = status;
+            SaveUnlocked(settings);
+        });
+    }
+
+    public static void RecordBackgroundIndexStatus(string status)
+    {
+        RunExclusive(() =>
+        {
+            var settings = LoadUnlocked();
             settings.LastBackgroundIndexStatus = status;
             SaveUnlocked(settings);
         });
@@ -186,11 +222,16 @@ public static class AutomationSettingsService
                                    StorageLensJsonContext.Default.AutomationSettings) ??
                                CreateDefault();
                 Normalize(settings);
-                if (migratedLegacySettings || !hadVersion || settings.Version < 3)
+                if (migratedLegacySettings || !hadVersion || settings.Version < 4)
                 {
-                    settings.CleanupTasks.RemoveAll(task =>
-                        task.Name is "Weekly cache review" or "Monthly duplicate review");
-                    settings.Version = 3;
+                    if (settings.Version < 3)
+                    {
+                        settings.CleanupTasks.RemoveAll(task =>
+                            task.Name is "Weekly cache review" or
+                                        "Monthly duplicate review");
+                    }
+
+                    settings.Version = 4;
                     SaveUnlocked(settings);
                     if (migratedLegacySettings)
                     {
@@ -244,7 +285,7 @@ public static class AutomationSettingsService
     private static void SaveUnlocked(AutomationSettings settings)
     {
         Normalize(settings);
-        settings.Version = 3;
+        settings.Version = 4;
         ApplicationData.Current.LocalSettings.Values[SettingsKey] =
             JsonSerializer.Serialize(
                 settings,

@@ -2,7 +2,7 @@ namespace StorageLens.Models;
 
 public sealed class AutomationSettings
 {
-    public int Version { get; set; } = 3;
+    public int Version { get; set; } = 4;
 
     public bool MonitorEnabled { get; set; }
 
@@ -23,6 +23,8 @@ public sealed class AutomationSettings
     public int BackgroundIndexIntervalDays { get; set; } = 1;
 
     public DateTimeOffset? LastBackgroundIndexUtc { get; set; }
+
+    public DateTimeOffset? LastBackgroundIndexAttemptUtc { get; set; }
 
     public string? LastBackgroundIndexStatus { get; set; }
 

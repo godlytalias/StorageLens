@@ -16,7 +16,8 @@ internal sealed class ScanExecutionLock : IDisposable
         TimeSpan? timeout = null)
     {
         var lockPath = GetLockPath(databasePath);
-        var deadline = DateTimeOffset.UtcNow + (timeout ?? TimeSpan.FromSeconds(10));
+        var deadline = DateTimeOffset.UtcNow +
+                       (timeout ?? TimeSpan.FromMinutes(3));
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();

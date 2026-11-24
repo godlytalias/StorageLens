@@ -225,9 +225,19 @@ public partial class App : Application
         {
             await Task.Delay(StartupIndexMaintenanceDelay)
                 .ConfigureAwait(false);
+            using var maintenanceBudget =
+                new CancellationTokenSource(TimeSpan.FromSeconds(30));
             await AppServices.Repository.PruneHistoryWhenIdleAsync(
-                    completedScansPerDrive: 1)
+                    completedScansPerDrive: 1,
+                    maximumRuns: 1,
+                    cancellationToken: maintenanceBudget.Token)
                 .ConfigureAwait(false);
+            await AppServices.Repository.ReclaimPrunedPagesWhenIdleAsync(
+                    maintenanceBudget.Token)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception exception)
         {

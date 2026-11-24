@@ -23,6 +23,7 @@ public sealed partial class OverviewViewModel : ObservableObject
     private string _coverageStatus = string.Empty;
     private CancellationTokenSource? _scanCancellation;
     private Task? _postScanMaintenanceTask;
+    private CancellationTokenSource? _postScanMaintenanceCancellation;
     private bool _initialized;
 
     public OverviewViewModel()
@@ -382,6 +383,7 @@ public sealed partial class OverviewViewModel : ObservableObject
             return;
         }
 
+        await StopPostScanMaintenanceAsync();
         ErrorMessage = null;
         IsScanning = true;
         ScanProgress = 0;
@@ -464,13 +466,18 @@ public sealed partial class OverviewViewModel : ObservableObject
             return;
         }
 
+        _postScanMaintenanceCancellation?.Dispose();
+        var cancellation =
+            new CancellationTokenSource();
+        _postScanMaintenanceCancellation = cancellation;
         _postScanMaintenanceTask = Task.Run(async () =>
         {
             try
             {
                 var warning =
                     await AppServices.Scanner.RunPostScanMaintenanceAsync(
-                        scanId);
+                        scanId,
+                        cancellation.Token);
                 if (!string.IsNullOrWhiteSpace(warning))
                 {
                     Trace.TraceWarning(warning);
@@ -481,7 +488,45 @@ public sealed partial class OverviewViewModel : ObservableObject
                 Trace.TraceError(
                     $"Post-scan maintenance failed for {scanId:N}: {exception}");
             }
+            finally
+            {
+                if (ReferenceEquals(
+                        Interlocked.CompareExchange(
+                            ref _postScanMaintenanceCancellation,
+                            null,
+                            cancellation),
+                        cancellation))
+                {
+                    cancellation.Dispose();
+                }
+                else
+                {
+                    cancellation.Dispose();
+                }
+            }
         });
+    }
+
+    private async Task StopPostScanMaintenanceAsync()
+    {
+        try
+        {
+            _postScanMaintenanceCancellation?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+        if (_postScanMaintenanceTask is
+            { IsCompleted: false } maintenanceTask)
+        {
+            try
+            {
+                await maintenanceTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
     }
 
     private void ClearIndexedData()

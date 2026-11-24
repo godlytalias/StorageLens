@@ -8,6 +8,7 @@ public enum StorageScanStatus
     Completed,
     Cancelled,
     Failed,
+    Pruning,
 }
 
 public sealed class StorageScanRun

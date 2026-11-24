@@ -5,12 +5,17 @@ namespace StorageLens.Services;
 
 public sealed class StorageRepository
 {
-    private const int CurrentSchemaVersion = 10;
+    internal const int CurrentScanFormat = 5;
+    private const int CurrentSchemaVersion = 11;
     private const long MinimumGrowthSampleBytes = 1L * 1024 * 1024 * 1024;
     private const long DefaultMinimumReclaimableBytes =
         256L * 1024 * 1024;
     private const double DefaultMinimumReclaimableFraction = 0.20;
-    private const int IncrementalVacuumPageBatch = 8192;
+    private const int IncrementalVacuumPageBatch = 16_384;
+    private const int PruneChunkSize = 10_000;
+    private const long MaximumCleanupHistoryRows = 10_000;
+    private static readonly TimeSpan CleanupHistoryRetention =
+        TimeSpan.FromDays(365);
     private readonly string _connectionString;
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
     private readonly SemaphoreSlim _maintenanceLock = new(1, 1);
@@ -97,7 +102,10 @@ public sealed class StorageRepository
                     JournalId INTEGER,
                     LastUsn INTEGER,
                     ScanPhase TEXT,
-                    PhaseStartedUtc INTEGER
+                    PhaseStartedUtc INTEGER,
+                    PruneStage INTEGER NOT NULL DEFAULT 0,
+                    PruneCursor INTEGER NOT NULL DEFAULT 0,
+                    PruneStartedUtc INTEGER
                 );
 
                 CREATE INDEX IF NOT EXISTS IX_ScanRuns_Drive_Status_Start
@@ -214,6 +222,8 @@ public sealed class StorageRepository
                     ON FolderNodes (RunKey, FileId64);
                 CREATE INDEX IF NOT EXISTS IX_FolderNodes_AllocatedSize
                     ON FolderNodes (RunKey, AllocatedSize DESC);
+                CREATE INDEX IF NOT EXISTS IX_FolderNodes_Depth
+                    ON FolderNodes (RunKey, Depth, Id);
 
                 CREATE TABLE IF NOT EXISTS PhysicalFiles (
                     Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -273,8 +283,6 @@ public sealed class StorageRepository
                     PRIMARY KEY (RunKey, PolicyId, FileNameId)
                 ) WITHOUT ROWID;
 
-                CREATE INDEX IF NOT EXISTS IX_NormalizedCleanupCandidates_Page
-                    ON NormalizedCleanupCandidates (RunKey, PolicyId);
                 CREATE INDEX IF NOT EXISTS IX_NormalizedCleanupCandidates_FileName
                     ON NormalizedCleanupCandidates (FileNameId);
 
@@ -469,6 +477,10 @@ public sealed class StorageRepository
         CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenConnectionAsync(cancellationToken);
+        var scanFormat = await GetRunScanFormatAsync(
+            runKey,
+            connection,
+            cancellationToken);
         var key = fileReferenceNumber.ToString(
             "X16",
             System.Globalization.CultureInfo.InvariantCulture);
@@ -482,7 +494,11 @@ public sealed class StorageRepository
                 LIMIT 1
                 """;
             command.Parameters.AddWithValue("$run", runKey);
-            command.Parameters.AddWithValue("$fileId", key);
+            command.Parameters.AddWithValue(
+                "$fileId",
+                scanFormat >= CurrentScanFormat
+                    ? Convert.FromHexString(key)
+                    : key);
             var value = await command.ExecuteScalarAsync(cancellationToken);
             if (value is not null && value != DBNull.Value)
             {
@@ -506,6 +522,10 @@ public sealed class StorageRepository
         CancellationToken cancellationToken = default)
     {
         await using var connection = await OpenConnectionAsync(cancellationToken);
+        var scanFormat = await GetRunScanFormatAsync(
+            runKey,
+            connection,
+            cancellationToken);
         var parentId = await ResolveFolderIdAsync(
             connection,
             runKey,
@@ -564,7 +584,7 @@ public sealed class StorageRepository
                 existingFiles[reader.GetString(1)] = new ExistingFileRow(
                     reader.GetInt64(0),
                     reader.GetInt64(3),
-                    reader.GetString(4),
+                    GetTextOrHex(reader, 4),
                     reader.GetInt64(5),
                     reader.GetInt64(6),
                     reader.GetBoolean(2));
@@ -585,7 +605,7 @@ public sealed class StorageRepository
             {
                 existingFolders[reader.GetString(1)] = new ExistingFolderRow(
                     reader.GetInt64(0),
-                    reader.GetString(2));
+                    GetTextOrHex(reader, 2));
             }
         }
 
@@ -628,10 +648,11 @@ public sealed class StorageRepository
         {
             if (currentFiles.TryGetValue(pair.Key, out var currentEntry))
             {
-                var identityKey = string.IsNullOrWhiteSpace(currentEntry.FileId)
-                    ? GetPathHash(
-                        CombineDisplayPath(directoryPath, currentEntry.Name))
-                    : $"{volumeSerial:X16}:{currentEntry.FileId}";
+                var identityKey = GetIdentityComparisonKey(
+                    currentEntry.FileId,
+                    CombineDisplayPath(directoryPath, currentEntry.Name),
+                    volumeSerial,
+                    scanFormat);
                 if (!pair.Value.IsAlias &&
                     !string.Equals(
                         pair.Value.IdentityKey,
@@ -677,9 +698,16 @@ public sealed class StorageRepository
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var entry = current.Value;
-                var identityKey = string.IsNullOrWhiteSpace(entry.FileId)
-                    ? GetPathHash(CombineDisplayPath(directoryPath, entry.Name))
-                    : $"{volumeSerial:X16}:{entry.FileId}";
+                var identityKey = GetIdentityComparisonKey(
+                    entry.FileId,
+                    CombineDisplayPath(directoryPath, entry.Name),
+                    volumeSerial,
+                    scanFormat);
+                var storedIdentity = GetFileIdentityValue(
+                    entry.FileId,
+                    CombineDisplayPath(directoryPath, entry.Name),
+                    volumeSerial,
+                    scanFormat);
                 newDirectLogical += entry.LogicalSize;
 
                 if (existingFiles.TryGetValue(current.Key, out var existing))
@@ -722,7 +750,7 @@ public sealed class StorageRepository
                 var physicalId = await FindPhysicalFileIdAsync(
                     connection,
                     runKey,
-                    identityKey,
+                    storedIdentity,
                     cancellationToken,
                     transaction);
                 var isAlias = physicalId.HasValue;
@@ -732,9 +760,10 @@ public sealed class StorageRepository
                         connection,
                         transaction,
                         runKey,
-                        identityKey,
+                        storedIdentity,
                         volumeSerial,
                         entry,
+                        scanFormat,
                         cancellationToken);
                 }
 
@@ -752,6 +781,7 @@ public sealed class StorageRepository
                     entry,
                     isAlias,
                     directoryPath,
+                    scanFormat,
                     cancellationToken);
             }
 
@@ -973,7 +1003,12 @@ public sealed class StorageRepository
                 AllocatedSize, FileCount
             )
             SELECT COALESCE(NULLIF(r.VolumeSerialNumber, ''), r.DriveLetter),
-                   f.PathHash, $sample, f.LogicalSize, f.AllocatedSize,
+                   CASE
+                       WHEN TYPEOF(f.PathHash) = 'blob'
+                       THEN HEX(f.PathHash)
+                       ELSE f.PathHash
+                   END,
+                   $sample, f.LogicalSize, f.AllocatedSize,
                    f.FileCount
             FROM ScanRuns r
             INNER JOIN FolderNodes f ON f.RunKey = r.RunKey
@@ -989,7 +1024,9 @@ public sealed class StorageRepository
               );
             """;
         command.Parameters.AddWithValue("$run", runKey);
-        command.Parameters.AddWithValue("$sample", sampleUtc);
+        command.Parameters.AddWithValue(
+            "$sample",
+            sampleUtc - sampleUtc % 86_400_000);
         command.Parameters.AddWithValue("$minimum", MinimumGrowthSampleBytes);
         command.Parameters.AddWithValue(
             "$stale",
@@ -1046,7 +1083,10 @@ public sealed class StorageRepository
                   SELECT 1
                   FROM FolderNodes f
                   WHERE f.RunKey = $run
-                    AND f.PathHash = FolderGrowthSamples.PathHash
+                    AND f.PathHash IN (
+                        FolderGrowthSamples.PathHash,
+                        unhex(FolderGrowthSamples.PathHash)
+                    )
               );
 
             DELETE FROM FolderGrowthBaselines
@@ -1055,20 +1095,39 @@ public sealed class StorageRepository
                   SELECT 1
                   FROM FolderNodes f
                   WHERE f.RunKey = $run
-                    AND f.PathHash = FolderGrowthBaselines.PathHash
+                    AND f.PathHash IN (
+                        FolderGrowthBaselines.PathHash,
+                        unhex(FolderGrowthBaselines.PathHash)
+                    )
                     AND (
                         FolderGrowthBaselines.FolderIdentity = ''
                         OR f.FileId128 = ''
-                        OR FolderGrowthBaselines.FolderIdentity = f.FileId128
+                        OR CASE
+                               WHEN TYPEOF(FolderGrowthBaselines.FolderIdentity) = 'blob'
+                               THEN HEX(FolderGrowthBaselines.FolderIdentity)
+                               ELSE UPPER(FolderGrowthBaselines.FolderIdentity)
+                           END =
+                           CASE
+                               WHEN TYPEOF(f.FileId128) = 'blob'
+                               THEN HEX(f.FileId128)
+                               ELSE UPPER(f.FileId128)
+                           END
                     )
               );
 
             UPDATE FolderGrowthBaselines
             SET FolderIdentity = (
-                SELECT f.FileId128
+                SELECT CASE
+                           WHEN TYPEOF(f.FileId128) = 'blob'
+                           THEN HEX(f.FileId128)
+                           ELSE f.FileId128
+                       END
                 FROM FolderNodes f
                 WHERE f.RunKey = $run
-                  AND f.PathHash = FolderGrowthBaselines.PathHash
+                  AND f.PathHash IN (
+                      FolderGrowthBaselines.PathHash,
+                      unhex(FolderGrowthBaselines.PathHash)
+                  )
                 LIMIT 1
             )
             WHERE VolumeKey = $volume
@@ -1077,7 +1136,10 @@ public sealed class StorageRepository
                   SELECT 1
                   FROM FolderNodes f
                   WHERE f.RunKey = $run
-                    AND f.PathHash = FolderGrowthBaselines.PathHash
+                    AND f.PathHash IN (
+                        FolderGrowthBaselines.PathHash,
+                        unhex(FolderGrowthBaselines.PathHash)
+                    )
                     AND f.FileId128 <> ''
               );
 
@@ -1085,8 +1147,19 @@ public sealed class StorageRepository
                 VolumeKey, PathHash, FirstSeenUtc, BaselineLogicalSize,
                 BaselineAllocatedSize, BaselineFileCount, FolderIdentity
             )
-            SELECT $volume, f.PathHash, $sample, f.LogicalSize,
-                   f.AllocatedSize, f.FileCount, f.FileId128
+            SELECT $volume,
+                   CASE
+                       WHEN TYPEOF(f.PathHash) = 'blob'
+                       THEN HEX(f.PathHash)
+                       ELSE f.PathHash
+                   END,
+                   $sample, f.LogicalSize,
+                   f.AllocatedSize, f.FileCount,
+                   CASE
+                       WHEN TYPEOF(f.FileId128) = 'blob'
+                       THEN HEX(f.FileId128)
+                       ELSE f.FileId128
+                   END
             FROM FolderNodes f
             WHERE f.RunKey = $run;
             """;
@@ -1144,6 +1217,24 @@ public sealed class StorageRepository
         }
 
         return serial;
+    }
+
+    private static async Task<int> GetRunScanFormatAsync(
+        long runKey,
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT ScanFormat
+            FROM ScanRuns
+            WHERE RunKey = $run
+            """;
+        command.Parameters.AddWithValue("$run", runKey);
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return value is null || value == DBNull.Value
+            ? 1
+            : Convert.ToInt32(value);
     }
 
     private static async Task<bool> HasOtherPhysicalNamesAsync(
@@ -1254,7 +1345,7 @@ public sealed class StorageRepository
     internal static async Task<long?> FindPhysicalFileIdAsync(
         SqliteConnection connection,
         long runKey,
-        string identityKey,
+        object identityKey,
         CancellationToken cancellationToken,
         SqliteTransaction transaction)
     {
@@ -1278,9 +1369,10 @@ public sealed class StorageRepository
         SqliteConnection connection,
         SqliteTransaction transaction,
         long runKey,
-        string identityKey,
+        object identityKey,
         long volumeSerial,
         NativeDirectoryEntry entry,
+        int scanFormat,
         CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -1301,8 +1393,12 @@ public sealed class StorageRepository
             """;
         command.Parameters.AddWithValue("$run", runKey);
         command.Parameters.AddWithValue("$identity", identityKey);
-        command.Parameters.AddWithValue("$fileId", entry.FileId);
-        command.Parameters.AddWithValue("$volume", volumeSerial);
+        command.Parameters.AddWithValue(
+            "$fileId",
+            GetFileIdValue(entry.FileId, scanFormat));
+        command.Parameters.AddWithValue(
+            "$volume",
+            scanFormat >= CurrentScanFormat ? 0L : volumeSerial);
         command.Parameters.AddWithValue("$logical", entry.LogicalSize);
         command.Parameters.AddWithValue("$allocated", entry.AllocatedSize);
         command.Parameters.AddWithValue(
@@ -1332,6 +1428,7 @@ public sealed class StorageRepository
         NativeDirectoryEntry entry,
         bool alias,
         string directoryPath,
+        int scanFormat,
         CancellationToken cancellationToken)
     {
         var fullPath = CombineDisplayPath(directoryPath, entry.Name);
@@ -1357,7 +1454,9 @@ public sealed class StorageRepository
         command.Parameters.AddWithValue("$parent", parentId);
         command.Parameters.AddWithValue("$physical", physicalId);
         command.Parameters.AddWithValue("$name", entry.Name);
-        command.Parameters.AddWithValue("$extension", extension);
+        command.Parameters.AddWithValue(
+            "$extension",
+            scanFormat >= CurrentScanFormat ? string.Empty : extension);
         command.Parameters.AddWithValue(
             "$category",
             StorageCategoryClassifier.CategoryId(category));
@@ -1533,11 +1632,12 @@ public sealed class StorageRepository
         CancellationToken cancellationToken = default)
     {
         var connection = await OpenConnectionAsync(cancellationToken);
+        await ReconcileInterruptedScansAsync(connection, cancellationToken);
         var owner = ScanOwner.Current;
         await using (var resume = connection.CreateCommand())
         {
             resume.CommandText = """
-                SELECT r.Id, r.RunKey
+                SELECT r.Id, r.RunKey, r.ScanFormat
                 FROM ScanRuns r
                 WHERE r.DriveLetter = $drive
                   AND r.ScanFormat >= 4
@@ -1576,6 +1676,7 @@ public sealed class StorageRepository
             {
                 var resumedScanId = Guid.ParseExact(reader.GetString(0), "N");
                 var runKey = reader.GetInt64(1);
+                var scanFormat = reader.GetInt32(2);
                 reader.Close();
                 await ResetRunningWorkAndClaimAsync(
                     connection,
@@ -1588,7 +1689,8 @@ public sealed class StorageRepository
                     resumedScanId,
                     owner,
                     runKey,
-                    resumed: true);
+                    resumed: true,
+                    scanFormat: scanFormat);
             }
         }
 
@@ -1606,7 +1708,7 @@ public sealed class StorageRepository
                 VALUES (
                     $id, $drive, $name, $fileSystem, $total, $used,
                     $free, $started, $status, 0, 0, 0, 0, $pid,
-                    $processStarted, $heartbeat, 1, $volumeSerial, 4
+                    $processStarted, $heartbeat, 1, $volumeSerial, $scanFormat
                 );
                 SELECT last_insert_rowid();
                 """;
@@ -1630,6 +1732,9 @@ public sealed class StorageRepository
                 "$volumeSerial",
                 VolumeIdentityService.TryGetVolumeSerial(drive.Letter) ??
                 string.Empty);
+            command.Parameters.AddWithValue(
+                "$scanFormat",
+                CurrentScanFormat);
             var runKey = Convert.ToInt64(
                 await command.ExecuteScalarAsync(cancellationToken));
             await using var keyCommand = connection.CreateCommand();
@@ -1649,7 +1754,8 @@ public sealed class StorageRepository
                 connection,
                 scanId,
                 owner,
-                runKey);
+                runKey,
+                scanFormat: CurrentScanFormat);
         }
     }
 
@@ -1741,7 +1847,12 @@ public sealed class StorageRepository
         Guid scanId,
         CancellationToken cancellationToken = default)
     {
-        var format = await GetScanFormatAsync(scanId, cancellationToken);
+        var format = await TryGetScanFormatAsync(scanId, cancellationToken);
+        if (format is null)
+        {
+            return [];
+        }
+
         if (format.Format >= 4)
         {
             return await GetNormalizedCategoriesAsync(
@@ -2024,7 +2135,11 @@ public sealed class StorageRepository
                            NULLIF(run.VolumeSerialNumber, ''),
                            run.DriveLetter
                        )
-                   AND baseline.PathHash = f.PathHash
+                   AND baseline.PathHash = CASE
+                           WHEN TYPEOF(f.PathHash) = 'blob'
+                           THEN HEX(f.PathHash)
+                           ELSE f.PathHash
+                       END
                 WHERE f.RunKey = $run AND f.ParentId = $parent
                 ORDER BY f.AllocatedSize DESC, f.Name
                 """;
@@ -2115,14 +2230,18 @@ public sealed class StorageRepository
                 }
 
                 var hardAlias = reader.GetBoolean(5);
+                var extension = GetStoredExtension(
+                    reader,
+                    2,
+                    reader.GetString(1));
                 items.Add(new StorageItem
                 {
                     Name = reader.GetString(1),
                     Path = CombineDisplayPath(parentPath, reader.GetString(1)),
                     Category = categoryName,
-                    Kind = string.IsNullOrWhiteSpace(reader.GetString(2))
+                    Kind = string.IsNullOrWhiteSpace(extension)
                         ? "File"
-                        : reader.GetString(2).TrimStart('.').ToUpperInvariant() +
+                        : extension.TrimStart('.').ToUpperInvariant() +
                           " file",
                     ModifiedAt = DateTimeOffset.FromUnixTimeMilliseconds(
                         reader.GetInt64(8)),
@@ -2215,6 +2334,99 @@ public sealed class StorageRepository
         return parentId;
     }
 
+    internal async Task<bool> IsIncompleteEmptyFolderAsync(
+        long runKey,
+        string path,
+        CancellationToken cancellationToken)
+    {
+        await using var connection =
+            await OpenConnectionAsync(cancellationToken);
+        var folderId = await ResolveFolderIdAsync(
+            connection,
+            runKey,
+            path,
+            cancellationToken);
+        if (!folderId.HasValue)
+        {
+            return false;
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT IsIncomplete = 1
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM FileNames
+                  WHERE RunKey = $run AND ParentId = $folder
+              )
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM FolderNodes
+                  WHERE RunKey = $run AND ParentId = $folder
+              )
+            FROM FolderNodes
+            WHERE RunKey = $run AND Id = $folder
+            """;
+        command.Parameters.AddWithValue("$run", runKey);
+        command.Parameters.AddWithValue("$folder", folderId.Value);
+        return Convert.ToBoolean(
+            await command.ExecuteScalarAsync(cancellationToken));
+    }
+
+    internal async Task<IndexedFolderAncestor?> FindNearestIndexedFolderAsync(
+        long runKey,
+        string path,
+        CancellationToken cancellationToken)
+    {
+        await using var connection =
+            await OpenConnectionAsync(cancellationToken);
+        var current = NormalizeFolderPath(path);
+        var root = Path.GetPathRoot(current);
+        while (!string.IsNullOrWhiteSpace(current))
+        {
+            var folderId = await ResolveFolderIdAsync(
+                connection,
+                runKey,
+                current,
+                cancellationToken);
+            if (folderId.HasValue)
+            {
+                await using var command = connection.CreateCommand();
+                command.CommandText = """
+                    SELECT IsIncomplete
+                    FROM FolderNodes
+                    WHERE RunKey = $run AND Id = $folder
+                    """;
+                command.Parameters.AddWithValue("$run", runKey);
+                command.Parameters.AddWithValue(
+                    "$folder",
+                    folderId.Value);
+                var value = await command.ExecuteScalarAsync(
+                    cancellationToken);
+                return new IndexedFolderAncestor(
+                    current,
+                    value is not null &&
+                    value != DBNull.Value &&
+                    Convert.ToBoolean(value));
+            }
+
+            var trimmed = current.TrimEnd('\\');
+            if (root is not null &&
+                string.Equals(
+                    trimmed,
+                    root.TrimEnd('\\'),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                break;
+            }
+
+            current = Path.GetDirectoryName(trimmed) ??
+                      string.Empty;
+        }
+
+        return null;
+    }
+
     private static string CombineDisplayPath(string parentPath, string name) =>
         Path.Combine(
             parentPath.EndsWith('\\')
@@ -2233,7 +2445,12 @@ public sealed class StorageRepository
         int offset = 0,
         CancellationToken cancellationToken = default)
     {
-        var format = await GetScanFormatAsync(scanId, cancellationToken);
+        var format = await TryGetScanFormatAsync(scanId, cancellationToken);
+        if (format is null)
+        {
+            return [];
+        }
+
         if (format.Format >= 4)
         {
             return await SearchNormalizedAsync(
@@ -2343,7 +2560,11 @@ public sealed class StorageRepository
                        NULLIF(run.VolumeSerialNumber, ''),
                        run.DriveLetter
                    )
-               AND baseline.PathHash = folder.PathHash
+               AND baseline.PathHash = CASE
+                       WHEN TYPEOF(folder.PathHash) = 'blob'
+                       THEN HEX(folder.PathHash)
+                       ELSE folder.PathHash
+                   END
             WHERE folder.RunKey = $run
               AND folder.Name LIKE $search ESCAPE '\'
               AND ($includeSystem = 1 OR folder.Category <> $system)
@@ -2466,7 +2687,7 @@ public sealed class StorageRepository
                     reader.GetInt64(0),
                     reader.GetInt64(1),
                     reader.GetString(2),
-                    reader.GetString(3),
+                    GetStoredExtension(reader, 3, reader.GetString(2)),
                     reader.GetInt32(4),
                     reader.GetInt32(5),
                     reader.GetBoolean(6),
@@ -2622,7 +2843,12 @@ public sealed class StorageRepository
         string path,
         CancellationToken cancellationToken = default)
     {
-        var format = await GetScanFormatAsync(scanId, cancellationToken);
+        var format = await TryGetScanFormatAsync(scanId, cancellationToken);
+        if (format is null)
+        {
+            return null;
+        }
+
         if (format.Format >= 4)
         {
             return await GetNormalizedItemByPathAsync(
@@ -2684,7 +2910,11 @@ public sealed class StorageRepository
                            NULLIF(run.VolumeSerialNumber, ''),
                            run.DriveLetter
                        )
-                   AND baseline.PathHash = f.PathHash
+                   AND baseline.PathHash = CASE
+                           WHEN TYPEOF(f.PathHash) = 'blob'
+                           THEN HEX(f.PathHash)
+                           ELSE f.PathHash
+                       END
                 WHERE f.RunKey = $run AND f.Id = $id
                 """;
             folder.Parameters.AddWithValue("$run", runKey);
@@ -2758,6 +2988,10 @@ public sealed class StorageRepository
 
         var attributesValue = (FileAttributes)fileReader.GetInt64(9);
         var alias = fileReader.GetBoolean(5);
+        var fileExtension = GetStoredExtension(
+            fileReader,
+            2,
+            fileReader.GetString(1));
         return new StorageItem
         {
             EntryId = fileReader.GetInt64(0),
@@ -2765,9 +2999,9 @@ public sealed class StorageRepository
             Path = Path.GetFullPath(path),
             Category = StorageCategoryClassifier.CategoryName(
                 fileReader.GetInt32(3)),
-            Kind = string.IsNullOrWhiteSpace(fileReader.GetString(2))
+            Kind = string.IsNullOrWhiteSpace(fileExtension)
                 ? "File"
-                : fileReader.GetString(2).TrimStart('.').ToUpperInvariant() +
+                : fileExtension.TrimStart('.').ToUpperInvariant() +
                   " file",
             ModifiedAt = DateTimeOffset.FromUnixTimeMilliseconds(
                 fileReader.GetInt64(8)),
@@ -2829,6 +3063,17 @@ public sealed class StorageRepository
         }
 
         var alias = reader.GetBoolean(4);
+        var extension = GetStoredExtension(
+            reader,
+            1,
+            reader.GetString(0));
+        var volumeSerial = reader.GetInt64(12);
+        if (volumeSerial == 0)
+        {
+            volumeSerial = await GetRunVolumeSerialAsync(
+                runKey,
+                cancellationToken);
+        }
         return new StorageFileRecord
         {
             ScanId = await GetScanIdForRunAsync(runKey, cancellationToken),
@@ -2842,14 +3087,14 @@ public sealed class StorageRepository
             ModifiedUtc = DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(8)),
             AccessedUtc = DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(9)),
             Attributes = reader.GetInt64(10),
-            Extension = reader.GetString(1),
+            Extension = extension,
             Category = StorageCategoryClassifier.CategoryName(reader.GetInt32(2)),
             Tag = StorageCategoryClassifier.TagName(reader.GetInt32(3)),
-            VolumeSerialNumber = reader.GetInt64(12),
-            FileId128 = reader.GetString(13),
+            VolumeSerialNumber = volumeSerial,
+            FileId128 = GetTextOrHex(reader, 13),
             ReparseTag = unchecked((uint)reader.GetInt64(11)),
             IsHardLinkAlias = alias,
-            ContentHash = reader.IsDBNull(14) ? null : reader.GetString(14),
+            ContentHash = GetOptionalTextOrHex(reader, 14),
         };
     }
 
@@ -2891,7 +3136,12 @@ public sealed class StorageRepository
         int limit,
         CancellationToken cancellationToken)
     {
-        var format = await GetScanFormatAsync(scanId, cancellationToken);
+        var format = await TryGetScanFormatAsync(scanId, cancellationToken);
+        if (format is null)
+        {
+            return [];
+        }
+
         if (format.Format >= 4)
         {
             var root = await GetRootFolderPathAsync(
@@ -2963,7 +3213,12 @@ public sealed class StorageRepository
             return [];
         }
 
-        var format = await GetScanFormatAsync(scanId, cancellationToken);
+        var format = await TryGetScanFormatAsync(scanId, cancellationToken);
+        if (format is null)
+        {
+            return [];
+        }
+
         if (format.Format >= 4)
         {
             return await GetNormalizedLargestFilesAsync(
@@ -3042,7 +3297,7 @@ public sealed class StorageRepository
                     reader.GetInt64(0),
                     reader.GetInt64(1),
                     reader.GetString(2),
-                    reader.GetString(3),
+                    GetStoredExtension(reader, 3, reader.GetString(2)),
                     reader.GetInt32(4),
                     reader.GetInt32(5),
                     reader.GetBoolean(6),
@@ -3097,7 +3352,12 @@ public sealed class StorageRepository
         int limit = 200,
         CancellationToken cancellationToken = default)
     {
-        var format = await GetScanFormatAsync(scanId, cancellationToken);
+        var format = await TryGetScanFormatAsync(scanId, cancellationToken);
+        if (format is null)
+        {
+            return [];
+        }
+
         if (format.Format >= 4)
         {
             return await GetNormalizedFolderChildrenAsync(
@@ -3194,7 +3454,11 @@ public sealed class StorageRepository
                            NULLIF(run.VolumeSerialNumber, ''),
                            run.DriveLetter
                        )
-                   AND baseline.PathHash = f.PathHash
+                   AND baseline.PathHash = CASE
+                           WHEN TYPEOF(f.PathHash) = 'blob'
+                           THEN HEX(f.PathHash)
+                           ELSE f.PathHash
+                       END
                 WHERE f.RunKey = $run AND f.Id = $id
                 """;
             command.Parameters.AddWithValue("$run", format.RunKey);
@@ -3300,7 +3564,11 @@ public sealed class StorageRepository
                        NULLIF(run.VolumeSerialNumber, ''),
                        run.DriveLetter
                    )
-               AND baseline.PathHash = f.PathHash
+               AND baseline.PathHash = CASE
+                       WHEN TYPEOF(f.PathHash) = 'blob'
+                       THEN HEX(f.PathHash)
+                       ELSE f.PathHash
+                   END
             WHERE f.RunKey = $run
               AND f.ParentId = $parent
               AND ($includeSystem = 1 OR f.Category <> $system)
@@ -3494,7 +3762,11 @@ public sealed class StorageRepository
                 INNER JOIN LatestRun run ON run.RunKey = n.RunKey
                 INNER JOIN FolderGrowthBaselines baseline
                     ON baseline.VolumeKey = run.VolumeKey
-                   AND baseline.PathHash = n.PathHash
+                   AND baseline.PathHash = CASE
+                           WHEN TYPEOF(n.PathHash) = 'blob'
+                           THEN HEX(n.PathHash)
+                           ELSE n.PathHash
+                       END
                 WHERE n.AllocatedSize >= $minimum
                   AND n.AllocatedSize > baseline.BaselineAllocatedSize
                 ORDER BY
@@ -3760,7 +4032,12 @@ public sealed class StorageRepository
         int offset = 0,
         CancellationToken cancellationToken = default)
     {
-        var format = await GetScanFormatAsync(scanId, cancellationToken);
+        var format = await TryGetScanFormatAsync(scanId, cancellationToken);
+        if (format is null)
+        {
+            return [];
+        }
+
         if (format.Format >= 4)
         {
             return await GetNormalizedCleanupCandidatesAsync(
@@ -3802,7 +4079,12 @@ public sealed class StorageRepository
             DateTimeOffset now,
             CancellationToken cancellationToken = default)
     {
-        var format = await GetScanFormatAsync(scanId, cancellationToken);
+        var format = await TryGetScanFormatAsync(scanId, cancellationToken);
+        if (format is null)
+        {
+            return [];
+        }
+
         if (format.Format >= 4)
         {
             return await GetNormalizedCleanupCandidateFoldersAsync(
@@ -3852,7 +4134,12 @@ public sealed class StorageRepository
             int offset = 0,
             CancellationToken cancellationToken = default)
     {
-        var format = await GetScanFormatAsync(scanId, cancellationToken);
+        var format = await TryGetScanFormatAsync(scanId, cancellationToken);
+        if (format is null)
+        {
+            return [];
+        }
+
         if (format.Format >= 4)
         {
             return await GetNormalizedCleanupCandidatesAsync(
@@ -3961,7 +4248,12 @@ public sealed class StorageRepository
         DateTimeOffset now,
         CancellationToken cancellationToken = default)
     {
-        var format = await GetScanFormatAsync(scanId, cancellationToken);
+        var format = await TryGetScanFormatAsync(scanId, cancellationToken);
+        if (format is null)
+        {
+            return 0;
+        }
+
         if (format.Format >= 4)
         {
             return await GetNormalizedCleanupCandidateMetricAsync(
@@ -3986,7 +4278,12 @@ public sealed class StorageRepository
         DateTimeOffset now,
         CancellationToken cancellationToken = default)
     {
-        var format = await GetScanFormatAsync(scanId, cancellationToken);
+        var format = await TryGetScanFormatAsync(scanId, cancellationToken);
+        if (format is null)
+        {
+            return 0;
+        }
+
         if (format.Format >= 4)
         {
             return await GetNormalizedCleanupCandidateMetricAsync(
@@ -4010,7 +4307,12 @@ public sealed class StorageRepository
         DateTimeOffset now,
         CancellationToken cancellationToken = default)
     {
-        var format = await GetScanFormatAsync(scanId, cancellationToken);
+        var format = await TryGetScanFormatAsync(scanId, cancellationToken);
+        if (format is null)
+        {
+            return [];
+        }
+
         if (format.Format >= 4)
         {
             return await GetNormalizedCleanupSummariesAsync(
@@ -4200,6 +4502,13 @@ public sealed class StorageRepository
         CancellationToken cancellationToken)
     {
         await using var connection = await OpenConnectionAsync(cancellationToken);
+        var scanFormat = await GetRunScanFormatAsync(
+            runKey,
+            connection,
+            cancellationToken);
+        var runVolumeSerial = await GetRunVolumeSerialAsync(
+            runKey,
+            cancellationToken);
         var rows = new List<(long NameId, long ParentId, string Name, string Extension,
             int Category, int Tag, bool Alias, long Logical, long Allocated,
             long Created, long Modified, long Accessed, long Attributes,
@@ -4216,7 +4525,7 @@ public sealed class StorageRepository
             {
                 command.Parameters.AddWithValue(
                     "$folderHash",
-                    GetPathHash(parentPath));
+                    GetPathHashValue(parentPath, scanFormat));
                 folderCte = """
                     WITH RECURSIVE CandidateFolderTree(Id) AS (
                         SELECT Id
@@ -4264,7 +4573,7 @@ public sealed class StorageRepository
                     reader.GetInt64(0),
                     reader.GetInt64(1),
                     reader.GetString(2),
-                    reader.GetString(3),
+                    GetStoredExtension(reader, 3, reader.GetString(2)),
                     reader.GetInt32(4),
                     reader.GetInt32(5),
                     reader.GetBoolean(6),
@@ -4275,9 +4584,11 @@ public sealed class StorageRepository
                     reader.GetInt64(11),
                     reader.GetInt64(12),
                     unchecked((uint)reader.GetInt64(13)),
-                    reader.GetInt64(14),
-                    reader.GetString(15),
-                    reader.IsDBNull(16) ? null : reader.GetString(16)));
+                    reader.GetInt64(14) == 0
+                        ? runVolumeSerial
+                        : reader.GetInt64(14),
+                    GetTextOrHex(reader, 15),
+                    GetOptionalTextOrHex(reader, 16)));
             }
         }
 
@@ -4645,6 +4956,10 @@ public sealed class StorageRepository
         CancellationToken cancellationToken)
     {
         await using var connection = await OpenConnectionAsync(cancellationToken);
+        var scanFormat = await GetRunScanFormatAsync(
+            runKey,
+            connection,
+            cancellationToken);
         long? parentId = null;
         string? name = null;
         await using (var command = connection.CreateCommand())
@@ -4661,12 +4976,16 @@ public sealed class StorageRepository
                 LIMIT 1
                 """;
             command.Parameters.AddWithValue("$run", runKey);
-            command.Parameters.AddWithValue("$hash", candidate.ContentHash);
+            command.Parameters.AddWithValue(
+                "$hash",
+                GetHashValue(candidate.ContentHash, scanFormat));
             command.Parameters.AddWithValue(
                 "$identity",
-                string.IsNullOrWhiteSpace(candidate.FileId128)
-                    ? GetPathHash(candidate.FullPath)
-                    : $"{candidate.VolumeSerialNumber:X16}:{candidate.FileId128}");
+                GetFileIdentityValue(
+                    candidate.FileId128,
+                    candidate.FullPath,
+                    candidate.VolumeSerialNumber,
+                    scanFormat));
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             if (await reader.ReadAsync(cancellationToken))
             {
@@ -4704,6 +5023,7 @@ public sealed class StorageRepository
         {
             await SetNormalizedFileHashesAsync(
                 format.RunKey,
+                format.Format,
                 [new FileHashUpdate(path, hash, identity)],
                 cancellationToken);
             return;
@@ -4757,6 +5077,7 @@ public sealed class StorageRepository
         {
             await SetNormalizedFileHashesAsync(
                 format.RunKey,
+                format.Format,
                 updates,
                 cancellationToken);
             return;
@@ -5128,7 +5449,9 @@ public sealed class StorageRepository
                 )
                   AND HashState = 0
                 """;
-            command.Parameters.AddWithValue("$hash", update.Hash);
+            command.Parameters.AddWithValue(
+                "$hash",
+                GetHashValue(update.Hash, format.Format));
             command.Parameters.AddWithValue("$run", format.RunKey);
             command.Parameters.AddWithValue("$parent", parentId.Value);
             command.Parameters.AddWithValue("$name", Path.GetFileName(fullPath));
@@ -5140,6 +5463,7 @@ public sealed class StorageRepository
 
     private async Task SetNormalizedFileHashesAsync(
         long runKey,
+        int scanFormat,
         IReadOnlyList<FileHashUpdate> updates,
         CancellationToken cancellationToken)
     {
@@ -5185,16 +5509,22 @@ public sealed class StorageRepository
                       AND n.Name = $name
                 )
                 """;
-            command.Parameters.AddWithValue("$hash", update.Hash);
+            command.Parameters.AddWithValue(
+                "$hash",
+                GetHashValue(update.Hash, scanFormat));
             command.Parameters.AddWithValue(
                 "$fileId",
-                update.Identity?.FileId128 ?? string.Empty);
+                GetFileIdValue(
+                    update.Identity?.FileId128 ?? string.Empty,
+                    scanFormat));
             command.Parameters.AddWithValue(
                 "$hasIdentity",
                 update.Identity is null ? 0 : 1);
             command.Parameters.AddWithValue(
                 "$volume",
-                update.Identity?.VolumeSerialNumber ?? 0);
+                scanFormat >= CurrentScanFormat
+                    ? 0
+                    : update.Identity?.VolumeSerialNumber ?? 0);
             command.Parameters.AddWithValue("$run", runKey);
             command.Parameters.AddWithValue("$parent", parentId.Value);
             command.Parameters.AddWithValue("$name", Path.GetFileName(fullPath));
@@ -5235,7 +5565,13 @@ public sealed class StorageRepository
                 WHERE n.RunKey = $run
                   AND n.IsHardLinkAlias = 0
                   AND p.ContentHash IS NOT NULL
-                  AND LENGTH(p.ContentHash) = 64
+                  AND (
+                      (TYPEOF(p.ContentHash) = 'text' AND
+                       LENGTH(p.ContentHash) = 64)
+                      OR
+                      (TYPEOF(p.ContentHash) = 'blob' AND
+                       LENGTH(p.ContentHash) = 32)
+                  )
                   AND (p.Attributes & $protected) = 0
             )
             INSERT INTO NormalizedCleanupCandidates (RunKey, PolicyId, FileNameId)
@@ -5405,6 +5741,9 @@ public sealed class StorageRepository
         command.Parameters.AddWithValue("$result", result);
         command.Parameters.AddWithValue("$error", error ?? (object)DBNull.Value);
         await command.ExecuteNonQueryAsync(cancellationToken);
+        await TrimCleanupHistoryAsync(
+            connection,
+            cancellationToken);
     }
 
     public async Task<long> BeginCleanupActionAsync(
@@ -5434,7 +5773,12 @@ public sealed class StorageRepository
         command.Parameters.AddWithValue("$path", path);
         command.Parameters.AddWithValue("$size", sizeBytes);
         command.Parameters.AddWithValue("$automatic", automatic ? 1 : 0);
-        return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
+        var actionId = Convert.ToInt64(
+            await command.ExecuteScalarAsync(cancellationToken));
+        await TrimCleanupHistoryAsync(
+            connection,
+            cancellationToken);
+        return actionId;
     }
 
     public async Task CompleteCleanupActionAsync(
@@ -5594,6 +5938,10 @@ public sealed class StorageRepository
         await _maintenanceLock.WaitAsync(cancellationToken);
         try
         {
+            using var executionLock = await ScanExecutionLock.AcquireAsync(
+                DatabasePath,
+                cancellationToken,
+                TimeSpan.FromSeconds(5));
             await PruneHistoryCoreAsync(
                 Math.Max(1, completedScansPerDrive),
                 cancellationToken);
@@ -5606,6 +5954,7 @@ public sealed class StorageRepository
 
     public async Task PruneHistoryWhenIdleAsync(
         int completedScansPerDrive = 1,
+        int maximumRuns = 1,
         CancellationToken cancellationToken = default)
     {
         await _maintenanceLock.WaitAsync(cancellationToken);
@@ -5622,7 +5971,8 @@ public sealed class StorageRepository
 
             await PruneHistoryCoreAsync(
                 Math.Max(1, completedScansPerDrive),
-                cancellationToken);
+                cancellationToken,
+                Math.Max(1, maximumRuns));
         }
         finally
         {
@@ -5632,76 +5982,277 @@ public sealed class StorageRepository
 
     private async Task PruneHistoryCoreAsync(
         int completedScansPerDrive,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int? maximumRuns = null)
     {
         await using var connection =
             await OpenConnectionAsync(cancellationToken);
-        var staleRuns = new List<(string ScanId, long RunKey, int Format)>();
-        await using (var query = connection.CreateCommand())
+        var prunedRuns = 0;
+        try
         {
-            query.CommandText = """
-                WITH VolumeRuns AS (
-                    SELECT Id, RunKey, ScanFormat, Status, StartedUtc,
-                           COALESCE(
-                               NULLIF(VolumeSerialNumber, ''),
-                               DriveLetter) AS VolumeKey
-                    FROM ScanRuns
-                    WHERE Status <> $running
-                ),
-                CompletedRanked AS (
-                    SELECT Id, RunKey, ScanFormat, VolumeKey,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY VolumeKey
-                               ORDER BY StartedUtc DESC
-                           ) AS RowNumber
-                    FROM VolumeRuns
-                    WHERE Status = $completed
-                )
-                SELECT Id, RunKey, ScanFormat
-                FROM CompletedRanked
-                WHERE RowNumber > $keep
-                UNION ALL
-                SELECT run.Id, run.RunKey, run.ScanFormat
-                FROM VolumeRuns run
-                WHERE run.Status <> $completed
-                  AND (
-                      EXISTS (
-                          SELECT 1
-                          FROM CompletedRanked completed
-                          WHERE completed.VolumeKey = run.VolumeKey
-                      )
-                      OR run.StartedUtc < $stale
-                  )
-                """;
-            query.Parameters.AddWithValue(
-                "$completed",
-                (int)StorageScanStatus.Completed);
-            query.Parameters.AddWithValue("$keep", completedScansPerDrive);
-            query.Parameters.AddWithValue(
-                "$running",
-                (int)StorageScanStatus.Running);
-            query.Parameters.AddWithValue(
-                "$stale",
-                DateTimeOffset.UtcNow
-                    .AddDays(-14)
-                    .ToUnixTimeMilliseconds());
-            await using var reader = await query.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
+            while (!maximumRuns.HasValue || prunedRuns < maximumRuns.Value)
             {
-                staleRuns.Add((
-                    reader.GetString(0),
-                    reader.IsDBNull(1) ? 0 : reader.GetInt64(1),
-                    reader.GetInt32(2)));
+                var run = await GetNextPruneRunAsync(
+                    connection,
+                    completedScansPerDrive,
+                    cancellationToken);
+                if (run is null)
+                {
+                    break;
+                }
+
+                await ClaimPruneRunAsync(
+                    connection,
+                    run,
+                    cancellationToken);
+                while (!await PruneRunChunkAsync(
+                           connection,
+                           run,
+                           cancellationToken))
+                {
+                    await CheckpointWalAsync(
+                        connection,
+                        cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    await Task.Yield();
+                }
+
+                if (Guid.TryParseExact(run.ScanId, "N", out var scanId))
+                {
+                    _scanFormats.TryRemove(scanId, out _);
+                }
+
+                prunedRuns++;
             }
         }
-
-        foreach (var run in staleRuns)
+        catch (OperationCanceledException)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (run.Format >= 4)
+            await CheckpointWalAsync(
+                connection,
+                CancellationToken.None);
+            throw;
+        }
+
+        await ReclaimPrunedPagesAsync(
+            connection,
+            cancellationToken);
+        await TrimCleanupHistoryAsync(
+            connection,
+            cancellationToken);
+        await CheckpointConnectionAsync(connection, cancellationToken);
+    }
+
+    private static async Task TrimCleanupHistoryAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            DELETE FROM CleanupHistory
+            WHERE Id IN (
+                SELECT old.Id
+                FROM CleanupHistory old
+                WHERE old.Result <> 'Pending'
+                  AND (
+                      old.TimestampUtc < $stale
+                      OR old.Id NOT IN (
+                          SELECT recent.Id
+                          FROM CleanupHistory recent
+                          WHERE recent.Result <> 'Pending'
+                          ORDER BY recent.TimestampUtc DESC,
+                                   recent.Id DESC
+                          LIMIT $maximum
+                      )
+                  )
+                ORDER BY old.TimestampUtc, old.Id
+                LIMIT $limit
+            )
+            """;
+        command.Parameters.AddWithValue(
+            "$stale",
+            DateTimeOffset.UtcNow
+                .Subtract(CleanupHistoryRetention)
+                .ToUnixTimeMilliseconds());
+        command.Parameters.AddWithValue(
+            "$maximum",
+            MaximumCleanupHistoryRows);
+        command.Parameters.AddWithValue("$limit", PruneChunkSize);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<PruneRun?> GetNextPruneRunAsync(
+        SqliteConnection connection,
+        int completedScansPerDrive,
+        CancellationToken cancellationToken)
+    {
+        await using var query = connection.CreateCommand();
+        query.CommandText = """
+            WITH VolumeRuns AS (
+                SELECT Id, RunKey, ScanFormat, Status, StartedUtc,
+                       COALESCE(
+                           NULLIF(VolumeSerialNumber, ''),
+                           DriveLetter) AS VolumeKey
+                FROM ScanRuns
+                WHERE Status IN ($pruning, $completed, $cancelled, $failed)
+            ),
+            CompletedRanked AS (
+                SELECT *,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY VolumeKey
+                           ORDER BY StartedUtc DESC, RunKey DESC
+                       ) AS Position
+                FROM VolumeRuns
+                WHERE Status = $completed
+            ),
+            IncompleteRanked AS (
+                SELECT *,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY VolumeKey
+                           ORDER BY StartedUtc DESC, RunKey DESC
+                       ) AS Position
+                FROM VolumeRuns
+                WHERE Status IN ($cancelled, $failed)
+            ),
+            Candidates AS (
+                SELECT Id, RunKey, ScanFormat, StartedUtc, 0 AS Priority
+                FROM VolumeRuns
+                WHERE Status = $pruning
+                UNION ALL
+                SELECT Id, RunKey, ScanFormat, StartedUtc, 1
+                FROM CompletedRanked
+                WHERE Position > $keep
+                UNION ALL
+                SELECT run.Id, run.RunKey, run.ScanFormat,
+                       run.StartedUtc, 2
+                FROM IncompleteRanked run
+                WHERE run.Position > 1
+                   OR run.StartedUtc < $stale
+                   OR EXISTS (
+                       SELECT 1
+                       FROM CompletedRanked completed
+                       WHERE completed.VolumeKey = run.VolumeKey
+                         AND completed.StartedUtc >= run.StartedUtc
+                   )
+            )
+            SELECT Id, RunKey, ScanFormat
+            FROM Candidates
+            ORDER BY Priority, StartedUtc, Id
+            LIMIT 1
+            """;
+        query.Parameters.AddWithValue(
+            "$pruning",
+            (int)StorageScanStatus.Pruning);
+        query.Parameters.AddWithValue(
+            "$completed",
+            (int)StorageScanStatus.Completed);
+        query.Parameters.AddWithValue(
+            "$cancelled",
+            (int)StorageScanStatus.Cancelled);
+        query.Parameters.AddWithValue(
+            "$failed",
+            (int)StorageScanStatus.Failed);
+        query.Parameters.AddWithValue(
+            "$keep",
+            completedScansPerDrive);
+        query.Parameters.AddWithValue(
+            "$stale",
+            DateTimeOffset.UtcNow
+                .AddDays(-14)
+                .ToUnixTimeMilliseconds());
+        await using var reader =
+            await query.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new PruneRun(
+            reader.GetString(0),
+            reader.IsDBNull(1) ? 0 : reader.GetInt64(1),
+            reader.GetInt32(2));
+    }
+
+    private static async Task ClaimPruneRunAsync(
+        SqliteConnection connection,
+        PruneRun run,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE ScanRuns
+            SET Status = $pruning,
+                PruneStage = $stage,
+                PruneCursor = 0,
+                PruneStartedUtc = $started,
+                ErrorMessage = 'The superseded index generation is being pruned.',
+                OwnerProcessId = NULL,
+                OwnerProcessStartedUtc = NULL,
+                LeaseHeartbeatUtc = NULL
+            WHERE Id = $id
+              AND Status <> $running
+              AND Status <> $pruning
+            """;
+        command.Parameters.AddWithValue(
+            "$pruning",
+            (int)StorageScanStatus.Pruning);
+        command.Parameters.AddWithValue(
+            "$stage",
+            run.Format >= 4
+                ? (int)PruneStage.CleanupCandidates
+                : (int)PruneStage.LegacyFiles);
+        command.Parameters.AddWithValue(
+            "$started",
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        command.Parameters.AddWithValue("$id", run.ScanId);
+        command.Parameters.AddWithValue(
+            "$running",
+            (int)StorageScanStatus.Running);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<bool> PruneRunChunkAsync(
+        SqliteConnection connection,
+        PruneRun run,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction =
+            (SqliteTransaction)await connection.BeginTransactionAsync(
+                cancellationToken);
+        long stageValue;
+        long cursor;
+        await using (var state = connection.CreateCommand())
+        {
+            state.Transaction = transaction;
+            state.CommandText = """
+                SELECT PruneStage, PruneCursor
+                FROM ScanRuns
+                WHERE Id = $id AND Status = $pruning
+                """;
+            state.Parameters.AddWithValue("$id", run.ScanId);
+            state.Parameters.AddWithValue(
+                "$pruning",
+                (int)StorageScanStatus.Pruning);
+            await using var reader =
+                await state.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
             {
-                await DeleteInChunksAsync(
+                await transaction.RollbackAsync(cancellationToken);
+                return true;
+            }
+
+            stageValue = reader.GetInt64(0);
+            cursor = reader.GetInt64(1);
+        }
+
+        var stage = (PruneStage)stageValue;
+        var nextCursor = cursor;
+        var changed = 0;
+        switch (stage)
+        {
+            case PruneStage.CleanupCandidates:
+                changed = await DeletePruneBatchAsync(
                     connection,
+                    transaction,
                     """
                     DELETE FROM NormalizedCleanupCandidates
                     WHERE (RunKey, PolicyId, FileNameId) IN (
@@ -5713,44 +6264,11 @@ public sealed class StorageRepository
                     """,
                     ("$run", run.RunKey),
                     cancellationToken);
-                await DeleteInChunksAsync(
+                break;
+            case PruneStage.WorkItems:
+                changed = await DeletePruneBatchAsync(
                     connection,
-                    """
-                    DELETE FROM FileNames
-                    WHERE Id IN (
-                        SELECT Id FROM FileNames
-                        WHERE RunKey = $run
-                        LIMIT $limit
-                    )
-                    """,
-                    ("$run", run.RunKey),
-                    cancellationToken);
-                await DeleteInChunksAsync(
-                    connection,
-                    """
-                    DELETE FROM PhysicalFiles
-                    WHERE Id IN (
-                        SELECT Id FROM PhysicalFiles
-                        WHERE RunKey = $run
-                        LIMIT $limit
-                    )
-                    """,
-                    ("$run", run.RunKey),
-                    cancellationToken);
-                await DeleteInChunksAsync(
-                    connection,
-                    """
-                    DELETE FROM FolderNodes
-                    WHERE Id IN (
-                        SELECT Id FROM FolderNodes
-                        WHERE RunKey = $run
-                        LIMIT $limit
-                    )
-                    """,
-                    ("$run", run.RunKey),
-                    cancellationToken);
-                await DeleteInChunksAsync(
-                    connection,
+                    transaction,
                     """
                     DELETE FROM ScanWorkItems
                     WHERE (RunKey, PathHash) IN (
@@ -5762,86 +6280,241 @@ public sealed class StorageRepository
                     """,
                     ("$run", run.RunKey),
                     cancellationToken);
-            }
-            else
-            {
-                await DeleteInChunksAsync(
+                break;
+            case PruneStage.FileNames:
+                (changed, nextCursor) = await DeletePruneIdBatchAsync(
                     connection,
+                    transaction,
+                    "FileNames",
+                    run.RunKey,
+                    cursor,
+                    cancellationToken);
+                break;
+            case PruneStage.PhysicalFiles:
+                (changed, nextCursor) = await DeletePruneIdBatchAsync(
+                    connection,
+                    transaction,
+                    "PhysicalFiles",
+                    run.RunKey,
+                    cursor,
+                    cancellationToken);
+                break;
+            case PruneStage.FolderNodes:
+                (changed, nextCursor) = await DeletePruneIdBatchAsync(
+                    connection,
+                    transaction,
+                    "FolderNodes",
+                    run.RunKey,
+                    cursor,
+                    cancellationToken);
+                break;
+            case PruneStage.Issues:
+                changed = await DeletePruneBatchAsync(
+                    connection,
+                    transaction,
+                    """
+                    DELETE FROM ScanIssues
+                    WHERE Id IN (
+                        SELECT Id
+                        FROM ScanIssues
+                        WHERE ScanId = $scan
+                        LIMIT $limit
+                    )
+                    """,
+                    ("$scan", run.ScanId),
+                    cancellationToken);
+                break;
+            case PruneStage.LegacyFiles:
+                changed = await DeletePruneBatchAsync(
+                    connection,
+                    transaction,
                     """
                     DELETE FROM FileEntries
-                    WHERE ScanId = $scan
-                      AND FullPath IN (
-                          SELECT FullPath FROM FileEntries
-                          WHERE ScanId = $scan
-                          LIMIT $limit
-                      )
+                    WHERE (ScanId, FullPath) IN (
+                        SELECT ScanId, FullPath
+                        FROM FileEntries
+                        WHERE ScanId = $scan
+                        LIMIT $limit
+                    )
                     """,
                     ("$scan", run.ScanId),
                     cancellationToken);
-                await DeleteInChunksAsync(
+                break;
+            case PruneStage.LegacyFolders:
+                changed = await DeletePruneBatchAsync(
                     connection,
+                    transaction,
                     """
                     DELETE FROM FolderEntries
-                    WHERE ScanId = $scan
-                      AND FullPath IN (
-                          SELECT FullPath FROM FolderEntries
-                          WHERE ScanId = $scan
-                          LIMIT $limit
-                      )
+                    WHERE (ScanId, FullPath) IN (
+                        SELECT ScanId, FullPath
+                        FROM FolderEntries
+                        WHERE ScanId = $scan
+                        LIMIT $limit
+                    )
                     """,
                     ("$scan", run.ScanId),
                     cancellationToken);
-            }
-
-            await DeleteInChunksAsync(
-                connection,
-                """
-                DELETE FROM ScanIssues
-                WHERE Id IN (
-                    SELECT Id FROM ScanIssues
-                    WHERE ScanId = $scan
-                    LIMIT $limit
-                )
-                """,
-                ("$scan", run.ScanId),
-                cancellationToken);
-            await using (var deleteRun = connection.CreateCommand())
-            {
-                deleteRun.CommandText =
-                    "DELETE FROM ScanRuns WHERE Id = $scan";
-                deleteRun.Parameters.AddWithValue("$scan", run.ScanId);
-                await deleteRun.ExecuteNonQueryAsync(cancellationToken);
-            }
-
-            await Task.Yield();
+                break;
+            default:
+                throw new InvalidDataException(
+                    $"Unknown storage prune stage {stageValue}.");
         }
 
-        await ReclaimPrunedPagesAsync(connection, cancellationToken);
-        await CheckpointConnectionAsync(connection, cancellationToken);
+        if (changed > 0)
+        {
+            await using var update = connection.CreateCommand();
+            update.Transaction = transaction;
+            update.CommandText = """
+                UPDATE ScanRuns
+                SET PruneCursor = $cursor
+                WHERE Id = $id AND Status = $pruning
+                """;
+            update.Parameters.AddWithValue("$cursor", nextCursor);
+            update.Parameters.AddWithValue("$id", run.ScanId);
+            update.Parameters.AddWithValue(
+                "$pruning",
+                (int)StorageScanStatus.Pruning);
+            await update.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return false;
+        }
+
+        if (stage is PruneStage.Issues)
+        {
+            await using var delete = connection.CreateCommand();
+            delete.Transaction = transaction;
+            delete.CommandText = """
+                DELETE FROM ScanRuns
+                WHERE Id = $id AND Status = $pruning
+                """;
+            delete.Parameters.AddWithValue("$id", run.ScanId);
+            delete.Parameters.AddWithValue(
+                "$pruning",
+                (int)StorageScanStatus.Pruning);
+            if (await delete.ExecuteNonQueryAsync(cancellationToken) != 1)
+            {
+                throw new InvalidOperationException(
+                    $"The pruned scan run '{run.ScanId}' could not be removed.");
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return true;
+        }
+
+        var nextStage = stage switch
+        {
+            PruneStage.CleanupCandidates => PruneStage.WorkItems,
+            PruneStage.WorkItems => PruneStage.FileNames,
+            PruneStage.FileNames => PruneStage.PhysicalFiles,
+            PruneStage.PhysicalFiles => PruneStage.FolderNodes,
+            PruneStage.FolderNodes => PruneStage.Issues,
+            PruneStage.LegacyFiles => PruneStage.LegacyFolders,
+            PruneStage.LegacyFolders => PruneStage.Issues,
+            _ => throw new InvalidDataException(
+                $"The storage prune stage {stage} has no successor."),
+        };
+        await using (var advance = connection.CreateCommand())
+        {
+            advance.Transaction = transaction;
+            advance.CommandText = """
+                UPDATE ScanRuns
+                SET PruneStage = $stage,
+                    PruneCursor = 0
+                WHERE Id = $id AND Status = $pruning
+                """;
+            advance.Parameters.AddWithValue("$stage", (int)nextStage);
+            advance.Parameters.AddWithValue("$id", run.ScanId);
+            advance.Parameters.AddWithValue(
+                "$pruning",
+                (int)StorageScanStatus.Pruning);
+            await advance.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return false;
     }
 
-    private static async Task DeleteInChunksAsync(
+    private static async Task<int> DeletePruneBatchAsync(
         SqliteConnection connection,
+        SqliteTransaction transaction,
         string commandText,
         (string Name, object Value) parameter,
-        CancellationToken cancellationToken,
-        int chunkSize = 500)
+        CancellationToken cancellationToken)
     {
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await using var command = connection.CreateCommand();
-            command.CommandText = commandText;
-            command.Parameters.AddWithValue(parameter.Name, parameter.Value);
-            command.Parameters.AddWithValue("$limit", chunkSize);
-            var deleted = await command.ExecuteNonQueryAsync(cancellationToken);
-            if (deleted == 0)
-            {
-                return;
-            }
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = commandText;
+        command.Parameters.AddWithValue(parameter.Name, parameter.Value);
+        command.Parameters.AddWithValue("$limit", PruneChunkSize);
+        return await command.ExecuteNonQueryAsync(cancellationToken);
+    }
 
-            await Task.Yield();
+    private static async Task<(int Changed, long Cursor)> DeletePruneIdBatchAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        string table,
+        long runKey,
+        long cursor,
+        CancellationToken cancellationToken)
+    {
+        long? through = null;
+        await using (var next = connection.CreateCommand())
+        {
+            next.Transaction = transaction;
+            next.CommandText = $"""
+                SELECT MAX(Id)
+                FROM (
+                    SELECT Id
+                    FROM {table} NOT INDEXED
+                    WHERE RunKey = $run
+                      AND Id > $cursor
+                    ORDER BY Id
+                    LIMIT $limit
+                )
+                """;
+            next.Parameters.AddWithValue("$run", runKey);
+            next.Parameters.AddWithValue("$cursor", cursor);
+            next.Parameters.AddWithValue("$limit", PruneChunkSize);
+            var value = await next.ExecuteScalarAsync(cancellationToken);
+            if (value is not null && value != DBNull.Value)
+            {
+                through = Convert.ToInt64(value);
+            }
         }
+
+        if (!through.HasValue)
+        {
+            return (0, cursor);
+        }
+
+        await using var delete = connection.CreateCommand();
+        delete.Transaction = transaction;
+        delete.CommandText = $"""
+            DELETE FROM {table} NOT INDEXED
+            WHERE RunKey = $run
+              AND Id > $cursor
+              AND Id <= $through
+            """;
+        delete.Parameters.AddWithValue("$run", runKey);
+        delete.Parameters.AddWithValue("$cursor", cursor);
+        delete.Parameters.AddWithValue("$through", through.Value);
+        var changed = await delete.ExecuteNonQueryAsync(cancellationToken);
+        return (changed, changed > 0 ? through.Value : cursor);
+    }
+
+    private sealed record PruneRun(string ScanId, long RunKey, int Format);
+
+    private enum PruneStage
+    {
+        CleanupCandidates = 0,
+        WorkItems = 1,
+        FileNames = 2,
+        PhysicalFiles = 3,
+        FolderNodes = 4,
+        Issues = 5,
+        LegacyFiles = 6,
+        LegacyFolders = 7,
     }
 
     internal async Task<SqliteConnection> OpenConnectionAsync(CancellationToken cancellationToken)
@@ -5882,16 +6555,119 @@ public sealed class StorageRepository
         await _maintenanceLock.WaitAsync(cancellationToken);
         try
         {
-            await PruneHistoryCoreAsync(
-                completedScansPerDrive: 1,
-                cancellationToken);
             using var executionLock = await ScanExecutionLock.AcquireAsync(
                 DatabasePath,
                 cancellationToken,
                 TimeSpan.FromSeconds(5));
+            await PruneHistoryCoreAsync(
+                completedScansPerDrive: 1,
+                cancellationToken);
             await using var connection =
                 await OpenConnectionAsync(cancellationToken);
+            var pageSize = await ReadPragmaInt64Async(
+                connection,
+                "page_size",
+                cancellationToken);
+            var pageCount = await ReadPragmaInt64Async(
+                connection,
+                "page_count",
+                cancellationToken);
+            var freePageCount = await ReadPragmaInt64Async(
+                connection,
+                "freelist_count",
+                cancellationToken);
+            if (!HasSpaceForCompaction(
+                    checked((pageCount - freePageCount) * pageSize)))
+            {
+                throw new IOException(
+                    "There is not enough free disk space to compact the local storage index.");
+            }
+
             await CompactConnectionAsync(connection, cancellationToken);
+        }
+        finally
+        {
+            _maintenanceLock.Release();
+        }
+    }
+
+    public async Task<long> ReclaimPrunedPagesWhenIdleAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await _maintenanceLock.WaitAsync(cancellationToken);
+        try
+        {
+            using var executionLock =
+                await ScanExecutionLock.TryAcquireAsync(
+                    DatabasePath,
+                    cancellationToken);
+            if (executionLock is null)
+            {
+                return 0;
+            }
+
+            await using var connection =
+                await OpenConnectionAsync(cancellationToken);
+            var pageSize = await ReadPragmaInt64Async(
+                connection,
+                "page_size",
+                cancellationToken);
+            var initialFreePages = await ReadPragmaInt64Async(
+                connection,
+                "freelist_count",
+                cancellationToken);
+            var autoVacuum = await ReadPragmaInt64Async(
+                connection,
+                "auto_vacuum",
+                cancellationToken);
+            if (autoVacuum != 2)
+            {
+                await CheckpointConnectionAsync(
+                    connection,
+                    cancellationToken);
+                return 0;
+            }
+
+            var remainingBudgetBytes = 1L * 1024 * 1024 * 1024;
+            var reclaimedPages = 0L;
+            while (remainingBudgetBytes > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var freePagesBefore = await ReadPragmaInt64Async(
+                    connection,
+                    "freelist_count",
+                    cancellationToken);
+                if (freePagesBefore == 0)
+                {
+                    break;
+                }
+
+                await ReclaimPrunedPagesAsync(
+                    connection,
+                    cancellationToken);
+                var freePagesAfter = await ReadPragmaInt64Async(
+                    connection,
+                    "freelist_count",
+                    cancellationToken);
+                var reclaimed = freePagesAfter < freePagesBefore
+                    ? freePagesBefore - freePagesAfter
+                    : 0;
+                if (reclaimed == 0)
+                {
+                    break;
+                }
+
+                reclaimedPages += reclaimed;
+                remainingBudgetBytes -= checked(reclaimed * pageSize);
+                await CheckpointWalAsync(
+                    connection,
+                    cancellationToken);
+            }
+
+            await CheckpointConnectionAsync(connection, cancellationToken);
+            return initialFreePages == reclaimedPages
+                ? checked(initialFreePages * pageSize)
+                : checked(reclaimedPages * pageSize);
         }
         finally
         {
@@ -5997,9 +6773,18 @@ public sealed class StorageRepository
         SqliteConnection connection,
         CancellationToken cancellationToken)
     {
+        await CheckpointWalAsync(connection, cancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText =
-            "PRAGMA wal_checkpoint(PASSIVE); PRAGMA optimize;";
+        command.CommandText = "PRAGMA optimize;";
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task CheckpointWalAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA wal_checkpoint(PASSIVE);";
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -6014,7 +6799,7 @@ public sealed class StorageRepository
             }
 
             var requiredBytes = checked(
-                liveBytes + 512L * 1024 * 1024);
+                checked(liveBytes * 2) + 512L * 1024 * 1024);
             return new DriveInfo(root).AvailableFreeSpace >= requiredBytes;
         }
         catch (IOException)
@@ -6038,7 +6823,7 @@ public sealed class StorageRepository
         await using (var checkpoint = connection.CreateCommand())
         {
             checkpoint.CommandText =
-                "PRAGMA wal_checkpoint(TRUNCATE)";
+                "PRAGMA temp_store=FILE; PRAGMA wal_checkpoint(TRUNCATE)";
             await checkpoint.ExecuteNonQueryAsync(cancellationToken);
         }
 
@@ -6047,6 +6832,7 @@ public sealed class StorageRepository
             vacuum.CommandText = """
                 PRAGMA auto_vacuum=INCREMENTAL;
                 VACUUM;
+                PRAGMA analysis_limit=100000;
                 ANALYZE;
                 PRAGMA optimize;
                 """;
@@ -6103,6 +6889,7 @@ public sealed class StorageRepository
             PRAGMA temp_store=MEMORY;
             PRAGMA cache_size=-32768;
             PRAGMA mmap_size=134217728;
+            PRAGMA analysis_limit=400;
             PRAGMA synchronous=NORMAL;
             PRAGMA journal_size_limit=67108864;
             PRAGMA busy_timeout=30000;
@@ -6184,6 +6971,15 @@ public sealed class StorageRepository
         Guid scanId,
         CancellationToken cancellationToken)
     {
+        return await TryGetScanFormatAsync(scanId, cancellationToken) ??
+               throw new InvalidOperationException(
+                   $"Scan {scanId:N} no longer exists.");
+    }
+
+    private async Task<ScanFormatInfo?> TryGetScanFormatAsync(
+        Guid scanId,
+        CancellationToken cancellationToken)
+    {
         if (_scanFormats.TryGetValue(scanId, out var format))
         {
             return format;
@@ -6198,15 +6994,23 @@ public sealed class StorageRepository
             """;
         command.Parameters.AddWithValue("$id", scanId.ToString("N"));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        var info = await reader.ReadAsync(cancellationToken)
-            ? new ScanFormatInfo(reader.GetInt64(0), reader.GetInt32(1))
-            : throw new InvalidOperationException(
-                $"Scan {scanId:N} no longer exists.");
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        var info = new ScanFormatInfo(
+            reader.GetInt64(0),
+            reader.GetInt32(1));
         _scanFormats[scanId] = info;
         return info;
     }
 
     private sealed record ScanFormatInfo(long RunKey, int Format);
+
+    internal sealed record IndexedFolderAncestor(
+        string Path,
+        bool IsIncomplete);
 
     private static async Task<IReadOnlyList<StorageItem>> ReadStorageItemsAsync(
         SqliteDataReader reader,
@@ -6401,6 +7205,13 @@ public sealed class StorageRepository
                         transaction,
                         cancellationToken);
                     version = 10;
+                    break;
+                case 10:
+                    await EnsureStorageMaintenanceSchemaAsync(
+                        connection,
+                        transaction,
+                        cancellationToken);
+                    version = 11;
                     break;
                 default:
                     throw new InvalidDataException(
@@ -6821,6 +7632,46 @@ public sealed class StorageRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    private static async Task EnsureStorageMaintenanceSchemaAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        await EnsureColumnsAsync(
+            connection,
+            transaction,
+            "ScanRuns",
+            [
+                ("PruneStage", "INTEGER NOT NULL DEFAULT 0"),
+                ("PruneCursor", "INTEGER NOT NULL DEFAULT 0"),
+                ("PruneStartedUtc", "INTEGER"),
+            ],
+            cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            DROP INDEX IF EXISTS IX_NormalizedCleanupCandidates_Page;
+            CREATE INDEX IF NOT EXISTS IX_FolderNodes_Depth
+                ON FolderNodes (RunKey, Depth, Id);
+            DELETE FROM FolderGrowthSamples
+            WHERE SampleUtc < $stale;
+            DELETE FROM FolderGrowthSamples AS older
+            WHERE EXISTS (
+                SELECT 1
+                FROM FolderGrowthSamples AS newer
+                WHERE newer.VolumeKey = older.VolumeKey
+                  AND newer.PathHash = older.PathHash
+                  AND newer.SampleUtc / 86400000 =
+                      older.SampleUtc / 86400000
+                  AND newer.SampleUtc > older.SampleUtc
+            );
+            """;
+        command.Parameters.AddWithValue(
+            "$stale",
+            DateTimeOffset.UtcNow.AddDays(-35).ToUnixTimeMilliseconds());
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static async Task EnsureFolderGrowthBaselineTableAsync(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -6877,7 +7728,12 @@ public sealed class StorageRepository
                 VolumeKey, PathHash, FirstSeenUtc, BaselineLogicalSize,
                 BaselineAllocatedSize, BaselineFileCount, FolderIdentity
             )
-            SELECT r.VolumeKey, f.PathHash,
+            SELECT r.VolumeKey,
+                   CASE
+                       WHEN TYPEOF(f.PathHash) = 'blob'
+                       THEN HEX(f.PathHash)
+                       ELSE f.PathHash
+                   END,
                    COALESCE(r.CompletedUtc, $now), f.LogicalSize,
                    f.AllocatedSize, f.FileCount, f.FileId128
             FROM LatestRuns r
@@ -6895,7 +7751,10 @@ public sealed class StorageRepository
                           NULLIF(r.VolumeSerialNumber, ''),
                           r.DriveLetter
                       ) = FolderGrowthBaselines.VolumeKey
-                  AND f.PathHash = FolderGrowthBaselines.PathHash
+                  AND f.PathHash IN (
+                      FolderGrowthBaselines.PathHash,
+                      unhex(FolderGrowthBaselines.PathHash)
+                  )
                   AND f.FileId128 <> ''
                 ORDER BY r.CompletedUtc DESC
                 LIMIT 1
@@ -6926,7 +7785,10 @@ public sealed class StorageRepository
                       SELECT 1
                       FROM FolderNodes current
                       WHERE current.RunKey = latest.RunKey
-                        AND current.PathHash = FolderGrowthBaselines.PathHash
+                        AND current.PathHash IN (
+                            FolderGrowthBaselines.PathHash,
+                            unhex(FolderGrowthBaselines.PathHash)
+                        )
                   )
             );
             """;
@@ -6979,6 +7841,8 @@ public sealed class StorageRepository
             ON FolderNodes (RunKey, FileId64);
         CREATE INDEX IX_FolderNodes_AllocatedSize
             ON FolderNodes (RunKey, AllocatedSize DESC);
+        CREATE INDEX IX_FolderNodes_Depth
+            ON FolderNodes (RunKey, Depth, Id);
 
         CREATE TABLE PhysicalFiles (
             Id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -7033,9 +7897,6 @@ public sealed class StorageRepository
             FileNameId INTEGER NOT NULL REFERENCES FileNames(Id) ON DELETE CASCADE,
             PRIMARY KEY (RunKey, PolicyId, FileNameId)
         ) WITHOUT ROWID;
-        CREATE INDEX IX_NormalizedCleanupCandidates_Page
-            ON NormalizedCleanupCandidates (RunKey, PolicyId);
-
         CREATE TABLE ScanWorkItems (
             RunKey INTEGER NOT NULL REFERENCES ScanRuns(RunKey) ON DELETE CASCADE,
             PathHash TEXT NOT NULL,
@@ -7080,9 +7941,129 @@ public sealed class StorageRepository
             .Replace("_", "\\_", StringComparison.Ordinal);
 
     private static string GetPathHash(string path) =>
-        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+        Convert.ToHexString(GetPathHashBytes(path));
+
+    internal static byte[] GetPathHashBytes(string path) =>
+        System.Security.Cryptography.SHA256.HashData(
             System.Text.Encoding.UTF8.GetBytes(
-                path.TrimEnd('\\').ToUpperInvariant())));
+                path.TrimEnd('\\').ToUpperInvariant()));
+
+    internal static object GetPathHashValue(string path, int scanFormat) =>
+        scanFormat >= CurrentScanFormat
+            ? GetPathHashBytes(path)
+            : GetPathHash(path);
+
+    internal static object GetFileIdValue(string fileId, int scanFormat)
+    {
+        if (scanFormat >= CurrentScanFormat &&
+            TryDecodeHex(fileId, out var bytes))
+        {
+            return bytes;
+        }
+
+        return fileId;
+    }
+
+    internal static object GetFileIdentityValue(
+        string fileId,
+        string path,
+        long volumeSerialNumber,
+        int scanFormat)
+    {
+        if (scanFormat >= CurrentScanFormat)
+        {
+            return TryDecodeHex(fileId, out var bytes)
+                ? bytes
+                : GetPathHashBytes(path);
+        }
+
+        return string.IsNullOrWhiteSpace(fileId)
+            ? GetPathHash(path)
+            : $"{volumeSerialNumber:X16}:{fileId}";
+    }
+
+    private static string GetIdentityComparisonKey(
+        string fileId,
+        string path,
+        long volumeSerialNumber,
+        int scanFormat) =>
+        scanFormat >= CurrentScanFormat
+            ? string.IsNullOrWhiteSpace(fileId)
+                ? GetPathHash(path)
+                : fileId
+            : string.IsNullOrWhiteSpace(fileId)
+                ? GetPathHash(path)
+                : $"{volumeSerialNumber:X16}:{fileId}";
+
+    internal static object GetHashValue(string? hash, int scanFormat)
+    {
+        if (string.IsNullOrWhiteSpace(hash))
+        {
+            return DBNull.Value;
+        }
+
+        return scanFormat >= CurrentScanFormat &&
+               TryDecodeHex(hash, out var bytes)
+            ? bytes
+            : hash;
+    }
+
+    internal static string GetTextOrHex(
+        SqliteDataReader reader,
+        int ordinal)
+    {
+        if (reader.IsDBNull(ordinal))
+        {
+            return string.Empty;
+        }
+
+        return reader.GetValue(ordinal) switch
+        {
+            string text => text,
+            byte[] bytes => Convert.ToHexString(bytes),
+            _ => Convert.ToString(reader.GetValue(ordinal)) ?? string.Empty,
+        };
+    }
+
+    internal static string? GetOptionalTextOrHex(
+        SqliteDataReader reader,
+        int ordinal) =>
+        reader.IsDBNull(ordinal)
+            ? null
+            : GetTextOrHex(reader, ordinal);
+
+    private static string GetStoredExtension(
+        SqliteDataReader reader,
+        int extensionOrdinal,
+        string name)
+    {
+        var extension = reader.GetString(extensionOrdinal);
+        return string.IsNullOrEmpty(extension)
+            ? Path.GetExtension(name)
+            : extension;
+    }
+
+    private static bool TryDecodeHex(
+        string value,
+        out byte[] bytes)
+    {
+        bytes = [];
+        if (string.IsNullOrWhiteSpace(value) ||
+            (value.Length & 1) != 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            bytes = Convert.FromHexString(value);
+            return true;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
 
     private static IEnumerable<CleanupPolicyId> GetMaterializedPolicies(
         StorageFileRecord record)
@@ -7494,6 +8475,7 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
     private readonly SqliteConnection _connection;
     private readonly ScanOwner _owner;
     private readonly long _runKey;
+    private readonly int _scanFormat;
     private readonly Dictionary<string, long> _folderIds =
         new(StringComparer.OrdinalIgnoreCase);
     private bool _closed;
@@ -7503,12 +8485,14 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         Guid scanId,
         ScanOwner owner,
         long runKey,
-        bool resumed = false)
+        bool resumed = false,
+        int scanFormat = 4)
     {
         _connection = connection;
         ScanId = scanId;
         _owner = owner;
         _runKey = runKey;
+        _scanFormat = scanFormat;
         IsResumed = resumed;
     }
 
@@ -7704,6 +8688,8 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 ModifiedUtc = $modified,
                 FileId128 = $fileId,
                 FileId64 = CASE
+                    WHEN TYPEOF($fileId) = 'blob' AND LENGTH($fileId) >= 8
+                    THEN SUBSTR($fileId, 1, 8)
                     WHEN LENGTH($fileId) >= 16
                     THEN SUBSTR($fileId, 1, 16)
                     ELSE '' END,
@@ -7757,7 +8743,9 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             folderUpdate.Parameters["$modified"].Value =
                 directory.Metadata.ModifiedUtc.ToUnixTimeMilliseconds();
             folderUpdate.Parameters["$fileId"].Value =
-                directory.Metadata.FileId128;
+                StorageRepository.GetFileIdValue(
+                    directory.Metadata.FileId128,
+                    _scanFormat);
             folderUpdate.Parameters["$incomplete"].Value =
                 directory.Metadata.IsIncomplete ? 1 : 0;
             folderUpdate.Parameters["$id"].Value = folder.Id;
@@ -7887,7 +8875,10 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             incomplete.Prepare();
             foreach (var path in incompletePaths)
             {
-                incomplete.Parameters["$hash"].Value = GetPathHash(path);
+                incomplete.Parameters["$hash"].Value =
+                    StorageRepository.GetPathHashValue(
+                        path,
+                        _scanFormat);
                 if (incomplete.ExecuteNonQuery() != 1)
                 {
                     throw new InvalidOperationException(
@@ -8019,7 +9010,11 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
               )
             """;
         command.Parameters.AddWithValue("$run", _runKey);
-        command.Parameters.AddWithValue("$hash", GetPathHash(path));
+        command.Parameters.AddWithValue(
+            "$hash",
+            StorageRepository.GetPathHashValue(
+                path,
+                _scanFormat));
         command.Parameters.AddWithValue("$id", ScanId.ToString("N"));
         command.Parameters.AddWithValue(
             "$running",
@@ -8187,10 +9182,16 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 transaction,
                 cancellationToken);
             insertedFolders += parent.CreatedCount;
-            var identityKey = string.IsNullOrWhiteSpace(record.FileId128)
-                ? GetPathHash(record.FullPath)
-                : $"{record.VolumeSerialNumber:X16}:{record.FileId128}";
-            SetPhysicalFileParameters(physical, identityKey, record);
+            var identityKey = StorageRepository.GetFileIdentityValue(
+                record.FileId128,
+                record.FullPath,
+                record.VolumeSerialNumber,
+                _scanFormat);
+            SetPhysicalFileParameters(
+                physical,
+                identityKey,
+                record,
+                _scanFormat);
             var physicalResult = physical.ExecuteScalar();
             var physicalInserted =
                 physicalResult is not null &&
@@ -8210,7 +9211,8 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 SetPhysicalFileParameters(
                     physicalUpdate,
                     identityKey,
-                    record);
+                    record,
+                    _scanFormat);
                 var updatedPhysicalId = physicalUpdate.ExecuteScalar();
                 if (updatedPhysicalId is null ||
                     updatedPhysicalId == DBNull.Value)
@@ -8225,7 +9227,10 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             fileName.Parameters["$parent"].Value = parent.Id;
             fileName.Parameters["$physical"].Value = physicalId;
             fileName.Parameters["$name"].Value = record.Name;
-            fileName.Parameters["$extension"].Value = record.Extension;
+            fileName.Parameters["$extension"].Value =
+                _scanFormat >= StorageRepository.CurrentScanFormat
+                    ? string.Empty
+                    : record.Extension;
             fileName.Parameters["$category"].Value =
                 StorageCategoryClassifier.CategoryId(record.Category);
             fileName.Parameters["$tag"].Value =
@@ -8246,7 +9251,9 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 fileNameUpdate.Parameters["$physical"].Value = physicalId;
                 fileNameUpdate.Parameters["$name"].Value = record.Name;
                 fileNameUpdate.Parameters["$extension"].Value =
-                    record.Extension;
+                    _scanFormat >= StorageRepository.CurrentScanFormat
+                        ? string.Empty
+                        : record.Extension;
                 fileNameUpdate.Parameters["$category"].Value =
                     StorageCategoryClassifier.CategoryId(record.Category);
                 fileNameUpdate.Parameters["$tag"].Value =
@@ -8309,7 +9316,10 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 Tag = $tag,
                 FileId128 = $fileId,
                 FileId64 = CASE
-                    WHEN LENGTH($fileId) >= 16 THEN SUBSTR($fileId, 1, 16)
+                    WHEN TYPEOF($fileId) = 'blob' AND LENGTH($fileId) >= 8
+                    THEN SUBSTR($fileId, 1, 8)
+                    WHEN LENGTH($fileId) >= 16
+                    THEN SUBSTR($fileId, 1, 16)
                     ELSE '' END,
                 IsIncomplete = $incomplete
             WHERE Id = $id AND RunKey = $runKey
@@ -8355,7 +9365,10 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 StorageCategoryClassifier.CategoryId(record.Category);
             command.Parameters["$tag"].Value =
                 StorageCategoryClassifier.TagId(record.Tag);
-            command.Parameters["$fileId"].Value = record.FileId128;
+            command.Parameters["$fileId"].Value =
+                StorageRepository.GetFileIdValue(
+                    record.FileId128,
+                    _scanFormat);
             command.Parameters["$allocatedSize"].Value =
                 record.AllocatedSizeBytes == 0
                     ? record.SizeBytes
@@ -8380,7 +9393,6 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
     {
         await SetPhaseAsync("Finalizing", cancellationToken);
         var counts = await GetFinalizationCountsAsync(cancellationToken);
-        HashSet<long>? referencedPhysicalFiles = [];
         var categorySizes = new long[7];
         var categoryCounts = new long[7];
         long lastFileNameId = 0;
@@ -8408,8 +9420,7 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                                row.Category < categorySizes.Length
                     ? row.Category
                     : categorySizes.Length - 1;
-                var isAlias = !referencedPhysicalFiles.Add(
-                    row.PhysicalFileId);
+                var isAlias = row.ShouldBeAlias;
                 categoryCounts[category]++;
                 if (!isAlias)
                 {
@@ -8440,11 +9451,9 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             progress,
             cancellationToken);
         await RemoveOrphanedPhysicalFilesAsync(
-            referencedPhysicalFiles,
             counts.PhysicalFiles,
             progress,
             cancellationToken);
-        referencedPhysicalFiles = null;
 
         await ResetFolderTotalsAsync(
             counts.Folders,
@@ -8501,7 +9510,13 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         await using var command = _connection.CreateCommand();
         command.CommandText = """
             SELECT n.Id, n.PhysicalFileId, n.IsHardLinkAlias,
-                   p.AllocatedSize, n.Category
+                   p.AllocatedSize, n.Category,
+                   EXISTS (
+                       SELECT 1
+                       FROM FileNames earlier
+                       WHERE earlier.PhysicalFileId = n.PhysicalFileId
+                         AND earlier.Id < n.Id
+                   )
             FROM FileNames AS n NOT INDEXED
             INNER JOIN PhysicalFiles p ON p.Id = n.PhysicalFileId
             WHERE n.RunKey = $run AND n.Id > $after
@@ -8520,7 +9535,8 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 reader.GetInt64(1),
                 reader.GetInt32(2) != 0,
                 reader.GetInt64(3),
-                reader.GetInt32(4)));
+                reader.GetInt32(4),
+                reader.GetBoolean(5)));
         }
 
         return rows;
@@ -8653,7 +9669,6 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
     }
 
     private async Task RemoveOrphanedPhysicalFilesAsync(
-        HashSet<long> referencedPhysicalFiles,
         long totalPhysicalFiles,
         IProgress<StorageScanFinalizationProgress>? progress,
         CancellationToken cancellationToken)
@@ -8675,10 +9690,7 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 break;
             }
 
-            var orphaned = physicalIds
-                .Where(id => !referencedPhysicalFiles.Contains(id))
-                .ToList();
-            await DeletePhysicalFilesAsync(orphaned, cancellationToken);
+            await DeletePhysicalFilesAsync(physicalIds, cancellationToken);
             lastPhysicalFileId = physicalIds[^1];
             processedPhysicalFiles += physicalIds.Count;
             ReportFinalizationProgress(
@@ -8698,8 +9710,14 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         await using var command = _connection.CreateCommand();
         command.CommandText = """
             SELECT Id
-            FROM PhysicalFiles NOT INDEXED
-            WHERE RunKey = $run AND Id > $after
+            FROM PhysicalFiles p
+            WHERE RunKey = $run
+              AND Id > $after
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM FileNames n
+                  WHERE n.PhysicalFileId = p.Id
+              )
             ORDER BY Id
             LIMIT $limit
             """;
@@ -8927,6 +9945,7 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             FROM FileNames AS n INDEXED BY IX_FileNames_ParentSize
             INNER JOIN PhysicalFiles p ON p.Id = n.PhysicalFileId
             WHERE n.RunKey = $run
+              AND n.ParentId >= $parent
               AND (
                   n.ParentId > $parent
                   OR (n.ParentId = $parent AND n.Id > $file)
@@ -9011,108 +10030,46 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         IProgress<StorageScanFinalizationProgress>? progress,
         CancellationToken cancellationToken)
     {
-        var folders =
-            new Dictionary<long, FinalizationFolderRollupState>();
-        long lastFolderId = 0;
-        while (true)
+        var (maximumDepth, invalidParents) =
+            await ValidateFolderRollupTreeAsync(cancellationToken);
+        if (invalidParents != 0)
         {
-            var rows = await ReadFolderRollupBatchAsync(
-                lastFolderId,
-                cancellationToken);
-            if (rows.Count == 0)
-            {
-                break;
-            }
-
-            foreach (var row in rows)
-            {
-                folders.Add(row.Id, row);
-            }
-
-            lastFolderId = rows[^1].Id;
-            await HeartbeatAsync(cancellationToken);
+            throw new InvalidOperationException(
+                "The folder tree contains a missing parent or invalid depth.");
         }
 
-        foreach (var folder in folders.Values)
-        {
-            if (!folder.ParentId.HasValue)
-            {
-                continue;
-            }
-
-            if (!folders.TryGetValue(folder.ParentId.Value, out var parent))
-            {
-                throw new InvalidOperationException(
-                    "The folder tree contains a missing parent.");
-            }
-
-            parent.RemainingChildren++;
-        }
-
-        foreach (var folder in folders.Values)
-        {
-            AssignFolderDepth(folder, folders);
-        }
-
-        var ready = new Queue<FinalizationFolderRollupState>();
-        foreach (var folder in folders.Values)
-        {
-            if (folder.RemainingChildren == 0)
-            {
-                ready.Enqueue(folder);
-            }
-        }
-
-        var updates =
-            new List<FinalizationFolderRollupUpdate>(FinalizationBatchSize);
         long processedFolders = 0;
         ReportFinalizationProgress(
             progress,
             "Rolling up folder trees",
             0,
             totalFolders);
-        while (ready.TryDequeue(out var folder))
+        for (var depth = maximumDepth; depth > 0; depth--)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            updates.Add(new FinalizationFolderRollupUpdate(
-                folder.Id,
-                folder.LogicalSize,
-                folder.AllocatedSize,
-                folder.FileCount,
-                folder.Depth));
-            if (folder.ParentId.HasValue)
+            long lastFolderId = 0;
+            while (true)
             {
-                var parent = folders[folder.ParentId.Value];
-                parent.LogicalSize += folder.LogicalSize;
-                parent.AllocatedSize += folder.AllocatedSize;
-                parent.FileCount += folder.FileCount;
-                parent.RemainingChildren--;
-                if (parent.RemainingChildren == 0)
-                {
-                    ready.Enqueue(parent);
-                }
-            }
-
-            processedFolders++;
-            if (updates.Count >= FinalizationBatchSize)
-            {
-                await WriteRolledUpFolderTotalsAsync(
-                    updates,
+                var rows = await ReadFolderRollupBatchAsync(
+                    depth,
+                    lastFolderId,
                     cancellationToken);
-                updates.Clear();
+                if (rows.Count == 0)
+                {
+                    break;
+                }
+
+                await AccumulateParentFolderTotalsAsync(
+                    rows,
+                    cancellationToken);
+                lastFolderId = rows[^1].Id;
+                processedFolders += rows.Count;
                 ReportFinalizationProgress(
                     progress,
                     "Rolling up folder trees",
                     processedFolders,
                     totalFolders);
+                await HeartbeatAsync(cancellationToken);
             }
-        }
-
-        await WriteRolledUpFolderTotalsAsync(updates, cancellationToken);
-        if (processedFolders != folders.Count)
-        {
-            throw new InvalidOperationException(
-                "The folder tree could not be rolled up because it is cyclic.");
         }
 
         ReportFinalizationProgress(
@@ -9122,78 +10079,69 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             totalFolders);
     }
 
-    private static void AssignFolderDepth(
-        FinalizationFolderRollupState folder,
-        IReadOnlyDictionary<long, FinalizationFolderRollupState> folders)
+    private async Task<(int MaximumDepth, long InvalidParents)>
+        ValidateFolderRollupTreeAsync(
+            CancellationToken cancellationToken)
     {
-        if (folder.Depth >= 0)
+        await using var command = _connection.CreateCommand();
+        command.CommandText = """
+            SELECT COALESCE(MAX(child.Depth), 0),
+                   COALESCE(SUM(
+                       CASE
+                           WHEN child.ParentId IS NOT NULL
+                            AND (
+                                parent.Id IS NULL
+                                OR parent.Depth >= child.Depth
+                            )
+                           THEN 1 ELSE 0
+                       END
+                   ), 0)
+            FROM FolderNodes child
+            LEFT JOIN FolderNodes parent
+                ON parent.RunKey = child.RunKey
+               AND parent.Id = child.ParentId
+            WHERE child.RunKey = $run
+            """;
+        command.Parameters.AddWithValue("$run", _runKey);
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
         {
-            return;
+            return (0, 0);
         }
 
-        var path = new List<FinalizationFolderRollupState>();
-        var visiting = new HashSet<long>();
-        var current = folder;
-        while (current.Depth < 0)
-        {
-            if (!visiting.Add(current.Id))
-            {
-                throw new InvalidOperationException(
-                    "The folder tree is cyclic and cannot assign folder depths.");
-            }
-
-            path.Add(current);
-            if (!current.ParentId.HasValue)
-            {
-                break;
-            }
-
-            current = folders[current.ParentId.Value];
-        }
-
-        var last = path[^1];
-        if (last.Depth < 0)
-        {
-            last.Depth = last.ParentId is long parentId
-                ? folders[parentId].Depth + 1
-                : 0;
-        }
-
-        for (var index = path.Count - 2; index >= 0; index--)
-        {
-            var parentId = path[index].ParentId ??
-                throw new InvalidOperationException(
-                    "The folder tree contains an invalid parent.");
-            var parent = folders[parentId];
-            path[index].Depth = parent.Depth + 1;
-        }
+        return (reader.GetInt32(0), reader.GetInt64(1));
     }
 
-    private async Task<List<FinalizationFolderRollupState>> ReadFolderRollupBatchAsync(
+    private async Task<List<FinalizationFolderRollupRow>>
+        ReadFolderRollupBatchAsync(
+        int depth,
         long afterId,
         CancellationToken cancellationToken)
     {
-        var rows = new List<FinalizationFolderRollupState>();
+        var rows = new List<FinalizationFolderRollupRow>();
         await using var command = _connection.CreateCommand();
         command.CommandText = """
-            SELECT Id, ParentId, DirectLogicalSize,
-                   DirectAllocatedSize, DirectFileCount
-            FROM FolderNodes NOT INDEXED
+            SELECT Id, ParentId, LogicalSize, AllocatedSize, FileCount
+            FROM FolderNodes
             WHERE RunKey = $run
+              AND Depth = $depth
+              AND ParentId IS NOT NULL
               AND Id > $after
             ORDER BY Id
             LIMIT $limit
             """;
         command.Parameters.AddWithValue("$run", _runKey);
+        command.Parameters.AddWithValue("$depth", depth);
         command.Parameters.AddWithValue("$after", afterId);
         command.Parameters.AddWithValue("$limit", FinalizationBatchSize);
         await using var reader =
             await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            rows.Add(new FinalizationFolderRollupState(
+            rows.Add(new FinalizationFolderRollupRow(
                 reader.GetInt64(0),
-                reader.IsDBNull(1) ? null : reader.GetInt64(1),
+                reader.GetInt64(1),
                 reader.GetInt64(2),
                 reader.GetInt64(3),
                 reader.GetInt64(4)));
@@ -9202,8 +10150,8 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         return rows;
     }
 
-    private async Task WriteRolledUpFolderTotalsAsync(
-        IReadOnlyList<FinalizationFolderRollupUpdate> rows,
+    private async Task AccumulateParentFolderTotalsAsync(
+        IReadOnlyList<FinalizationFolderRollupRow> rows,
         CancellationToken cancellationToken)
     {
         await using var transaction =
@@ -9214,18 +10162,16 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         command.Transaction = transaction;
         command.CommandText = """
             UPDATE FolderNodes
-            SET LogicalSize = $logical,
-                AllocatedSize = $allocated,
-                FileCount = $files,
-                Depth = $depth
-            WHERE Id = $id AND RunKey = $run
+            SET LogicalSize = LogicalSize + $logical,
+                AllocatedSize = AllocatedSize + $allocated,
+                FileCount = FileCount + $files
+            WHERE Id = $parent AND RunKey = $run
             """;
         command.Parameters.AddWithValue("$run", _runKey);
-        command.Parameters.AddWithValue("$id", 0L);
+        command.Parameters.AddWithValue("$parent", 0L);
         command.Parameters.AddWithValue("$logical", 0L);
         command.Parameters.AddWithValue("$allocated", 0L);
         command.Parameters.AddWithValue("$files", 0L);
-        command.Parameters.AddWithValue("$depth", 0);
         command.Prepare();
         for (var index = 0; index < rows.Count; index++)
         {
@@ -9235,11 +10181,10 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             }
 
             var row = rows[index];
-            command.Parameters["$id"].Value = row.Id;
+            command.Parameters["$parent"].Value = row.ParentId;
             command.Parameters["$logical"].Value = row.LogicalSize;
             command.Parameters["$allocated"].Value = row.AllocatedSize;
             command.Parameters["$files"].Value = row.FileCount;
-            command.Parameters["$depth"].Value = row.Depth;
             if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
             {
                 throw new InvalidOperationException(
@@ -9319,7 +10264,8 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         long PhysicalFileId,
         bool IsHardLinkAlias,
         long AllocatedSize,
-        int Category);
+        int Category,
+        bool ShouldBeAlias);
 
     private sealed record FinalizationAliasUpdate(
         long Id,
@@ -9338,34 +10284,12 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
         long AllocatedSize,
         long FileCount);
 
-    private sealed record FinalizationFolderRollupUpdate(
+    private sealed record FinalizationFolderRollupRow(
         long Id,
+        long ParentId,
         long LogicalSize,
         long AllocatedSize,
-        long FileCount,
-        int Depth);
-
-    private sealed class FinalizationFolderRollupState(
-        long id,
-        long? parentId,
-        long logicalSize,
-        long allocatedSize,
-        long fileCount)
-    {
-        public long Id { get; } = id;
-
-        public long? ParentId { get; } = parentId;
-
-        public long LogicalSize { get; set; } = logicalSize;
-
-        public long AllocatedSize { get; set; } = allocatedSize;
-
-        public long FileCount { get; set; } = fileCount;
-
-        public int RemainingChildren { get; set; }
-
-        public int Depth { get; set; } = -1;
-    }
+        long FileCount);
 
     public async Task<ScanTotals> GetScanTotalsAsync(
         CancellationToken cancellationToken)
@@ -9407,10 +10331,13 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
 
         cancellationToken.ThrowIfCancellationRequested();
         var trimmed = normalized.TrimEnd('\\');
-        var root = Path.GetPathRoot(normalized);
+        var root = Path.GetPathRoot(normalized) ??
+                   throw new ArgumentException(
+                       "The folder path must have a root.",
+                       nameof(path));
         var isRoot = string.Equals(
             trimmed,
-            root?.TrimEnd('\\'),
+            root.TrimEnd('\\'),
             StringComparison.OrdinalIgnoreCase);
         long? parentId = null;
         long createdAncestors = 0;
@@ -9430,7 +10357,12 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
                 cancellationToken);
             parentId = parent.Id;
             createdAncestors = parent.CreatedCount;
-            depth = normalized.Count(character => character == '\\');
+            depth = normalized[root.Length..]
+                .Trim('\\')
+                .Split(
+                    '\\',
+                    StringSplitOptions.RemoveEmptyEntries)
+                .Length;
         }
 
         var name = isRoot
@@ -9482,7 +10414,11 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             "$parent",
             parentId.HasValue ? parentId.Value : DBNull.Value);
         command.Parameters.AddWithValue("$name", name);
-        command.Parameters.AddWithValue("$hash", GetPathHash(normalized));
+        command.Parameters.AddWithValue(
+            "$hash",
+            StorageRepository.GetPathHashValue(
+                normalized,
+                _scanFormat));
         command.Parameters.AddWithValue("$depth", depth);
         command.Parameters.AddWithValue(
             "$category",
@@ -9627,13 +10563,19 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
 
     private static void SetPhysicalFileParameters(
         SqliteCommand command,
-        string identityKey,
-        StorageFileRecord record)
+        object identityKey,
+        StorageFileRecord record,
+        int scanFormat)
     {
         command.Parameters["$identity"].Value = identityKey;
-        command.Parameters["$fileId"].Value = record.FileId128;
+        command.Parameters["$fileId"].Value =
+            StorageRepository.GetFileIdValue(
+                record.FileId128,
+                scanFormat);
         command.Parameters["$volume"].Value =
-            record.VolumeSerialNumber;
+            scanFormat >= StorageRepository.CurrentScanFormat
+                ? 0L
+                : record.VolumeSerialNumber;
         command.Parameters["$logical"].Value = record.SizeBytes;
         command.Parameters["$allocated"].Value =
             record.AllocatedSizeBytes == 0
@@ -9851,9 +10793,10 @@ public sealed class StorageScanWriteSession : IAsyncDisposable
             root.Parameters.AddWithValue("$run", _runKey);
             root.Parameters.AddWithValue(
                 "$hash",
-                GetPathHash(
+                StorageRepository.GetPathHashValue(
                     StorageRepository.NormalizeFolderPath(
-                        @"C:\Windows.old")));
+                        @"C:\Windows.old"),
+                    _scanFormat));
             var value =
                 await root.ExecuteScalarAsync(cancellationToken);
             if (value is not null && value != DBNull.Value)
