@@ -33,7 +33,8 @@ internal static class BackgroundIndexPolicy
             var scanFormat = await getLatestScanFormatAsync(
                 drive.Letter,
                 cancellationToken);
-            if (!scanFormat.HasValue || scanFormat.Value < 4)
+            if (!scanFormat.HasValue ||
+                scanFormat.Value < StorageRepository.CurrentScanFormat)
             {
                 return true;
             }

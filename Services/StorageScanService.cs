@@ -8,6 +8,8 @@ public sealed class StorageScanService
     private const int FileBatchSize = 5000;
     private static readonly TimeSpan HeartbeatInterval =
         TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan PostScanMaintenanceTimeout =
+        TimeSpan.FromSeconds(30);
     private readonly StorageRepository _repository;
     private readonly DuplicateDetectionService _duplicateDetection;
     private readonly SemaphoreSlim _scanLock = new(1, 1);
@@ -343,11 +345,17 @@ public sealed class StorageScanService
                 progress,
                 1,
                 started);
-            var warning = rootPathOverride is null
-                ? null
-                : await RunPostScanMaintenanceAsync(
+            string? warning = null;
+            if (rootPathOverride is not null)
+            {
+                await scanSession.DisposeAsync();
+                scanSession = null;
+                executionLock.Dispose();
+                executionLock = null;
+                warning = await RunPostScanMaintenanceAsync(
                     scanId,
                     cancellationToken);
+            }
 
             return new StorageScanResult
             {
@@ -452,21 +460,26 @@ public sealed class StorageScanService
         CancellationToken cancellationToken = default)
     {
         string? warning = null;
+        using var maintenanceBudget =
+            CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken);
+        maintenanceBudget.CancelAfter(PostScanMaintenanceTimeout);
         try
         {
             await _duplicateDetection.ComputeHashesAsync(
                 scanId,
-                cancellationToken: cancellationToken,
+                cancellationToken: maintenanceBudget.Token,
                 groupBatchSize: 100,
                 maxFiles: 250,
                 maxBytes: 2L * 1024 * 1024 * 1024,
                 maxDuration: TimeSpan.FromSeconds(8),
                 maximumFileSize: 256L * 1024 * 1024);
-            await _repository.PruneHistoryAsync(
+            await _repository.PruneHistoryWhenIdleAsync(
                 completedScansPerDrive: 1,
-                cancellationToken: cancellationToken);
-            await _repository.CompactIfBeneficialAsync(
-                cancellationToken: cancellationToken);
+                maximumRuns: 1,
+                cancellationToken: maintenanceBudget.Token);
+            await _repository.ReclaimPrunedPagesWhenIdleAsync(
+                cancellationToken: maintenanceBudget.Token);
         }
         catch (OperationCanceledException) when (
             !cancellationToken.IsCancellationRequested)
@@ -763,9 +776,21 @@ public sealed class StorageScanService
         }
     }
 
-    private bool ShouldSkipPath(string path)
+    internal bool ShouldSkipPath(string path)
     {
         if (StorageCategoryClassifier.IsInside(path, Path.GetDirectoryName(_repository.DatabasePath)!))
+        {
+            return true;
+        }
+
+        var root = Path.GetPathRoot(path);
+        if (!string.IsNullOrWhiteSpace(root) &&
+            (StorageCategoryClassifier.IsInside(
+                 path,
+                 Path.Combine(root, "$RECYCLE.BIN")) ||
+             StorageCategoryClassifier.IsInside(
+                 path,
+                 Path.Combine(root, "System Volume Information"))))
         {
             return true;
         }
@@ -773,6 +798,40 @@ public sealed class StorageScanService
         var name = Path.GetFileName(path.TrimEnd('\\'));
         return name.Equals("$RECYCLE.BIN", StringComparison.OrdinalIgnoreCase) ||
                name.Equals("System Volume Information", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal bool IsIgnoredDirectoryReference(
+        string volumeRoot,
+        ulong fileReference)
+    {
+        var normalizedRoot = StorageRepository.NormalizeFolderPath(
+            volumeRoot);
+        var ignoredPaths = new[]
+        {
+            Path.GetDirectoryName(_repository.DatabasePath)!,
+            Path.Combine(normalizedRoot, "$RECYCLE.BIN"),
+            Path.Combine(normalizedRoot, "System Volume Information"),
+        };
+        foreach (var path in ignoredPaths)
+        {
+            var pathRoot = Path.GetPathRoot(path);
+            if (pathRoot is null ||
+                !pathRoot.Equals(
+                    normalizedRoot,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var identity = FileIdentityService.TryGetIdentity(path);
+            if (identity is not null &&
+                identity.FileIdPart0 == fileReference)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static long ParseVolumeSerial(string volumeId) =>
